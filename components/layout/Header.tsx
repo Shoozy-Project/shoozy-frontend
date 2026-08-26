@@ -51,7 +51,7 @@ export default function Header() {
           onClick={handleLogout}
           disabled={loggingOut}
           title="Sign out of Shoezy"
-          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 relative group"
+          className="p-1.5 text-[var(--text-secondary)] hover:text-[#dc2626] transition-colors disabled:opacity-50 relative group"
         >
           <LogOut className="w-5 h-5" />
           {/* Tooltip */}
@@ -62,28 +62,49 @@ export default function Header() {
       );
     }
 
-    if (user?.role === 'ADMIN') {
+    if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
       return (
-        <Link
-          href="/admin"
-          id="header-account-btn"
-          aria-label="Admin Dashboard"
-          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-        >
-          <User className="w-5 h-5" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin"
+            id="header-admin-dashboard-btn"
+            aria-label="Admin Dashboard"
+            title="Go to Admin Dashboard"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFF3E0] text-[#FF8C00] hover:bg-[#ffe6c7] font-semibold text-xs transition-colors border border-[#FF8C00]/30"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Dashboard</span>
+          </Link>
+          <button
+            id="header-logout-btn"
+            aria-label="Logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            title="Sign out of Shoezy"
+            className="p-1.5 text-[var(--text-secondary)] hover:text-[#dc2626] transition-colors disabled:opacity-50 relative group"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] bg-[var(--text-primary)] text-[var(--surface-primary)] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              Sign out
+            </span>
+          </button>
+        </div>
       );
     }
 
-    // Not logged in
+    // Not logged in — guest visitor
     return (
       <Link
         href="/login"
         id="header-account-btn"
         aria-label="Sign In"
-        className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+        title="Sign in to your account"
+        className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors relative group"
       >
         <User className="w-5 h-5" />
+        <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] bg-[var(--text-primary)] text-[var(--surface-primary)] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          Sign in
+        </span>
       </Link>
     );
   };
@@ -213,7 +234,7 @@ export default function Header() {
                 >
                   Sign Out
                 </button>
-              ) : user?.role === 'ADMIN' ? (
+              ) : user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? (
                 <Link
                   href="/admin"
                   onClick={() => setMenuOpen(false)}

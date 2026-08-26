@@ -42,7 +42,7 @@ export default function LoginForm() {
 
       // Role-based redirect — normalise to uppercase for safety
       const role = (typeof user.role === 'string' ? user.role : '').toUpperCase();
-      if (role === 'ADMIN') {
+      if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
         router.push('/admin');
       } else {
         router.push('/');
@@ -145,7 +145,7 @@ export default function LoginForm() {
           <input
             id="login-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="ahmed@gmail.com"
             autoComplete="email"
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             aria-invalid={!!errors.email}

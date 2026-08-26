@@ -4,6 +4,7 @@ import './globals.css';
 import SplashScreenWrapper from '@/components/SplashScreenWrapper';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
+import { Toaster } from 'sonner';
 import { cn } from "@/lib/utils";
 
 const playfair = Playfair_Display({
@@ -50,6 +51,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
             {/* Splash screen — shows on first load AND while auth rehydrates */}
             <SplashScreenWrapper />
             {children}
+            <Toaster
+              position="bottom-right"
+              richColors
+              toastOptions={{
+                style: { fontFamily: 'var(--font-sans)' },
+              }}
+            />
           </ThemeProvider>
         </QueryProvider>
       </body>

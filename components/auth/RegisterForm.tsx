@@ -48,7 +48,7 @@ export default function RegisterForm() {
 
       // Role-based redirect: admins go to dashboard, customers to success page
       // Note: requires backend to include `role` in the register response.
-      if (responseData.role === 'ADMIN') {
+      if (responseData.role === 'ADMIN' || responseData.role === 'SUPER_ADMIN') {
         router.push('/admin');
       } else {
         router.push('/register/success');
@@ -216,7 +216,7 @@ export default function RegisterForm() {
           <input
             id="register-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="ahmed@gmail.com"
             autoComplete="email"
             aria-describedby={errors.email ? 'register-email-error' : undefined}
             aria-invalid={!!errors.email}

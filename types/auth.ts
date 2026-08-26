@@ -7,7 +7,7 @@ export interface UserDto {
   lastName: string;
   status: 'ACTIVE' | 'INACTIVE';
   provider: 'EMAIL' | 'GOOGLE' | 'FACEBOOK';
-  role: 'ADMIN' | 'CUSTOMER'; // Legacy field — used for redirect routing only
+  role: 'ADMIN' | 'CUSTOMER' | 'SUPER_ADMIN'; // Used for redirect routing and RBAC access checks
   emailVerifiedAt: string | null;
   phoneVerifiedAt: string | null;
   lastLoginAt: string | null;
@@ -29,7 +29,7 @@ export interface RegisterResponseData {
   provider: string;
   emailVerifiedAt: string | null;
   /** Included by backend so client can route admin users to the dashboard */
-  role?: 'ADMIN' | 'CUSTOMER';
+  role?: 'ADMIN' | 'CUSTOMER' | 'SUPER_ADMIN';
 }
 
 // ─── Form Input Types (used with react-hook-form) ──────────────

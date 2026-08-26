@@ -9,7 +9,11 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 min default
+        staleTime: 5 * 60 * 1000, // 5 min default caching
+        gcTime: 10 * 60 * 1000, // 10 min garbage collection time
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
         retry: (failureCount, error: unknown) => {
           // Don't retry on 4xx errors
           const status = (error as { response?: { status?: number } })?.response?.status;
@@ -36,15 +40,14 @@ interface QueryProviderProps {
 export function QueryProvider({ children }: QueryProviderProps) {
   const [queryClient] = useState(() => getQueryClient());
   const initialized = useRef(false);
-  const { setAuth, clearAuth, setInitialized, setLoading } = useAuthStore();
 
   // ─── Register axios interceptor handlers ───────────────────────
   useEffect(() => {
     registerAuthHandlers(
       () => useAuthStore.getState().accessToken,
-      clearAuth,
+      () => useAuthStore.getState().clearAuth(),
     );
-  }, [clearAuth]);
+  }, []);
 
   // ─── Rehydrate session on mount via refresh cookie ─────────────
   useEffect(() => {
@@ -52,7 +55,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
     initialized.current = true;
 
     // Show splash loader while we resolve the session
-    setLoading(true);
+    useAuthStore.getState().setLoading(true);
 
     (async () => {
       const { authApi } = await import('@/lib/api/auth');
@@ -60,17 +63,14 @@ export function QueryProvider({ children }: QueryProviderProps) {
         .refresh()
         .then((res: { data: { data: { accessToken: string; user: unknown } } }) => {
           const { accessToken, user } = res.data.data;
-          setAuth(accessToken, user as Parameters<typeof setAuth>[1]);
-          // setAuth already sets isLoading: false
+          useAuthStore.getState().setAuth(accessToken, user as any);
         })
         .catch(() => {
           // No valid session — user is not logged in.
-          // This is the EXPECTED path in incognito / first visit.
-          setInitialized();
-          // setInitialized already sets isLoading: false
+          useAuthStore.getState().setInitialized();
         });
     })();
-  }, [setAuth, setInitialized, setLoading]);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

@@ -1,0 +1,445 @@
+'use client';
+
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from 'use-debounce';
+import { toast } from 'sonner';
+import { 
+  Package, Plus, Search, Eye, Edit, Trash2, Loader2, Sparkles, Filter, ExternalLink
+} from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import dynamic from 'next/dynamic';
+import { productsApi, type ProductDto } from '@/lib/api/products';
+import { isAxiosError } from 'axios';
+import { DataTablePagination } from '@/components/ui/data-table-pagination';
+
+const DeleteProductDialog = dynamic(() => import('./DeleteProductDialog'), { ssr: false });
+const ProductPreviewModal = dynamic(() => import('./ProductPreviewModal'), { ssr: false });
+
+export default function ProductsClient() {
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch] = useDebounce(searchInput, 300);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Modal states
+  const [deleteTarget, setDeleteTarget] = useState<ProductDto | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<ProductDto | null>(null);
+
+  // ─── Query 1: Top Statistics Aggregation ──────────────────────
+  const { data: statsData } = useQuery({
+    queryKey: ['product-stats'],
+    queryFn: () => productsApi.getStats().then((r) => r.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const stats = statsData ?? {
+    totalProducts: 0,
+    inStockProducts: 0,
+    lowOrOutOfStockProducts: 0,
+  };
+
+  // ─── Query 2: Products Directory Table ────────────────────────
+  const queryParams = {
+    page,
+    limit,
+    search: debouncedSearch.trim() || undefined,
+    status: statusFilter === 'ALL' ? undefined : statusFilter,
+  };
+
+  const { data: productsData, isLoading, isError } = useQuery({
+    queryKey: ['products', queryParams],
+    queryFn: () => productsApi.list(queryParams).then((r) => r.data.data),
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const products = productsData?.items ?? [];
+  const pagination = productsData?.pagination ?? { page: 1, limit: 10, total: 0, totalPages: 1 };
+
+  // ─── Mutation: Status Toggle (ACTIVE <-> DRAFT) ───────────────
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, nextStatus }: { id: string; nextStatus: 'ACTIVE' | 'DRAFT' }) =>
+      productsApi.updateProduct(id, { status: nextStatus }),
+
+    onMutate: async ({ id, nextStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['products', queryParams] });
+      const previousData = queryClient.getQueryData(['products', queryParams]);
+
+      queryClient.setQueryData(['products', queryParams], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((p: ProductDto) =>
+            p.id === id ? { ...p, status: nextStatus } : p
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+
+    onError: (err, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['products', queryParams], context.previousData);
+      }
+      if (isAxiosError(err)) {
+        toast.error(err.response?.data?.error?.message ?? 'Failed to update catalog status.');
+      } else {
+        toast.error('An unexpected error occurred.');
+      }
+    },
+
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.nextStatus === 'ACTIVE'
+          ? 'Product published to store.'
+          : 'Product reverted to draft.'
+      );
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
+  const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'ALL';
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-black flex items-center gap-2">
+            <Package className="w-6 h-6 text-[#FF8C00]" /> Products Catalog
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage your store shoe inventory, categories, pricing, and stock levels.
+          </p>
+        </div>
+        <Link href="/admin/products/new">
+          <Button className="bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2 cursor-pointer font-medium">
+            <Plus className="w-4 h-4" /> Add Product
+          </Button>
+        </Link>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
+              Total Products
+            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-gray-900">{stats.totalProducts}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
+              In Stock Products (Stock &gt; 5)
+            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-green-600">{stats.inStockProducts}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
+              Low or Out of Stock (Stock &le; 5)
+            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-red-600">{stats.lowOrOutOfStockProducts}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Table Section */}
+      <Card>
+        <CardHeader className="border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle>Shoes Directory</CardTitle>
+            <CardDescription>View, filter, and edit your shoe listings.</CardDescription>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, SKU, or slug..."
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative w-full sm:w-40">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Published (Active)</option>
+                <option value="DRAFT">Draft</option>
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[70px]">Image</TableHead>
+                  <TableHead>Shoe Name & Brand</TableHead>
+                  <TableHead>SKU Prefix</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Price (TND)</TableHead>
+                  <TableHead>Stock Level</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
+                        <Loader2 className="w-6 h-6 animate-spin text-[#FF8C00]" />
+                        <span className="text-sm">Loading catalog...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {isError && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center text-red-500">
+                      Failed to load products directory. Please refresh.
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {!isLoading && !isError && products.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <Package className="w-8 h-8 text-gray-300" />
+                        <p className="text-sm font-semibold text-gray-600">No products found</p>
+                        <p className="text-xs text-gray-400">
+                          {hasActiveFilters ? 'Try adjusting your search or status filter.' : 'Click "+ Add Product" to create your first listing.'}
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {!isLoading && !isError && products.map((p) => {
+                  const imgUrl = p.primaryImage?.url || p.media?.[0]?.url || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
+                  const isDiscounted = p.compareAtPrice && Number(p.compareAtPrice) > Number(p.basePrice);
+                  const discountPercent = isDiscounted
+                    ? Math.round(((Number(p.compareAtPrice) - Number(p.basePrice)) / Number(p.compareAtPrice)) * 100)
+                    : null;
+
+                  return (
+                    <TableRow key={p.id} className="hover:bg-gray-50/80">
+                      {/* Image Thumbnail */}
+                      <TableCell>
+                        <div className="w-11 h-11 rounded-lg border border-gray-200 overflow-hidden relative bg-gray-50 shrink-0">
+                          {/* eslint-disable-next-html-element-suppression */}
+                          <img
+                            src={imgUrl}
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
+                            }}
+                          />
+                        </div>
+                      </TableCell>
+
+                      {/* Name & Brand */}
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {p.brand && (
+                              <span className="text-[11px] text-[#FF8C00] font-medium uppercase tracking-wider">
+                                {p.brand.name}
+                              </span>
+                            )}
+                            {discountPercent && (
+                              <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                                -{discountPercent}% OFF
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* SKU */}
+                      <TableCell className="font-mono text-xs text-gray-600 font-medium">
+                        {p.skuPrefix || 'N/A'}
+                      </TableCell>
+
+                      {/* Category */}
+                      <TableCell className="text-xs text-gray-600">
+                        {p.primaryCategory?.name || 'Uncategorized'}
+                      </TableCell>
+
+                      {/* Price */}
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold text-gray-900 text-xs">{p.basePrice} TND</p>
+                          {p.compareAtPrice && (
+                            <p className="text-[10px] text-gray-400 line-through">{p.compareAtPrice} TND</p>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Stock Level */}
+                      <TableCell>
+                        <Badge
+                          className={
+                            p.totalStock > 5
+                              ? 'bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 text-[11px]'
+                              : p.totalStock > 0
+                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 text-[11px]'
+                                : 'bg-red-50 text-red-700 hover:bg-red-50 border border-red-200 text-[11px]'
+                          }
+                        >
+                          {p.totalStock > 5 ? `In Stock (${p.totalStock})` : p.totalStock > 0 ? `Low Stock (${p.totalStock})` : 'Out of Stock'}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Catalog Status (Active / Draft) */}
+                      <TableCell>
+                        <Badge
+                          className={
+                            p.status === 'ACTIVE'
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-300 text-[11px]'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-100 border border-gray-300 text-[11px]'
+                          }
+                        >
+                          {p.status}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Customer Preview Modal button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Customer Storefront Preview"
+                            onClick={() => setPreviewTarget(p)}
+                            className="h-8 w-8 p-0 text-purple-600 hover:bg-purple-50"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+
+                          {/* Toggle Status Eye button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={p.status === 'ACTIVE' ? 'Revert to Draft' : 'Publish to Store'}
+                            onClick={() =>
+                              toggleStatusMutation.mutate({
+                                id: p.id,
+                                nextStatus: p.status === 'ACTIVE' ? 'DRAFT' : 'ACTIVE',
+                              })
+                            }
+                            className={`h-8 w-8 p-0 ${
+                              p.status === 'ACTIVE' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'
+                            }`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+
+                          {/* Edit Product */}
+                          <Link href={`/admin/products/new?edit=${p.id}`}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50 text-blue-600" title="Edit Product">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </Link>
+
+                          {/* Delete Product */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(p)}
+                            className="h-8 w-8 p-0 hover:bg-red-50 text-red-600"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+
+        {/* Pagination Bar */}
+        {pagination.totalPages > 1 && (
+          <div className="p-4 border-t border-gray-100">
+            <DataTablePagination
+              currentPage={page}
+              totalPages={pagination.totalPages}
+              onPageChange={(p: number) => setPage(p)}
+              totalItems={pagination.total}
+              pageSize={limit}
+              onPageSizeChange={() => {}}
+              itemLabel="products"
+            />
+          </div>
+        )}
+      </Card>
+
+      {/* Delete Dialog Modal */}
+      {deleteTarget && (
+        <DeleteProductDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+          productId={deleteTarget.id}
+          productName={deleteTarget.name}
+        />
+      )}
+
+      {/* Customer Preview Modal */}
+      {previewTarget && (
+        <ProductPreviewModal
+          open={!!previewTarget}
+          onOpenChange={(open) => {
+            if (!open) setPreviewTarget(null);
+          }}
+          product={previewTarget}
+        />
+      )}
+    </div>
+  );
+}

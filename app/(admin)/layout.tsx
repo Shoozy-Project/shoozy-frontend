@@ -22,8 +22,14 @@ import {
   Tag,
   Star,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/api/auth';
+import { productsApi } from '@/lib/api/products';
+import { categoriesApi } from '@/lib/api/categories';
+import { brandsApi } from '@/lib/api/brands';
+import { collectionsApi } from '@/lib/api/collections';
+import { adminUsersApi } from '@/lib/api/users';
 
 const navItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -45,6 +51,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -52,13 +59,38 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Guard: redirect non-admins ONLY once auth is fully resolved (initialized + not loading)
+  const handlePrefetch = (href: string) => {
+    if (href === '/admin/products') {
+      queryClient.prefetchQuery({ queryKey: ['products', { page: 1, limit: 10 }], queryFn: () => productsApi.list({ page: 1, limit: 10 }).then((r) => r.data.data) });
+    } else if (href === '/admin/categories') {
+      queryClient.prefetchQuery({ queryKey: ['categories', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }], queryFn: () => categoriesApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data) });
+    } else if (href === '/admin/brands') {
+      queryClient.prefetchQuery({ queryKey: ['brands', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }], queryFn: () => brandsApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data) });
+    } else if (href === '/admin/collections') {
+      queryClient.prefetchQuery({ queryKey: ['collections', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }], queryFn: () => collectionsApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data) });
+    } else if (href === '/admin/users') {
+      queryClient.prefetchQuery({ queryKey: ['users', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }], queryFn: () => adminUsersApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data) });
+    }
+  };
+
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isAdminOrSuper = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  // Guard 1: redirect non-admin users to login
   useEffect(() => {
     if (!isInitialized || isLoading) return;
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || !isAdminOrSuper) {
       router.replace('/login');
     }
-  }, [isInitialized, isLoading, user, router]);
+  }, [isInitialized, isLoading, user, isAdminOrSuper, router]);
+
+  // Guard 2: intercept operational ADMIN users attempting to access /admin/users or /admin/settings
+  useEffect(() => {
+    if (!isInitialized || isLoading || !user) return;
+    if (user.role === 'ADMIN' && (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings'))) {
+      router.replace('/admin');
+    }
+  }, [isInitialized, isLoading, user, pathname, router]);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -74,9 +106,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   // Don't render until auth is fully resolved
-  if (!isInitialized || isLoading || !user || user.role !== 'ADMIN') {
+  if (!isInitialized || isLoading || !user || !isAdminOrSuper) {
     return null;
   }
+
+  // Filter sidebar items for operational ADMINs (hide Users and Settings)
+  const visibleNavItems = navItems.filter((item) => {
+    if (user.role === 'ADMIN') {
+      return item.href !== '/admin/users' && item.href !== '/admin/settings';
+    }
+    return true;
+  });
 
   const currentPage = navItems.find(
     (n) => pathname === n.href || (n.href !== '/admin' && pathname.startsWith(n.href))
@@ -99,20 +139,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 className="object-contain"
               />
             </div>
-            <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#FF8C00] border border-[#FF8C00]/40 px-1.5 py-0.5 rounded-sm">
-              Admin
+            <span className={`text-[10px] font-semibold tracking-[0.2em] uppercase px-1.5 py-0.5 rounded-sm border ${
+              isSuperAdmin ? 'text-amber-700 bg-amber-50 border-amber-300' : 'text-[#FF8C00] border-[#FF8C00]/40'
+            }`}>
+              {isSuperAdmin ? 'SuperAdmin' : 'Admin'}
             </span>
           </Link>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-0.5" aria-label="Admin navigation">
-          {navItems.map(({ label, href, icon: Icon }) => {
+          {visibleNavItems.map(({ label, href, icon: Icon }) => {
             const active = pathname === href || (href !== '/admin' && pathname.startsWith(href));
             return (
               <Link
                 key={href}
                 href={href}
+                prefetch={true}
+                onMouseEnter={() => handlePrefetch(href)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${
                   active
                     ? 'bg-[#FF8C00]/10 text-[#FF8C00]'
@@ -139,7 +183,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-black truncate">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-[#6b7280] truncate">{user.email}</p>
+              <p className="text-xs text-[#6b7280] truncate">{isSuperAdmin ? 'Super Administrator' : 'Store Administrator'}</p>
             </div>
           </div>
           <button
@@ -180,7 +224,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <div className="relative w-[80px] h-[32px]">
                     <Image src="/logo.png" alt="Shoezy" fill sizes="80px" className="object-contain" />
                   </div>
-                  <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#FF8C00] border border-[#FF8C00]/40 px-1.5 py-0.5 rounded-sm">Admin</span>
+                  <span className={`text-[10px] font-semibold tracking-[0.2em] uppercase px-1.5 py-0.5 rounded-sm border ${
+                    isSuperAdmin ? 'text-amber-700 bg-amber-50 border-amber-300' : 'text-[#FF8C00] border-[#FF8C00]/40'
+                  }`}>
+                    {isSuperAdmin ? 'SuperAdmin' : 'Admin'}
+                  </span>
                 </Link>
                 <button onClick={() => setSidebarOpen(false)} className="text-[#6b7280] hover:text-black p-1">
                   <X className="w-5 h-5" />
@@ -189,12 +237,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
               {/* Nav */}
               <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-0.5">
-                {navItems.map(({ label, href, icon: Icon }) => {
+                {visibleNavItems.map(({ label, href, icon: Icon }) => {
                   const active = pathname === href || (href !== '/admin' && pathname.startsWith(href));
                   return (
                     <Link
                       key={href}
                       href={href}
+                      prefetch={true}
+                      onMouseEnter={() => handlePrefetch(href)}
                       onClick={() => setSidebarOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                         active
@@ -257,7 +307,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Desktop: breadcrumb */}
           <div className="hidden lg:flex items-center gap-2 text-sm">
-            <span className="text-[#6b7280]">Shoezy</span>
+            <Link
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#6b7280] hover:text-[#FF8C00] transition-colors font-medium hover:underline"
+              title="Open Shoezy Public Storefront"
+            >
+              Shoezy
+            </Link>
             <ChevronRight className="w-3.5 h-3.5 text-[#9ca3af]" />
             <span className="text-black font-semibold">{currentPage}</span>
           </div>
