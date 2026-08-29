@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShoppingBag, User, Search, Menu, X, LogOut, Sun, Moon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/auth-store';
@@ -19,6 +19,7 @@ const navLinks = [
 ];
 
 export default function Header() {
+  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const router = useRouter();
@@ -26,6 +27,12 @@ export default function Header() {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const currentTheme = mounted ? theme : 'light';
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -146,7 +153,7 @@ export default function Header() {
                 fill
                 sizes="120px"
                 priority
-                className={`object-contain ${theme === 'dark' ? 'invert' : ''}`}
+                className={`object-contain ${currentTheme === 'dark' ? 'invert' : ''}`}
               />
             </div>
           </Link>
@@ -178,11 +185,11 @@ export default function Header() {
               {/* Dark mode toggle */}
               <button
                 id="header-theme-toggle"
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label={currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 onClick={toggleTheme}
                 className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--color-gold)] transition-colors"
               >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {currentTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
               <AccountElement />

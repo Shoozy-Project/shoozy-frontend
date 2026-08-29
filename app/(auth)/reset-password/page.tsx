@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { resetPasswordSchema, type ResetPasswordInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
@@ -14,7 +14,7 @@ import { isAxiosError } from 'axios';
 
 type State = 'form' | 'success' | 'invalid' | 'expired' | 'used';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [state, setState] = useState<State>(token ? 'form' : 'invalid');
@@ -157,5 +157,20 @@ export default function ResetPasswordPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-[#FF8C00] animate-spin mb-3" aria-hidden="true" />
+          <p className="text-sm text-[#6b7280]">Loading reset password form...</p>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
