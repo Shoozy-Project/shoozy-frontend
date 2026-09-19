@@ -60,9 +60,9 @@ export default function AnnouncementBar() {
           className="overflow-hidden"
         >
           <div
-            className="relative flex items-center justify-center px-10 py-2.5 transition-colors duration-500"
+            className="relative w-full bg-black text-white py-2 text-xs md:text-sm z-50 flex items-center justify-center px-10 transition-colors duration-500"
             style={{
-              backgroundColor: currentAnnouncement.bgColor || '#FF8C00',
+              backgroundColor: currentAnnouncement.bgColor || '#000000',
               color: currentAnnouncement.textColor || '#FFFFFF',
             }}
           >

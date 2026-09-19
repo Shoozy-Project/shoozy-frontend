@@ -1,35 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import useEmblaCarousel from 'embla-carousel-react';
-import Autoplay from 'embla-carousel-autoplay';
-import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ArrowRight, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { promotionsApi } from '@/lib/api/promotions';
+import useEmblaCarousel from 'embla-carousel-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePublicBanners } from '@/lib/hooks/use-promotions';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HeroCarousel() {
+  const { data: banners, isLoading, isError } = usePublicBanners();
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, dragFree: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['public-banners'],
-    queryFn: async () => {
-      const res = await promotionsApi.publicBanners();
-      return res.data.data;
-    },
-    staleTime: 60 * 1000, // 1 minute caching
-    refetchOnWindowFocus: true,
-  });
-
-  const banners = data ?? [];
-
-  // Embla Carousel Hook setup
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true },
-    [Autoplay({ delay: 5000, stopOnInteraction: false })]
-  );
 
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
@@ -39,13 +21,6 @@ export default function HeroCarousel() {
     if (emblaApi) emblaApi.scrollNext();
   }, [emblaApi]);
 
-  const scrollTo = useCallback(
-    (index: number) => {
-      if (emblaApi) emblaApi.scrollTo(index);
-    },
-    [emblaApi]
-  );
-
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
@@ -53,162 +28,134 @@ export default function HeroCarousel() {
 
   useEffect(() => {
     if (!emblaApi) return;
-    onSelect();
     emblaApi.on('select', onSelect);
     emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
   }, [emblaApi, onSelect]);
 
-  // ─── Loading Skeleton State ───
+  // Fallback while loading
   if (isLoading) {
     return (
-      <div className="relative w-full h-[65vh] min-h-[480px] max-h-[720px] bg-gray-900 animate-pulse flex items-center justify-center">
-        <div className="text-center text-white/50 space-y-3">
-          <div className="w-10 h-10 border-2 border-white/20 border-t-[#FF8C00] rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-semibold uppercase tracking-widest">Loading Hero Drop...</p>
-        </div>
-      </div>
+      <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden bg-surface-variant/50 animate-pulse flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
+      </section>
     );
   }
 
-  // ─── Fallback Static Hero if No Active Banners ───
-  if (banners.length === 0) {
+  // Error or no banners
+  if (isError || !banners || banners.length === 0) {
     return (
-      <div className="relative w-full h-[60vh] min-h-[440px] bg-[var(--surface-primary)] flex flex-col items-center justify-center text-center px-6 py-24">
-        <p className="text-xs font-semibold tracking-[0.3em] uppercase text-[#FF8C00] mb-6 flex items-center gap-2">
-          <Sparkles className="w-4 h-4" /> Quality Shoes. Every Step.
-        </p>
-        <h1
-          className="text-5xl lg:text-7xl font-bold text-[var(--text-primary)] mb-6 leading-tight"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          Discover Your <br /> Perfect Pair
-        </h1>
-        <p className="text-base lg:text-lg text-[var(--text-muted)] max-w-md mx-auto mb-8 leading-relaxed">
-          Premium footwear crafted for those who appreciate quality in every step.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Link
-            href="/products"
-            className="inline-flex items-center justify-center px-10 py-4 text-xs font-semibold tracking-widest uppercase bg-[#FF8C00] text-white hover:bg-[#e67e00] transition-all shadow-lg shadow-[#FF8C00]/25"
+      <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden">
+        <div className="absolute inset-0 w-full h-full">
+          <Image
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuA48StYLsUc7nxVJ3xg8gOGChnT_WEZZxpsLiaScpXHruo53dksZYnoxSqGeBRIZcEIIr5M_iqcaFEQR5-rVqUewhLEoq1zUvy-0Lwlifs7A_jTe4TDdvexLzhn73O9HlktR78lFUS9xEGHBjDZZBHsVUIrNyl8fB0GYt0GWMe7Drb025kHh32kawKLHf7XGpiZzLXWxYlIQ6OyomXEirnrrA4PTqcLQ8avAujYm4IKFSp6-fl96TSHSw"
+            alt="Shoezy Default Hero"
+            fill
+            priority
+            className="object-cover object-center"
+          />
+        </div>
+        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 pt-[160px]">
+          <h2 className="font-serif text-5xl md:text-7xl text-white mb-6 leading-tight drop-shadow-sm">
+            A Summer by Shoezy
+          </h2>
+          <Link 
+            href="/collections" 
+            className="bg-white text-black hover:bg-transparent hover:text-white border border-white transition-all duration-300 uppercase tracking-widest px-10 py-4 text-sm font-semibold"
           >
-            Shop Collection <ArrowRight className="w-4 h-4 ml-2" />
+            Discover
           </Link>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <section className="relative w-full h-[65vh] min-h-[480px] max-h-[720px] bg-black select-none">
-      {/* Embla Viewport Container */}
-      <div className="overflow-hidden h-full w-full" ref={emblaRef}>
-        <div className="flex h-full w-full">
-          {banners.map((banner, index) => {
-            const isCurrent = index === selectedIndex;
-            return (
-              <div
-                key={banner.id}
-                className="flex-[0_0_100%] min-w-0 relative h-full w-full"
-              >
-                {/* Responsive Desktop & Mobile Image */}
-                <picture className="w-full h-full">
-                  {banner.imageMobileUrl && (
-                    <source media="(max-width: 640px)" srcSet={banner.imageMobileUrl} />
-                  )}
-                  <Image
-                    src={banner.imageDesktopUrl}
-                    alt={banner.title}
-                    fill
-                    priority={index === 0}
-                    className="object-cover opacity-75"
-                    unoptimized
-                  />
-                </picture>
-
-                {/* Dark Vignette Overlay for Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
-
-                {/* Banner Content Container */}
-                <div className="absolute inset-0 max-w-7xl mx-auto px-6 sm:px-12 flex flex-col justify-end pb-16 sm:pb-20 text-white z-10">
-                  <motion.div
-                    key={isCurrent ? `slide-${banner.id}` : `idle-${banner.id}`}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={isCurrent ? { y: 0, opacity: 1 } : { y: 20, opacity: 0 }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                    className="max-w-2xl space-y-4"
-                  >
-                    {/* Optional Badge */}
-                    {banner.badgeText && (
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.25em] text-white bg-[#FF8C00] px-3 py-1 rounded-md shadow-md">
-                        <Sparkles className="w-3 h-3" /> {banner.badgeText}
-                      </span>
-                    )}
-
-                    {/* Banner Title */}
-                    <h1
-                      className="text-4xl sm:text-6xl font-extrabold leading-tight text-white drop-shadow-md tracking-tight"
-                      style={{ fontFamily: 'var(--font-serif)' }}
+    <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden group">
+      <div className="overflow-hidden h-full" ref={emblaRef}>
+        <div className="flex h-full">
+          {banners.map((banner, index) => (
+            <div key={banner.id} className="relative flex-[0_0_100%] min-w-0 h-full">
+              <Image
+                src={banner.imageDesktopUrl}
+                alt={banner.title}
+                fill
+                priority={true}
+                className="object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-black/30"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+              
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 pt-[160px]">
+                <AnimatePresence mode="wait">
+                  {selectedIndex === index && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -30 }}
+                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      className="flex flex-col items-center w-full max-w-4xl"
                     >
-                      {banner.title}
-                    </h1>
-
-                    {/* Subtitle */}
-                    {banner.subtitle && (
-                      <p className="text-base sm:text-lg text-gray-200 line-clamp-2 max-w-xl font-normal leading-relaxed">
-                        {banner.subtitle}
-                      </p>
-                    )}
-
-                    {/* Call to Action Button */}
-                    {banner.ctaText && (
-                      <div className="pt-2">
-                        <Link
-                          href={banner.ctaLink || '/products'}
-                          className="inline-flex items-center justify-center px-8 py-3.5 text-xs font-bold tracking-widest uppercase bg-[#FF8C00] text-white hover:bg-[#e67e00] transition-all rounded-lg shadow-xl shadow-[#FF8C00]/30 group"
-                        >
-                          {banner.ctaText}
-                          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                      </div>
-                    )}
-                  </motion.div>
-                </div>
+                      {banner.badgeText && (
+                        <span className="text-xs font-semibold tracking-[0.2em] text-white/90 uppercase mb-4">
+                          {banner.badgeText}
+                        </span>
+                      )}
+                      <h2 className="font-serif text-5xl md:text-7xl text-white mb-6 leading-tight drop-shadow-sm">
+                        {banner.title}
+                      </h2>
+                      {banner.subtitle && (
+                        <p className="text-lg md:text-xl text-white/80 font-light max-w-2xl mx-auto mb-10">
+                          {banner.subtitle}
+                        </p>
+                      )}
+                      <Link 
+                        href={banner.ctaLink || '/collections'} 
+                        className="bg-white text-black hover:bg-transparent hover:text-white border border-white transition-all duration-300 uppercase tracking-widest px-10 py-4 text-sm font-semibold"
+                      >
+                        {banner.ctaText || 'Discover'}
+                      </Link>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Prev / Next Slider Arrows */}
+      {/* Navigation Arrows - only show if more than 1 banner */}
       {banners.length > 1 && (
         <>
-          <button
-            onClick={scrollPrev}
-            aria-label="Previous Banner"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all"
+          <button 
+            onClick={scrollPrev} 
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 text-foreground/50 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 hidden md:block"
+            aria-label="Previous banner"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-8 h-8" strokeWidth={1} />
+          </button>
+          <button 
+            onClick={scrollNext} 
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-foreground/50 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 hidden md:block"
+            aria-label="Next banner"
+          >
+            <ChevronRight className="w-8 h-8" strokeWidth={1} />
           </button>
 
-          <button
-            onClick={scrollNext}
-            aria-label="Next Banner"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center border border-white/10 backdrop-blur-sm transition-all"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-
-          {/* Dot Pagination */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-            {banners.map((_, idx) => (
+          {/* Dots */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex space-x-3">
+            {banners.map((_, index) => (
               <button
-                key={idx}
-                onClick={() => scrollTo(idx)}
-                aria-label={`Go to slide ${idx + 1}`}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  idx === selectedIndex
-                    ? 'w-8 bg-[#FF8C00]'
-                    : 'w-2 bg-white/40 hover:bg-white/70'
+                key={index}
+                onClick={() => emblaApi?.scrollTo(index)}
+                aria-label={`Go to slide ${index + 1}`}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  index === selectedIndex ? 'bg-foreground scale-125' : 'bg-foreground/30 hover:bg-foreground/60'
                 }`}
               />
             ))}

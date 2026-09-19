@@ -46,12 +46,12 @@
 |---|---|
 | Name | `shoezy-front` |
 | Description | Luxury e-commerce frontend for premium footwear (Shoezy) |
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 16.3.0 (App Router) |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS v4 |
-| Backend API Base | `http://localhost:3000/api/v1` (dev) |
+| Backend API Base | `http://localhost:5000/api/v1` (dev) |
 | Frontend Dev Port | `http://localhost:3001` (or Next.js default) |
-| Repository Path | `client/` (relative to monorepo root) |
+| Repository Path | `Shoozy-Frontend/` |
 
 ---
 
@@ -62,14 +62,17 @@
 | Framework | `next` | 16.3.0 | App Router only. Server Components by default. |
 | React | `react` / `react-dom` | 19.2.8 | |
 | Language | `typescript` | ^5 | Strict mode enabled |
-| Styling | `tailwindcss` | v4 | Via `@tailwindcss/postcss` |
+| Styling | `tailwindcss` | v4 | Via `@tailwindcss/postcss`. |
+| UI Components | `shadcn/ui` / `radix-ui` | ^4.18.0 | `components.json` setup, Radix primitives. |
 | State Management | `zustand` | ^5.0.14 | Global client state (cart, auth, UI) |
 | Data Fetching | `@tanstack/react-query` | ^5.101.4 | Server state, caching, mutations |
 | HTTP Client | `axios` | ^1.19.0 | Interceptors for auth, base URL, error normalization |
 | Forms | `react-hook-form` | ^7.85.0 | All forms without exception |
 | Validation | `zod` + `@hookform/resolvers` | ^3.25.76 / ^5.7.1 | Shared schemas where possible |
-| Animations | `framer-motion` | ^13.0.0 | Sparingly — elegant transitions only |
+| Animations | `framer-motion` / `tw-animate-css` | ^13.0.0 / ^1.4.0 | Sparingly — elegant transitions only |
 | Icons | `lucide-react` | ^1.30.0 | Clean, minimalist icons |
+| Notifications | `sonner` | ^2.0.8 | Toast notifications |
+| Carousels | `embla-carousel-react` | ^8.6.0 | With `embla-carousel-autoplay` |
 
 ### Libraries NOT Used (Critical)
 
@@ -91,82 +94,41 @@
 - Each route segment can have: `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`.
 - Route handlers go in `route.ts` files inside `app/api/`.
 
-### Planned Directory Layout
+### Directory Layout
 
 ```
-client/
+Shoozy-Frontend/
 ├── app/                          # Next.js App Router
 │   ├── (auth)/                   # Auth route group (login, register, etc.)
-│   │   ├── login/
-│   │   ├── register/
-│   │   ├── verify-email/
-│   │   ├── forgot-password/
-│   │   └── reset-password/
-│   ├── (shop)/                   # Public storefront route group
-│   │   ├── page.tsx              # Homepage
-│   │   ├── products/
-│   │   ├── categories/
-│   │   └── collections/
-│   ├── (account)/                # Customer account route group (protected)
-│   │   ├── profile/
-│   │   ├── addresses/
-│   │   ├── orders/
-│   │   ├── wishlist/
-│   │   └── settings/
-│   ├── (checkout)/               # Checkout flow route group
-│   │   ├── cart/
-│   │   └── checkout/
-│   ├── admin/                    # Admin dashboard (protected)
-│   │   ├── dashboard/
-│   │   ├── products/
-│   │   ├── brands/
-│   │   ├── categories/
-│   │   ├── orders/
-│   │   └── ...
+│   ├── (public)/                 # Public storefront route group (homepage, products, categories)
+│   ├── (admin)/                  # Admin dashboard (protected routes)
+│   │   └── admin/
+│   │       ├── brands/
+│   │       ├── categories/
+│   │       ├── products/
+│   │       ├── orders/
+│   │       ├── reviews/
+│   │       └── users/
 │   ├── layout.tsx                # Root layout
-│   ├── globals.css               # Global styles + Tailwind imports
-│   ├── not-found.tsx             # Global 404
-│   └── error.tsx                 # Global error boundary
+│   ├── globals.css               # Global styles + Tailwind imports + Custom Variants
+│   └── favicon.ico               # Site icon
 ├── components/                   # Shared UI components
-│   ├── ui/                       # Atomic design components (Button, Input, Modal, etc.)
+│   ├── ui/                       # shadcn/ui Atomic design components
 │   ├── layout/                   # Layout components (Header, Footer, Sidebar, etc.)
-│   ├── forms/                    # Form-specific components
 │   └── shared/                   # Cross-feature shared components
 ├── lib/                          # Core utilities
 │   ├── api/                      # Axios instance, interceptors, API functions
-│   │   ├── client.ts             # Axios instance with interceptors
-│   │   ├── auth.ts               # Auth API functions
-│   │   ├── users.ts              # User API functions
-│   │   └── ...                   # One file per API domain
 │   ├── hooks/                    # Custom React hooks
-│   ├── utils/                    # Pure utility functions
-│   └── constants.ts              # App-wide constants
+│   └── utils/                    # Pure utility functions
 ├── stores/                       # Zustand stores
-│   ├── auth-store.ts             # Auth state (accessToken, user, session status)
-│   ├── cart-store.ts             # Cart state
-│   └── ui-store.ts               # UI state (modals, sidebars, toasts)
 ├── types/                        # Shared TypeScript types
-│   ├── api.ts                    # API response envelope types
-│   ├── auth.ts                   # Auth-related types
-│   ├── user.ts                   # User entity types
-│   ├── product.ts                # Product/Variant/Option types
-│   └── ...                       # One file per domain
 ├── validations/                  # Zod schemas for frontend forms
-│   ├── auth.ts                   # Login, register, password schemas
-│   └── ...                       # One file per domain
-├── providers/                    # React context providers
-│   └── query-provider.tsx        # TanStack Query provider
+├── providers/                    # React context providers (QueryProvider, ThemeProvider)
 ├── spec/                         # Spec-Driven Development files
 │   ├── CONSTITUTION.md           # THIS FILE
 │   └── features/                 # Feature specification files
-│       └── <feature_name>/
-│           ├── <feature>_spec.md
-│           ├── <feature>_clarify.md
-│           ├── <feature>_plan.md
-│           └── <feature>_tasks.md
-├── public/                       # Static assets
+├── components.json               # shadcn/ui configuration
 ├── package.json
-├── tsconfig.json
 ├── next.config.ts
 ├── postcss.config.mjs
 └── eslint.config.mjs
@@ -193,35 +155,28 @@ Configured in `tsconfig.json`:
 ### Brand Aesthetic: Luxury Footwear
 
 The design must evoke a **high-end, luxury footwear boutique**. Think: abundant whitespace, elegant serif headings, clean product photography, and restrained use of accent color. **ABSOLUTELY NO cluttered layouts.**
+Uses `shadcn/ui` theme variables configured in `app/globals.css`.
 
 ### Color Palette
 
-| Token | Hex | Usage |
+| Token | Hex / CSS Var | Usage |
 |---|---|---|
-| `white` | `#FFFFFF` | Primary backgrounds |
-| `off-white` | `#F9F9F9` | Card/container backgrounds, subtle alternating sections |
-| `light-grey` | `#F7F7F7` | Secondary container backgrounds |
-| `mid-grey` | `#E5E5E5` | Borders, dividers |
-| `text-grey` | `#6B7280` | Secondary/muted text |
-| `dark-grey` | `#374151` | Body text when not pure black |
-| `black` | `#000000` | Primary typography, footer backgrounds |
-| `gold-orange` | `#FF8C00` | Primary CTA accent — use sparingly |
-| `gold-orange-hover` | `#E67E00` | CTA hover state |
-| `gold-orange-light` | `#FFF3E0` | Subtle accent backgrounds |
-| `error` | `#DC2626` | Error states, destructive actions |
-| `error-light` | `#FEF2F2` | Error backgrounds |
+| `background` | `oklch(1 0 0)` / `#FFFFFF` | Primary backgrounds |
+| `foreground` | `oklch(0.145 0 0)` | Primary text color |
+| `card` | `oklch(1 0 0)` | Card/container backgrounds |
+| `border` | `oklch(0.922 0 0)` | Borders, dividers |
+| `muted` | `oklch(0.97 0 0)` | Muted text / subtle backgrounds |
+| `primary` / `gold-orange` | `#FF8C00` | Primary CTA accent — use sparingly |
+| `destructive` / `error` | `oklch(0.577 0.245 27.325)` | Error states, destructive actions |
 | `success` | `#16A34A` | Success states, stock indicators |
-| `success-light` | `#F0FDF4` | Success backgrounds |
-| `warning` | `#F59E0B` | Warning states |
-| `warning-light` | `#FFFBEB` | Warning backgrounds |
 
 ### Color Rules
 
-1. **Backgrounds:** Pristine white (`#FFFFFF`) is the primary background. Use `#F9F9F9` or `#F7F7F7` for product cards and containers.
-2. **Typography:** Solid black (`#000000`) for headings and primary text. `#6B7280` for secondary/muted text.
-3. **Accent:** Deep gold-orange (`#FF8C00`) for primary CTAs only. Never use it for large areas.
+1. **Backgrounds:** Pristine white (`var(--background)`) is the primary background.
+2. **Typography:** Solid black (`var(--foreground)`) for headings and primary text.
+3. **Accent:** Deep gold-orange for primary CTAs only. Never use it for large areas.
 4. **Footer:** Black background with white text.
-5. **Never** use generic red, blue, or green for primary UI elements. Use the curated palette above.
+5. **Dark Mode:** `next-themes` manages `.dark` class appending. Theme colors dynamically adjust via `oklch` variables in `globals.css`.
 
 ---
 
@@ -231,23 +186,9 @@ The design must evoke a **high-end, luxury footwear boutique**. Think: abundant 
 
 | Purpose | Family Type | Specific Font | Tailwind Class |
 |---|---|---|---|
-| Headings, brand, titles | Serif | (To be configured — e.g., Playfair Display, Cormorant Garamond) | `font-serif` |
-| Body, UI elements, buttons, descriptions | Sans-serif | (To be configured — e.g., Inter, Outfit) | `font-sans` |
-| Code/technical (rare) | Monospace | Geist Mono (already configured) | `font-mono` |
-
-### Typography Scale
-
-| Element | Size Class | Weight | Font |
-|---|---|---|---|
-| Hero heading (H1) | `text-5xl` / `text-6xl` | `font-bold` | Serif |
-| Page heading (H1) | `text-3xl` / `text-4xl` | `font-bold` | Serif |
-| Section heading (H2) | `text-2xl` / `text-3xl` | `font-semibold` | Serif |
-| Subsection (H3) | `text-xl` / `text-2xl` | `font-semibold` | Serif |
-| Body large | `text-lg` | `font-normal` | Sans-serif |
-| Body default | `text-base` | `font-normal` | Sans-serif |
-| Body small | `text-sm` | `font-normal` | Sans-serif |
-| Caption / Label | `text-xs` | `font-medium` | Sans-serif |
-| Button text | `text-sm` / `text-base` | `font-medium` | Sans-serif |
+| Headings, brand, titles | Serif | Playfair Display | `font-serif` |
+| Body, UI elements, buttons, descriptions | Sans-serif | Inter, Geist | `font-sans` |
+| Code/technical (rare) | Monospace | Geist Mono | `font-mono` |
 
 ### Typography Rules
 
@@ -263,19 +204,6 @@ The design must evoke a **high-end, luxury footwear boutique**. Think: abundant 
 ### Core Principle: Generous Whitespace
 
 Every layout decision should err on the side of **more** whitespace. This is a luxury brand — breathe.
-
-### Spacing Scale
-
-| Token | Value | Usage |
-|---|---|---|
-| `xs` | `4px` / `1` | Inline padding, icon gaps |
-| `sm` | `8px` / `2` | Tight component internal padding |
-| `md` | `16px` / `4` | Default component padding |
-| `lg` | `24px` / `6` | Section internal padding |
-| `xl` | `32px` / `8` | Between sections |
-| `2xl` | `48px` / `12` | Major section gaps |
-| `3xl` | `64px` / `16` | Hero/full-page section gaps |
-| `4xl` | `96px` / `24` | Top-level page padding |
 
 ### Layout Rules
 
@@ -296,38 +224,6 @@ Every layout decision should err on the side of **more** whitespace. This is a l
 - Types: `camelCase.ts` in `types/` directory
 - Hooks: `use-camelCase.ts` (e.g., `use-auth.ts`)
 - Stores: `kebab-case.ts` (e.g., `auth-store.ts`)
-
-### Component Definition Syntax
-
-**Default (Server Component):**
-```tsx
-const ComponentName = () => {
-  // Component logic
-};
-export default ComponentName;
-```
-
-**Client Component:**
-```tsx
-'use client';
-
-const ComponentName = () => {
-  // Component logic with hooks, state, etc.
-};
-export default ComponentName;
-```
-
-**With Props:**
-```tsx
-interface ComponentNameProps {
-  title: string;
-  isActive?: boolean;
-}
-
-export const ComponentName = ({ title, isActive = false }: ComponentNameProps) => {
-  // Component logic
-};
-```
 
 ### Component Rules
 
@@ -387,7 +283,7 @@ Is it local to one component or form?
 ```typescript
 // lib/api/client.ts
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1',
   withCredentials: true,  // REQUIRED — sends refresh cookie
   headers: {
     'Content-Type': 'application/json',
@@ -449,25 +345,6 @@ interface PaginatedData<T> {
 }
 ```
 
-### API Function Pattern
-
-```typescript
-// lib/api/auth.ts
-export const authApi = {
-  login: (data: LoginInput) =>
-    apiClient.post<ApiSuccess<{ user: User; accessToken: string }>>('/auth/login', data),
-
-  register: (data: RegisterInput) =>
-    apiClient.post<ApiSuccess<UserDto>>('/auth/register', data),
-
-  refresh: () =>
-    apiClient.post<ApiSuccess<{ user: User; accessToken: string }>>('/auth/refresh'),
-
-  logout: () =>
-    apiClient.post<ApiSuccess<{ loggedOut: true }>>('/auth/logout'),
-};
-```
-
 ---
 
 ## 10. Authentication & Session (Frontend)
@@ -511,7 +388,7 @@ export const authApi = {
 
 - Use a middleware or wrapper component to check auth state
 - If no access token and refresh fails → redirect to `/login`
-- If user lacks required permission → show 403 page
+- If user lacks required permission based on the **new RBAC Model** (using `UserRole` and `RolePermission`) → show 403 page
 
 ---
 
@@ -574,16 +451,16 @@ const LoginForm = () => {
 | Group | Path Prefix | Purpose | Auth |
 |---|---|---|---|
 | `(auth)` | `/login`, `/register`, etc. | Authentication pages | Public (redirect if logged in) |
-| `(shop)` | `/`, `/products/*`, etc. | Public storefront | Public |
+| `(public)` | `/`, `/products/*`, etc. | Public storefront | Public |
 | `(account)` | `/profile`, `/orders`, etc. | Customer account | Required (CUSTOMER) |
 | `(checkout)` | `/cart`, `/checkout` | Checkout flow | Required for checkout |
-| `admin` | `/admin/*` | Admin dashboard | Required (ADMIN) |
+| `(admin)` | `/admin/*` | Admin dashboard | Required (ADMIN Roles) |
 
 ### Route Protection Strategy
 
-- **Middleware** (`middleware.ts`): Check for auth cookie/token presence, redirect if unauthorized
-- **Layout-level guards**: Wrap protected route groups with auth check components
-- **Permission-based**: Check user permissions from Zustand store for admin routes
+- **Middleware** (`middleware.ts`): Check for auth cookie/token presence, redirect if unauthorized.
+- **Layout-level guards**: Wrap protected route groups with auth check components.
+- **Permission-based**: Check user permissions from the RBAC backend logic for admin routes.
 
 ---
 
@@ -628,7 +505,7 @@ export default function Error({
 | `AUTH_SOCIAL_ACCOUNT_CONFLICT` | Show conflict resolution message |
 | `VALIDATION_ERROR` (422) | Map `details` array to field-level errors |
 | `AUTH_REFRESH_INVALID/REUSED` | Clear auth → redirect to login |
-| Any 500 | Show generic error toast |
+| Any 500 | Show generic error toast via `sonner` |
 | Network error | Show "Connection lost" toast with retry |
 
 ---
@@ -647,8 +524,7 @@ export default function Error({
 
 ### Skeleton Rules
 
-- Skeletons should match the **exact layout** of the loaded content.
-- Use `animate-pulse` with `bg-gray-200` / `bg-gray-100` blocks.
+- Skeletons should match the **exact layout** of the loaded content using `shadcn/ui` Skeleton components.
 - Never show a blank page — always show structure.
 
 ---
@@ -679,25 +555,15 @@ export const metadata: Metadata = {
 
 ## 16. Animations & Interactions
 
-### Framer Motion — Usage Policy
+### Framer Motion & Tailwind Animate — Usage Policy
 
 **Sparingly.** Only for:
 - Page transitions (subtle fade/slide)
-- Modal open/close
+- Modal open/close (handled by `shadcn` / `radix-ui`)
 - Cart drawer slide-in
 - Product image gallery transitions
-- Toast notifications entrance/exit
+- Toast notifications entrance/exit (`sonner`)
 - Hover interactions on product cards (subtle scale/shadow)
-
-### Animation Tokens
-
-| Animation | Duration | Easing |
-|---|---|---|
-| Fade in | `200ms` | `ease-out` |
-| Slide in | `300ms` | `ease-out` |
-| Modal overlay | `200ms` | `ease-in-out` |
-| Hover scale | `150ms` | `ease-out` |
-| Page transition | `300ms` | `ease-in-out` |
 
 ### Rules
 
@@ -757,7 +623,7 @@ import Image from 'next/image';
 1. **Always use `next/image`** for optimized loading. Never raw `<img>` tags.
 2. Always provide meaningful `alt` text. Never empty alt on content images.
 3. Use `priority` for above-the-fold hero images.
-4. Configure `next.config.ts` `images.remotePatterns` for backend image domains.
+4. Configure `next.config.ts` `images.remotePatterns` for backend image domains (e.g., S3 or local uploads).
 5. Aspect ratios: Product thumbnails `1:1`, Product detail `3:4`, Hero `16:9`.
 
 ---
@@ -838,7 +704,6 @@ export function formatPriceFromMinor(priceMinor: string | number): string {
 | `/login` | POST | Public | Login form |
 | `/refresh` | POST | Cookie | Silent refresh interceptor |
 | `/logout` | POST | Bearer | Logout action |
-| `/logout-all` | POST | Bearer | Settings action |
 | `/change-password` | POST | Bearer | Settings form |
 | `/forgot-password` | POST | Public | Forgot password form |
 | `/reset-password` | POST | Public | Reset password form |
@@ -849,8 +714,8 @@ export function formatPriceFromMinor(priceMinor: string | number): string {
 
 | Endpoint | Method | Permission | Frontend Use |
 |---|---|---|---|
-| `/me` | GET | `profile.read.own` | Profile page, auth context |
-| `/me` | PATCH | `profile.update.own` | Profile edit form |
+| `/me` | GET | Valid Auth Token | Profile page, auth context |
+| `/me` | PATCH | Valid Auth Token | Profile edit form |
 
 ### Address Endpoints (`/api/v1/addresses`)
 
@@ -863,11 +728,18 @@ export function formatPriceFromMinor(priceMinor: string | number): string {
 
 ### Admin Endpoints (`/api/v1/admin/...`)
 
-Brands, Categories, Size Guides, Products, Product Options, Variants — all CRUD. See backend constitution for full contracts.
+Brands, Categories, Size Guides, Products, Product Options, Variants — all CRUD. Backed by new RBAC Role/Permission architecture (replaces legacy static roles).
+
+### Public Promotion & Experience Endpoints
+
+| Endpoint | Base | Frontend Use |
+|---|---|---|
+| `/public/promotions` | `/api/v1/public/promotions` | Fetch HeroBanners and Announcements for UI. |
+| `/reviews` | `/api/v1/reviews` | Create/Read Product Reviews (PENDING/APPROVED/REJECTED status). |
 
 ### Planned Endpoints (Not Yet Available)
 
-Public catalog, carts, orders, shipping, returns, wishlists, reviews — schemas exist but no backend implementation yet. Frontend features for these should be designed against the planned contracts in the backend constitution.
+Public catalog, carts (`Cart`, `CartItem`), orders, shipping, returns, wishlists, discounts (`DiscountRedemption`, `DiscountTarget`) schemas exist in Prisma but endpoints may still be under construction. Frontend features for these should be designed against the planned contracts in the backend constitution.
 
 ---
 
@@ -953,10 +825,13 @@ details.forEach(({ field, message }) => {
 
 | Variable | Required | Default | Usage |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:3000/api/v1` | Backend API base URL |
+| `NEXT_PUBLIC_API_BASE_URL` | No | `http://localhost:5000/api/v1` | Backend API base URL |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `NEXT_PUBLIC_FACEBOOK_APP_ID` | No | — | Facebook OAuth app ID |
 | `NEXT_PUBLIC_SITE_URL` | No | `http://localhost:3001` | Canonical site URL |
+
+### Backend Connections (For reference)
+The backend now utilizes **Neon Cloud DB (PostgreSQL)** via `DATABASE_URL` and `SMTP_*` for emails. Frontend must be aware of CORS restrictions governed by `CORS_ORIGIN` running on port `5000`.
 
 ### Configuration Rules
 
@@ -1005,18 +880,18 @@ details.forEach(({ field, message }) => {
 
 ## 27. Feature Domains
 
-### Domain Map (Planned)
+### Domain Map (Current State)
 
-| Domain | Features | Priority |
+| Domain | Features | Priority/Status |
 |---|---|---|
-| **Identity** | Login, Register, Verify Email, Forgot/Reset Password, Social Auth, Profile, Addresses | High |
-| **Catalog** | Product Listing, Product Detail, Category Browse, Search, Filters, Size Guide | High |
-| **Commerce** | Cart, Checkout (COD), Order Placement | High |
+| **Identity** | Login, Register, Verify Email, Forgot/Reset Password, Social Auth, Profile, Addresses | Active/Implemented |
+| **Admin** | Dashboard, Product CRUD, Brand/Category CRUD, RBAC | Active/Implemented |
+| **Polish / Promo** | Homepage Hero, Announcements, Theme | Active/Implemented |
+| **Experience** | Product Reviews (Schema Ready, endpoints integrated) | Active/Implemented |
+| **Catalog** | Product Listing, Product Detail, Category Browse, Search, Filters, Size Guide | High / Next |
+| **Commerce** | Cart, Checkout (COD), Order Placement | High / Next |
 | **Account** | Order History, Order Detail, Address Management, Profile Settings | Medium |
-| **Admin** | Dashboard, Product CRUD, Brand/Category CRUD, Order Management, Variant Management | Medium |
-| **Experience** | Wishlist, Reviews, Collections | Low |
-| **Polish** | Homepage Hero, Animations, Newsletter, Footer | Ongoing |
 
 ---
 
-*This constitution was created on 2026-08-19 and reflects the current state of the frontend project setup and backend API contracts. Update this document when architectural decisions change, new libraries are adopted, or the backend constitution is updated.*
+*This constitution was last updated on 2026-09-19 and reflects the current state of the frontend project setup, RBAC integrations, Neon Cloud DB transition, and backend API contracts. Update this document when architectural decisions change, new libraries are adopted, or the backend constitution is updated.*

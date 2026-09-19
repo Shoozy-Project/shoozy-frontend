@@ -13,13 +13,15 @@ interface PublicLayoutProps {
  */
 export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
-    <>
+    <div className="flex flex-col min-h-screen w-full">
       <AnnouncementBar />
-      <Header />
-      <main className="flex-1">
-        {children}
-      </main>
+      <div className="relative flex-1 w-full flex flex-col">
+        <Header />
+        <main className="flex-1 w-full">
+          {children}
+        </main>
+      </div>
       <Footer />
-    </>
+    </div>
   );
 }

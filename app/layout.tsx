@@ -44,8 +44,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html
       lang="en"
       className={cn(playfair.variable, "font-sans", geist.variable)}
+      suppressHydrationWarning
     >
-      <body className="min-h-screen flex flex-col antialiased">
+      <body className="min-h-screen flex flex-col antialiased" suppressHydrationWarning>
         <QueryProvider>
           <ThemeProvider>
             {/* Splash screen — shows on first load AND while auth rehydrates */}
