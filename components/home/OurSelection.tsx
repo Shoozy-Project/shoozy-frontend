@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePublicProducts } from '@/lib/hooks/use-promotions';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 
 export default function OurSelection() {
   const { data: products, isLoading, isError } = usePublicProducts();
@@ -30,7 +30,7 @@ export default function OurSelection() {
     return null; // Return empty or a fallback if required
   }
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {},
     visible: {
       transition: {
@@ -39,7 +39,7 @@ export default function OurSelection() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   };

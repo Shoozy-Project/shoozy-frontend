@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Package, RefreshCcw, Phone } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 
 export default function Advantages() {
   const advantages = [
@@ -30,7 +30,7 @@ export default function Advantages() {
     },
   ];
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {},
     visible: {
       transition: {
@@ -39,7 +39,7 @@ export default function Advantages() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   };

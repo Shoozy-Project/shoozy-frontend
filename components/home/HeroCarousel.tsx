@@ -39,16 +39,19 @@ export default function HeroCarousel() {
   // Fallback while loading
   if (isLoading) {
     return (
-      <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden bg-surface-variant/50 animate-pulse flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
-      </section>
+      <div className="pt-[40px] w-full bg-background">
+        <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden bg-surface-variant/50 animate-pulse flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
+        </section>
+      </div>
     );
   }
 
   // Error or no banners
   if (isError || !banners || banners.length === 0) {
     return (
-      <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden">
+      <div className="pt-[40px] w-full bg-background">
+        <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden">
         <div className="absolute inset-0 w-full h-full">
           <Image
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuA48StYLsUc7nxVJ3xg8gOGChnT_WEZZxpsLiaScpXHruo53dksZYnoxSqGeBRIZcEIIr5M_iqcaFEQR5-rVqUewhLEoq1zUvy-0Lwlifs7A_jTe4TDdvexLzhn73O9HlktR78lFUS9xEGHBjDZZBHsVUIrNyl8fB0GYt0GWMe7Drb025kHh32kawKLHf7XGpiZzLXWxYlIQ6OyomXEirnrrA4PTqcLQ8avAujYm4IKFSp6-fl96TSHSw"
@@ -72,12 +75,14 @@ export default function HeroCarousel() {
           </Link>
         </div>
       </section>
+    </div>
     );
   }
 
   return (
-    <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden group">
-      <div className="overflow-hidden h-full" ref={emblaRef}>
+    <div className="pt-[40px] w-full bg-background">
+      <section className="relative w-full h-[85vh] md:h-screen min-h-[700px] overflow-hidden group">
+        <div className="overflow-hidden h-full" ref={emblaRef}>
         <div className="flex h-full">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative flex-[0_0_100%] min-w-0 h-full">
@@ -162,6 +167,7 @@ export default function HeroCarousel() {
           </div>
         </>
       )}
-    </section>
-  );
+        </section>
+      </div>
+    );
 }
