@@ -15,7 +15,7 @@ function StatCard({ icon, label, value, delay = 0 }: StatCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: 'easeOut' }}
-      className="bg-white border border-[#e5e5e5] rounded-lg p-6 flex flex-col gap-4 hover:border-[#FF8C00]/40 transition-colors duration-300 shadow-sm"
+      className="bg-card border border-border rounded-lg p-6 flex flex-col gap-4 hover:border-[#FF8C00]/40 transition-colors duration-300 shadow-sm"
     >
       {/* Icon + Badge */}
       <div className="flex items-start justify-between">
@@ -26,8 +26,8 @@ function StatCard({ icon, label, value, delay = 0 }: StatCardProps) {
 
       {/* Value */}
       <div>
-        <p className="text-3xl font-bold text-black tracking-tight">{value}</p>
-        <p className="text-xs text-[#6b7280] mt-1 tracking-widest uppercase">{label}</p>
+        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
+        <p className="text-xs text-muted-foreground mt-1 tracking-widest uppercase">{label}</p>
       </div>
     </motion.div>
   );

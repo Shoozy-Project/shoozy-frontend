@@ -15,7 +15,7 @@ import { isAxiosError } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { adminCapabilityQueryOptions } from '@/lib/hooks/use-admin-capability';
 
-export default function LoginForm() {
+export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setAuth } = useAuthStore();
@@ -53,7 +53,7 @@ export default function LoginForm() {
             return;
           }
           if (capabilityError.response?.status === 403) {
-            router.push('/');
+            router.push(redirectTo);
             return;
           }
         }

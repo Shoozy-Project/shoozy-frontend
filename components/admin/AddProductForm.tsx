@@ -12,7 +12,7 @@ import {
   Star, Upload, Link as LinkIcon, MoveUp, MoveDown, Palette
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -1099,7 +1099,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded border border-gray-200 bg-gray-100 shrink-0 overflow-hidden relative flex items-center justify-center">
                               {activeDisplayUrl ? (
-                                <Image src={activeDisplayUrl} alt={colorName} fill unoptimized className="object-cover" />
+                                <CommerceImage src={activeDisplayUrl} alt={colorName} sizes="40px" className="object-cover" />
                               ) : (
                                 <ImageIcon className="w-4 h-4 text-gray-300" />
                               )}
@@ -1180,7 +1180,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded border border-gray-200 bg-gray-100 overflow-hidden shrink-0 relative flex items-center justify-center">
                                 {activeImage ? (
-                                  <Image src={activeImage} alt={v.title} fill unoptimized className="object-cover" />
+                                  <CommerceImage src={activeImage} alt={v.title} sizes="28px" className="object-cover" />
                                 ) : (
                                   <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
                                 )}

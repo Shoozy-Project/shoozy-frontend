@@ -30,7 +30,7 @@ export default function PasswordStrengthBar({ password }: PasswordStrengthBarPro
 
   return (
     <div className="mt-2 flex flex-col gap-1.5">
-      <div className="h-1 w-full bg-[#e5e5e5] rounded-full overflow-hidden">
+      <div className="h-1 w-full bg-[var(--border-primary)] rounded-full overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{ backgroundColor: color }}

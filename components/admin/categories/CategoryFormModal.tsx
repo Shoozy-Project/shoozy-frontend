@@ -11,7 +11,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 import {
   Dialog,
@@ -272,12 +272,11 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                 {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
                 {imageUrlValue && (
                   <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <Image
+                    <CommerceImage
                       src={imageUrlValue}
                       alt="URL preview"
-                      fill
+                      sizes="640px"
                       className="object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>
                 )}

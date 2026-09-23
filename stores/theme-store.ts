@@ -1,35 +1,59 @@
 'use client';
 
 import { create } from 'zustand';
-
-type Theme = 'light' | 'dark';
+import {
+  isTheme,
+  LEGACY_THEME_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  type ResolvedTheme,
+  type Theme,
+} from '@/lib/theme';
 
 interface ThemeState {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
+  setResolvedTheme: (theme: ResolvedTheme) => void;
 }
 
 function getInitialTheme(): Theme {
+  if (typeof window === 'undefined') return 'system';
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (isTheme(stored)) return stored;
+
+    const legacy = localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+    if (isTheme(legacy)) {
+      localStorage.setItem(THEME_STORAGE_KEY, legacy);
+      localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+      return legacy;
+    }
+  } catch {
+    // Storage may be unavailable in privacy-restricted contexts.
+  }
+  return 'system';
+}
+
+function resolveTheme(theme: Theme): ResolvedTheme {
+  if (theme !== 'system') return theme;
   if (typeof window === 'undefined') return 'light';
-  const stored = localStorage.getItem('shoezy_theme') as Theme | null;
-  if (stored === 'light' || stored === 'dark') return stored;
-  // Respect system preference
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+const initialTheme = getInitialTheme();
+
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: typeof window === 'undefined' ? 'light' : getInitialTheme(),
+  theme: initialTheme,
+  resolvedTheme: resolveTheme(initialTheme),
 
   setTheme: (theme) => {
-    localStorage.setItem('shoezy_theme', theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+      localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+    } catch {
+      // The in-memory preference still works when storage is unavailable.
+    }
     set({ theme });
   },
-
-  toggleTheme: () =>
-    set((state) => {
-      const next = state.theme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('shoezy_theme', next);
-      return { theme: next };
-    }),
+  setResolvedTheme: (resolvedTheme) => set({ resolvedTheme }),
 }));

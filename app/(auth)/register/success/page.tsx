@@ -39,27 +39,27 @@ export default function RegisterSuccessPage() {
   return (
     <div className="flex flex-col items-center text-center py-8 animate-fade-in">
       {/* Icon */}
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#f0fdf4] border-2 border-[#16a34a]">
+      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-success-light)] border-2 border-[#16a34a]">
         <CheckCircle className="w-10 h-10 text-[#16a34a]" aria-hidden="true" />
       </div>
 
       {/* Heading */}
       <h1
-        className="text-3xl font-serif font-bold text-black mb-3"
+        className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3"
         style={{ fontFamily: 'var(--font-serif)' }}
       >
         Check Your Email
       </h1>
 
-      <p className="text-sm text-[#6b7280] leading-relaxed max-w-sm mb-8">
+      <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-sm mb-8">
         We&apos;ve sent a verification link to your email address. Click the link to activate your
         Shoezy account and start shopping.
       </p>
 
       {/* Email visual */}
-      <div className="flex items-center gap-3 p-4 bg-[#f9f9f9] border border-[#e5e5e5] rounded-sm w-full max-w-sm mb-8">
-        <Mail className="w-5 h-5 text-[#6b7280] shrink-0" aria-hidden="true" />
-        <p className="text-sm text-[#374151]">
+      <div className="flex items-center gap-3 p-4 bg-[var(--surface-secondary)] border border-[var(--border-primary)] rounded-sm w-full max-w-sm mb-8">
+        <Mail className="w-5 h-5 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
+        <p className="text-sm text-[var(--text-secondary)]">
           Check your inbox and spam folder for the verification email.
         </p>
       </div>
@@ -71,14 +71,14 @@ export default function RegisterSuccessPage() {
         </p>
       )}
       {resendError && <p className="text-sm text-red-600 font-medium mb-4">{resendError}</p>}
-      <p className="text-sm text-[#6b7280] mb-2">
+      <p className="text-sm text-[var(--text-muted)] mb-2">
           Didn&apos;t receive it?{' '}
           <button
             id="resend-verification-btn"
             type="button"
             onClick={handleResend}
             disabled={!email || loading || cooldown > 0}
-            className="font-semibold text-black hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+            className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading
               ? 'Sending...'
@@ -91,7 +91,7 @@ export default function RegisterSuccessPage() {
       {/* Back to Login */}
       <Link
         href="/login"
-        className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#374151] hover:text-black transition-colors"
+        className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[#FF8C00] transition-colors"
       >
         ← Back to Login
       </Link>

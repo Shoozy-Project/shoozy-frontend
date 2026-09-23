@@ -10,7 +10,7 @@ import {
   Award,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 import {
   Dialog,
@@ -246,11 +246,10 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
                 {errors.logoUrl && <p className="text-xs text-red-500">{errors.logoUrl.message}</p>}
                 {logoUrlValue && (
                   <div className="relative w-full h-32 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <Image
+                    <CommerceImage
                       src={logoUrlValue}
                       alt="Logo preview"
-                      fill
-                      unoptimized
+                      sizes="640px"
                       className="object-contain p-2"
                     />
                   </div>

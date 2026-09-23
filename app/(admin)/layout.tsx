@@ -17,6 +17,7 @@ import { isAxiosError } from 'axios';
 
 import Sidebar, { navItems } from '@/components/admin/Sidebar';
 import MobileNav from '@/components/admin/MobileNav';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -101,10 +102,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   if (capability.isError) {
     if (capabilityStatus === 401 || capabilityStatus === 403) return null;
     return (
-      <div className="min-h-screen grid place-items-center bg-[#fcfcfc] p-6">
-        <div className="max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-gray-900">Admin access check unavailable</h1>
-          <p className="mt-2 text-sm text-gray-500">Your session is still signed in, but the server could not verify admin access.</p>
+      <div className="min-h-screen grid place-items-center bg-background p-6">
+        <div className="max-w-md rounded-xl border bg-card p-8 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-foreground">Admin access check unavailable</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Your session is still signed in, but the server could not verify admin access.</p>
           <button type="button" onClick={() => capability.refetch()} className="mt-5 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e67e00]">Try again</button>
         </div>
       </div>
@@ -117,7 +118,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     )?.label ?? 'Admin Dashboard';
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] text-gray-900 flex flex-col lg:flex-row antialiased">
+    <div className="admin-theme min-h-screen bg-background text-foreground flex flex-col lg:flex-row antialiased">
       {/* ── Desktop Left Sidebar ───────────────────────────────────── */}
       <Sidebar
         user={user}
@@ -138,7 +139,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* ── Main Content Area ─────────────────────────────────────── */}
       <div className="flex-1 flex flex-col lg:ml-64 min-h-screen">
         {/* Desktop Premium Glassmorphism Header */}
-        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-30 shadow-2xs">
+        <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-30 shadow-2xs">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs">
             <span className="text-gray-400 font-medium">Shoezy Admin</span>
@@ -148,6 +149,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Right Header Action Items */}
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             {/* Storefront External Button */}
             <Link
               href="/"

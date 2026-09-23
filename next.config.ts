@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { OPTIMIZED_IMAGE_PATTERNS } from './lib/image-hosts';
 
 const nextConfig: NextConfig = {
   turbopack: {},
@@ -18,25 +19,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   images: {
-    remotePatterns: [
-      {
-        // Backend local storage (original)
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '5000',
-        pathname: '/**',
-      },
-      {
-        // Allow any HTTPS source for external category/brand image URLs
-        protocol: 'https',
-        hostname: '**',
-      },
-      {
-        // Allow any HTTP source for development/local images
-        protocol: 'http',
-        hostname: '**',
-      },
-    ],
+    remotePatterns: OPTIMIZED_IMAGE_PATTERNS.map((pattern) => ({ ...pattern })),
   },
 };
 

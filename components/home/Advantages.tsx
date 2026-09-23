@@ -1,89 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, RefreshCcw, Phone } from 'lucide-react';
-import { motion, Variants } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { Banknote, Headphones, RefreshCcw } from 'lucide-react';
+import { accountApi } from '@/lib/api/account';
 
 export default function Advantages() {
+  const settings = useQuery({ queryKey: ['commerce', 'store-settings'], queryFn: accountApi.storeSettings, staleTime: 5 * 60_000 });
+  const contact = settings.data?.supportPhone || settings.data?.supportEmail;
+  const contactHref = settings.data?.supportPhone ? `tel:${settings.data.supportPhone}` : settings.data?.supportEmail ? `mailto:${settings.data.supportEmail}` : '/account';
   const advantages = [
-    {
-      icon: <Package className="w-10 h-10 mb-6 text-foreground" strokeWidth={1} />,
-      title: 'Free express delivery',
-      description: 'for all orders over 200 TND',
-      linkText: 'Learn more',
-      linkUrl: '/shipping',
-    },
-    {
-      icon: <RefreshCcw className="w-10 h-10 mb-6 text-foreground" strokeWidth={1} />,
-      title: 'Returns offered',
-      description: 'easy and free returns on all orders',
-      linkText: 'Learn more',
-      linkUrl: '/returns',
-    },
-    {
-      icon: <Phone className="w-10 h-10 mb-6 text-foreground" strokeWidth={1} />,
-      title: 'Need help?',
-      description: 'Contact our client service at +216 71 234 567',
-      linkText: 'Learn more',
-      linkUrl: '/contact',
-    },
+    { icon: Banknote, title: 'Cash on Delivery', description: 'Pay the final backend-confirmed total when your order arrives.', href: '/products', link: 'Start shopping' },
+    { icon: RefreshCcw, title: 'Returns & exchanges', description: settings.data ? `Return window: ${settings.data.returnWindowDays} days. Exchange window: ${settings.data.exchangeWindowDays} days. Eligibility is confirmed by Shoozy.` : 'Eligibility and status are confirmed by Shoozy.', href: '/account/orders', link: 'View orders' },
+    { icon: Headphones, title: 'Customer support', description: contact || (settings.isLoading ? 'Loading support details…' : 'Support details are available in your account.'), href: contactHref, link: contact ? 'Contact support' : 'My account' },
   ];
-
-  const containerVariants: Variants = {
-    hidden: {},
-    visible: {
-      transition: {
-        staggerChildren: 0.15,
-      },
-    },
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
-  };
-
   return (
-    <section className="w-full bg-background py-24 px-4 sm:px-6 lg:px-8 border-t border-border/30">
-      <div className="max-w-7xl mx-auto flex flex-col items-center">
-        
-        <motion.h3 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="font-serif text-2xl text-foreground mb-16 text-center"
-        >
-          E-store advantages
-        </motion.h3>
-
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8 w-full text-center"
-        >
-          {advantages.map((adv, index) => (
-            <motion.div variants={itemVariants} key={index} className="flex flex-col items-center gap-2">
-              {adv.icon}
-              <h4 className="font-sans font-semibold tracking-wider uppercase text-foreground mb-1">
-                {adv.title}
-              </h4>
-              <p className="font-sans text-foreground/60 mb-6">
-                {adv.description}
-              </p>
-              <Link 
-                href={adv.linkUrl} 
-                className="font-sans text-xs tracking-widest text-foreground/80 uppercase border-b border-foreground/30 hover:border-foreground hover:text-foreground transition-colors pb-1"
-              >
-                {adv.linkText}
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
-
-      </div>
+    <section className="w-full border-t border-border/30 bg-background px-4 py-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl"><h3 className="mb-16 text-center font-serif text-2xl">Shopping with Shoozy</h3><div className="grid grid-cols-1 gap-12 text-center md:grid-cols-3 md:gap-8">{advantages.map((item) => <div key={item.title} className="flex flex-col items-center"><item.icon className="mb-6 size-10" strokeWidth={1} /><h4 className="font-semibold uppercase tracking-wider">{item.title}</h4><p className="mb-6 mt-2 max-w-xs text-sm text-muted-foreground">{item.description}</p><Link href={item.href} className="border-b border-foreground/30 pb-1 text-xs uppercase tracking-widest hover:border-foreground">{item.link}</Link></div>)}</div></div>
     </section>
   );
 }

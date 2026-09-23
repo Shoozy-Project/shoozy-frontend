@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: 'Sign in to your Shoezy account to access your orders, wishlist, and more.',
 };
 
-export default function LoginPage() {
-  return <LoginForm />;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const requested = (await searchParams).next;
+  const redirectTo = typeof requested === 'string' && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
+  return <LoginForm redirectTo={redirectTo} />;
 }

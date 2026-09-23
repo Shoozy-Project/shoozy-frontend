@@ -6,6 +6,7 @@
 
 /* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
+  color-scheme: light;
   /* Brand Colors */
   --color-white: #ffffff;
   --color-off-white: #f9f9f9;
@@ -81,6 +82,7 @@
 
 /* ─── Dark Theme ────────────────────────────────────────────── */
 html.dark {
+  color-scheme: dark;
   --surface-primary: #0f0f0f;
   --surface-secondary: #1a1a1a;
   --surface-elevated: #1f1f1f;
@@ -212,6 +214,29 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--text-primary);
 }
 
+input,
+textarea,
+select {
+  color: var(--foreground);
+  background-color: var(--background);
+  border-color: var(--input);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+select option {
+  color: var(--popover-foreground);
+  background-color: var(--popover);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-gold);
+}
+
 /* ─── Animations ─────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -306,5 +331,97 @@ input:-webkit-autofill:focus {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Legacy admin screens still use Tailwind's fixed neutral palette. Keep the
+   existing hierarchy while translating those utilities to the shared dark
+   tokens. This is scoped to /admin and also covers portalled dialogs. */
+@layer utilities {
+  html.dark[data-app-area="admin"] :is(.bg-white, .bg-white\/80, .bg-white\/50) {
+    background-color: var(--card) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.bg-gray-50, .bg-gray-50\/80, .bg-gray-50\/70, .bg-gray-50\/50, .bg-gray-50\/40, .bg-gray-100, .bg-gray-100\/80) {
+    background-color: var(--muted) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-black, .text-gray-900, .text-gray-800) {
+    color: var(--foreground) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-gray-700, .text-gray-600) {
+    color: color-mix(in oklch, var(--foreground) 78%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-gray-500, .text-gray-400, .text-gray-300) {
+    color: var(--muted-foreground) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+    border-color: var(--border) !important;
+  }
+
+  html.dark[data-app-area="admin"] .bg-black {
+    color: var(--primary-foreground) !important;
+    background-color: var(--primary) !important;
+  }
+
+  html.dark[data-app-area="admin"] .border-black {
+    border-color: var(--primary) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.hover\:bg-gray-50, .hover\:bg-gray-50\/80, .hover\:bg-gray-50\/70, .hover\:bg-gray-100, .hover\:bg-gray-100\/80):hover {
+    background-color: var(--accent) !important;
+  }
+
+  html.dark[data-app-area="admin"] .hover\:bg-gray-800:hover {
+    background-color: color-mix(in oklch, var(--primary) 82%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.hover\:text-black, .hover\:text-gray-900):hover {
+    color: var(--foreground) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.bg-red-50, .bg-red-50\/80, .bg-red-50\/50) {
+    background-color: color-mix(in oklch, var(--color-red-500) 16%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.bg-green-50, .bg-emerald-50, .bg-emerald-100, .bg-emerald-100\/80) {
+    background-color: color-mix(in oklch, var(--color-emerald-500) 16%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.bg-amber-50, .bg-amber-100\/80, .bg-orange-50, .bg-orange-50\/80, .bg-orange-50\/50) {
+    background-color: color-mix(in oklch, var(--color-amber-500) 16%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.bg-blue-50, .bg-blue-100\/80, .bg-purple-50, .bg-purple-100\/80) {
+    background-color: color-mix(in oklch, var(--color-blue-500) 16%, transparent) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-red-600, .text-red-700) {
+    color: var(--color-red-400) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-green-600, .text-green-700, .text-emerald-600, .text-emerald-700, .text-emerald-800) {
+    color: var(--color-emerald-400) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-orange-700) {
+    color: var(--color-amber-400) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.text-blue-600, .text-blue-700, .text-purple-600, .text-purple-700) {
+    color: var(--color-blue-400) !important;
+  }
+
+  html.dark[data-app-area="admin"] :is(.border-red-100, .border-red-200, .border-green-200, .border-emerald-200, .border-emerald-300, .border-amber-100, .border-amber-200, .border-amber-300, .border-orange-300, .border-blue-300, .border-purple-300) {
+    border-color: color-mix(in oklch, currentColor 35%, transparent) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
   }
 }

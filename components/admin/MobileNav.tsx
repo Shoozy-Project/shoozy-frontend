@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogOut, Bell, ChevronRight } from 'lucide-react';
 import { navItems } from './Sidebar';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 interface MobileNavProps {
   user: {
@@ -47,12 +48,12 @@ export default function MobileNav({
   return (
     <>
       {/* ── Sticky Mobile Top Header Bar ───────────────────────────────── */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 bg-white border-b border-[#e5e5e5] shadow-xs">
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 bg-card border-b border-border shadow-xs">
         {/* Left: Hamburger trigger */}
         <button
           id="admin-mobile-menu-toggle"
           onClick={() => setOpen(true)}
-          className="p-2 -ml-2 text-[#374151] hover:text-black hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+          className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
           aria-label="Open mobile navigation menu"
         >
           <Menu className="w-5 h-5" />
@@ -73,10 +74,11 @@ export default function MobileNav({
 
         {/* Right: Notifications + User Avatar */}
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button
             id="admin-mobile-notifications-btn"
             aria-label="Notifications"
-            className="relative p-1.5 text-[#374151] hover:text-black transition-colors rounded-lg hover:bg-gray-100"
+            className="relative p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted"
           >
             <Bell className="w-5 h-5" />
             <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-[#FF8C00] text-white text-[10px] font-bold flex items-center justify-center">
@@ -114,11 +116,11 @@ export default function MobileNav({
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 280 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white border-r border-[#e5e5e5] flex flex-col lg:hidden shadow-2xl"
+              className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r border-border flex flex-col lg:hidden shadow-2xl"
               aria-label="Mobile Navigation Drawer"
             >
               {/* Drawer Header */}
-              <div className="flex items-center justify-between px-5 h-16 border-b border-[#e5e5e5]">
+              <div className="flex items-center justify-between px-5 h-16 border-b border-border">
                 <Link
                   href="/admin"
                   prefetch={true}
@@ -159,12 +161,12 @@ export default function MobileNav({
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                         isActive
                           ? 'bg-[#FF8C00]/10 text-[#FF8C00] font-semibold'
-                          : 'text-[#374151] hover:text-black hover:bg-[#f7f7f7]'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     >
                       <Icon
                         className={`w-4 h-4 shrink-0 ${
-                          isActive ? 'text-[#FF8C00]' : 'text-[#6b7280]'
+                          isActive ? 'text-[#FF8C00]' : 'text-muted-foreground'
                         }`}
                       />
                       <span>{label}</span>
@@ -175,7 +177,7 @@ export default function MobileNav({
               </nav>
 
               {/* User Profile & Logout Section */}
-              <div className="px-3 pb-6 border-t border-[#e5e5e5] pt-4 space-y-2">
+              <div className="px-3 pb-6 border-t border-border pt-4 space-y-2">
                 <div className="flex items-center gap-3 px-3 py-2">
                   <div className="w-9 h-9 rounded-full bg-[#FF8C00] flex items-center justify-center text-xs font-bold text-white shrink-0">
                     {user.firstName[0]}
@@ -185,14 +187,14 @@ export default function MobileNav({
                     <p className="text-sm font-semibold text-black truncate">
                       {user.firstName} {user.lastName}
                     </p>
-                    <p className="text-xs text-[#6b7280] truncate">{user.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
 
                 <button
                   onClick={onLogout}
                   disabled={loggingOut}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 shrink-0" />
                   <span>{loggingOut ? 'Signing out…' : 'Sign Out'}</span>

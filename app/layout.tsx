@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { Playfair_Display, Geist } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import SplashScreenWrapper from '@/components/SplashScreenWrapper';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
-import { Toaster } from 'sonner';
 import { cn } from "@/lib/utils";
+import { ThemedToaster } from '@/components/theme/ThemedToaster';
+import { THEME_BOOTSTRAP_SCRIPT } from '@/lib/theme';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -47,18 +49,17 @@ export default function RootLayout({ children }: RootLayoutProps) {
       suppressHydrationWarning
     >
       <body className="min-h-screen flex flex-col antialiased" suppressHydrationWarning>
+        <Script
+          id="shoozy-theme-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
         <QueryProvider>
           <ThemeProvider>
             {/* Splash screen — shows on first load AND while auth rehydrates */}
             <SplashScreenWrapper />
             {children}
-            <Toaster
-              position="bottom-right"
-              richColors
-              toastOptions={{
-                style: { fontFamily: 'var(--font-sans)' },
-              }}
-            />
+            <ThemedToaster />
           </ThemeProvider>
         </QueryProvider>
       </body>

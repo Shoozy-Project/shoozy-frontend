@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { publicProductsApi } from '../api/public-products';
+import { catalogApi } from '@/lib/api/catalog';
 
 export function usePublicProducts() {
   return useQuery({
-    queryKey: ['publicProducts'],
-    queryFn: async () => (await publicProductsApi.listPublicProducts()).data.data,
+    queryKey: ['catalog', 'home-products'],
+    queryFn: async () => (await catalogApi.products({ page: 1, limit: 3, sort: 'newest' })).data.data.items,
     staleTime: 60 * 1000,
   });
 }

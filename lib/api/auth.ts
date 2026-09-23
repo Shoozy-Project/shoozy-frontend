@@ -24,7 +24,9 @@ export const authApi = {
 
   /** POST /auth/logout — requires Bearer token */
   logout: () =>
-    apiClient.post<ApiSuccess<{ loggedOut: boolean }>>('/auth/logout'),
+    apiClient.post<ApiSuccess<{ loggedOut: boolean }>>('/auth/logout', undefined, {
+      withCredentials: true,
+    }),
 
   /** POST /auth/logout-all — requires Bearer token */
   logoutAll: () =>

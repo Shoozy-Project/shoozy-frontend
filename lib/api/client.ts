@@ -56,7 +56,7 @@ apiClient.interceptors.response.use(
     // expected when there is no valid session (incognito, expired cookie).
     // Let them bubble up so QueryProvider's .catch() handles them cleanly.
     const url = originalRequest?.url ?? '';
-    if (url.includes('/auth/refresh')) {
+    if (url.includes('/auth/refresh') || url.startsWith('/guest/')) {
       return Promise.reject(error);
     }
 

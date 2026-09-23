@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 import {
   Plus,
   Search,
@@ -15,7 +15,6 @@ import {
   EyeOff,
   Loader2,
   Grid,
-  ImageOff,
   FilterX,
 } from 'lucide-react';
 
@@ -49,23 +48,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 
 // ─── Category Thumbnail Component ───────────────────────────────
 const CategoryThumbnail = ({ src, name }: { src: string | null; name: string }) => {
-  const [hasError, setHasError] = useState(false);
-
-  if (!src || hasError) {
-    return <ImageOff className="w-4 h-4 text-gray-300" aria-hidden="true" />;
-  }
-
-  return (
-    <Image
-      src={src}
-      alt={name}
-      width={40}
-      height={40}
-      unoptimized
-      className="object-cover w-full h-full"
-      onError={() => setHasError(true)}
-    />
-  );
+  return <CommerceImage src={src} alt={name} sizes="40px" className="object-cover" />;
 };
 
 const SkeletonRow = () => (

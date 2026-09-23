@@ -13,7 +13,7 @@ import {
   Search,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 import {
   Dialog,
@@ -369,11 +369,10 @@ const CollectionFormModal = ({
                 {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
                 {imageUrlValue && (
                   <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <Image
+                    <CommerceImage
                       src={imageUrlValue}
                       alt="Collection cover preview"
-                      fill
-                      unoptimized
+                      sizes="640px"
                       className="object-cover"
                     />
                   </div>

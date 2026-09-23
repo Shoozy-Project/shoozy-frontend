@@ -33,22 +33,22 @@ export default function ForgotPasswordPage() {
   if (submitted) {
     return (
       <div className="flex flex-col items-center text-center py-8 animate-fade-in">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#fff3e0] border-2 border-[#FF8C00]">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-gold-light)] border-2 border-[#FF8C00]">
           <Mail className="w-10 h-10 text-[#FF8C00]" aria-hidden="true" />
         </div>
-        <h1 className="text-3xl font-serif font-bold text-black mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
+        <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
           Check Your Email
         </h1>
-        <p className="text-sm text-[#6b7280] leading-relaxed max-w-sm mb-6">
-          If an account exists for <strong className="text-black">{submittedEmail}</strong>, you&apos;ll
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-sm mb-6">
+          If an account exists for <strong className="text-[var(--text-primary)]">{submittedEmail}</strong>, you&apos;ll
           receive a password reset link shortly.
         </p>
-        <p className="text-xs text-[#9ca3af] mb-8">
+        <p className="text-xs text-[var(--text-faint)] mb-8">
           Don&apos;t forget to check your spam folder.
         </p>
         <Link
           href="/login"
-          className="text-sm font-semibold text-black hover:text-[#FF8C00] transition-colors"
+          className="text-sm font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors"
         >
           ← Back to Login
         </Link>
@@ -59,10 +59,10 @@ export default function ForgotPasswordPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl lg:text-4xl font-serif font-bold text-black tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
+        <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
           Forgot Password?
         </h1>
-        <p className="mt-2 text-sm text-[#6b7280]">
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           Enter your email and we&apos;ll send you a reset link.
         </p>
       </div>
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
         className="flex flex-col gap-6"
       >
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="forgot-email" className="text-xs font-semibold tracking-widest uppercase text-[#374151]">
+          <label htmlFor="forgot-email" className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]">
             Email Address
           </label>
           <input
@@ -85,11 +85,11 @@ export default function ForgotPasswordPage() {
             aria-describedby={errors.email ? 'forgot-email-error' : undefined}
             aria-invalid={!!errors.email}
             className={`
-              w-full px-0 py-3 text-sm bg-transparent border-b-2 text-black placeholder-[#9ca3af]
+              w-full px-0 py-3 text-sm bg-transparent border-b-2 text-[var(--text-primary)] placeholder:text-[var(--text-faint)]
               focus:outline-none transition-colors duration-200
               ${errors.email
                 ? 'border-[#dc2626] focus:border-[#dc2626]'
-                : 'border-[#e5e5e5] focus:border-black'
+                : 'border-[var(--border-primary)] focus:border-[var(--text-primary)]'
               }
             `}
             {...register('email')}
@@ -105,18 +105,18 @@ export default function ForgotPasswordPage() {
           id="forgot-password-submit-btn"
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-4 text-xs font-semibold tracking-widest uppercase bg-black text-white hover:bg-[#1a1a1a] transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isSubmitting && (
-            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
           {isSubmitting ? 'Sending...' : 'Send Reset Link'}
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-[#6b7280]">
+      <p className="mt-8 text-center text-sm text-[var(--text-muted)]">
         Remember your password?{' '}
-        <Link href="/login" className="font-semibold text-black hover:text-[#FF8C00] transition-colors">
+        <Link href="/login" className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors">
           Sign In
         </Link>
       </p>

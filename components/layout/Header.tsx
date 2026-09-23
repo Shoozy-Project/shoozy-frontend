@@ -1,82 +1,90 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, User, ShoppingBag } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Heart, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
 import AnnouncementBar from './AnnouncementBar';
+import { useCurrentCart } from '@/lib/hooks/use-commerce';
+import { selectIsAuthenticated, useAuthStore } from '@/stores/auth-store';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+
+const navLinks = [
+  { href: '/products', label: 'Shop' },
+  { href: '/categories', label: 'Categories' },
+  { href: '/collections', label: 'Collections' },
+];
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const authenticated = useAuthStore(selectIsAuthenticated);
+  const cart = useCurrentCart();
+  const count = cart.data?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
+  const solid = pathname !== '/' || isScrolled || searchOpen || menuOpen;
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
-    // Check initial scroll position on mount
     handleScroll();
-
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const search = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = String(new FormData(event.currentTarget).get('search') ?? '').trim();
+    if (!value) return;
+    setSearchOpen(false);
+    router.push(`/products?search=${encodeURIComponent(value)}`);
+  };
+
   return (
-    <header className="fixed top-0 left-0 w-full z-50 flex flex-col">
+    <header className="fixed left-0 top-0 z-50 flex w-full flex-col">
       <AnnouncementBar />
-      
-      <div 
-        className={`w-full transition-all duration-300 ease-in-out ${
-          isScrolled 
-            ? 'bg-black/95 backdrop-blur-md shadow-md' 
-            : 'bg-gradient-to-b from-black/80 via-black/30 to-transparent'
-        }`}
-      >
-        {/* Top Row (Brand & Utilities) */}
-        <div className="flex justify-between items-center px-6 md:px-12 py-4">
-          
-          {/* Left: Search */}
-          <div className="flex-1 flex justify-start">
-            <button aria-label="Search" className="text-white hover:text-white/80 transition-colors">
-              <Search className="w-5 h-5 text-white" strokeWidth={1.5} />
+      <div className={`w-full transition-all duration-300 ${solid ? 'bg-black/95 shadow-md backdrop-blur-md' : 'bg-gradient-to-b from-black/80 via-black/30 to-transparent'}`}>
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 md:px-12">
+          <div className="flex flex-1 items-center justify-start gap-3">
+            <button type="button" onClick={() => setSearchOpen((value) => !value)} aria-label={searchOpen ? 'Close search' : 'Search'} aria-expanded={searchOpen} className="text-white transition-colors hover:text-white/80">
+              {searchOpen ? <X className="size-5" /> : <Search className="size-5" strokeWidth={1.5} />}
+            </button>
+            <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} className="text-white md:hidden">
+              {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
           </div>
-
-          {/* Center: Brand */}
-          <div className="flex-shrink-0 flex items-center justify-center">
-            <Link href="/" className="font-serif text-3xl md:text-4xl font-medium tracking-wide text-white drop-shadow-md">
-              SHOEZY
-            </Link>
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex-1 flex items-center justify-end gap-6">
-            <Link href="/login" aria-label="User Account" className="text-white hover:text-white/80 transition-colors">
-              <User className="w-5 h-5 text-white" strokeWidth={1.5} />
-            </Link>
-            <Link href="/cart" aria-label="Shopping Bag" className="text-white hover:text-white/80 transition-colors relative">
-              <ShoppingBag className="w-5 h-5 text-white" strokeWidth={1.5} />
+          <Link href="/" className="flex-shrink-0 font-serif text-3xl font-medium tracking-wide text-white drop-shadow-md md:text-4xl">SHOEZY</Link>
+          <div className="flex flex-1 items-center justify-end gap-4 sm:gap-6">
+            <ThemeToggle tone="inverse" />
+            <Link href={authenticated ? '/wishlist' : '/login'} aria-label="Wishlist" className="hidden text-white transition-colors hover:text-white/80 sm:block"><Heart className="size-5" strokeWidth={1.5} /></Link>
+            <Link href={authenticated ? '/account' : '/login'} aria-label={authenticated ? 'My account' : 'Sign in'} className="text-white transition-colors hover:text-white/80"><User className="size-5" strokeWidth={1.5} /></Link>
+            <Link href="/cart" aria-label={`Shopping bag with ${count} items`} className="relative text-white transition-colors hover:text-white/80">
+              <ShoppingBag className="size-5" strokeWidth={1.5} />
+              {count > 0 && <span className="absolute -right-2.5 -top-2.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#fff] px-1 text-[10px] font-bold text-[#000]">{count > 99 ? '99+' : count}</span>}
             </Link>
           </div>
         </div>
-
-        {/* Bottom Row (Navigation Links) */}
-        <nav className="hidden md:flex justify-center items-center gap-8 pb-4">
-          <Link href="/men" className="text-xs md:text-sm uppercase tracking-widest text-white/90 hover:text-white transition-colors font-medium">
-            Men
-          </Link>
-          <Link href="/women" className="text-xs md:text-sm uppercase tracking-widest text-white/90 hover:text-white transition-colors font-medium">
-            Women
-          </Link>
-          <Link href="/new-arrivals" className="text-xs md:text-sm uppercase tracking-widest text-white/90 hover:text-white transition-colors font-medium">
-            New Arrivals
-          </Link>
-          <Link href="/exclusives" className="text-xs md:text-sm uppercase tracking-widest text-white/90 hover:text-white transition-colors font-medium">
-            Exclusives
-          </Link>
-          <Link href="/house" className="text-xs md:text-sm uppercase tracking-widest text-white/90 hover:text-white transition-colors font-medium">
-            The House
-          </Link>
+        <nav className="hidden items-center justify-center gap-8 pb-4 md:flex" aria-label="Main navigation">
+          {navLinks.map((link) => <Link key={link.href} href={link.href} className="text-xs font-medium uppercase tracking-widest text-white/90 transition-colors hover:text-white">{link.label}</Link>)}
         </nav>
+        {searchOpen && (
+          <form onSubmit={search} role="search" className="border-t border-white/15 px-4 py-4 sm:px-6 md:px-12">
+            <div className="mx-auto flex max-w-2xl items-center gap-3 border-b border-white/50 pb-2">
+              <Search className="size-5 text-white/70" aria-hidden="true" />
+              <input name="search" autoFocus maxLength={100} placeholder="Search products and brands" aria-label="Search products" className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-white/60" />
+              <button type="submit" className="text-xs font-medium uppercase tracking-wider text-white">Search</button>
+            </div>
+          </form>
+        )}
+        {menuOpen && (
+          <nav className="border-t border-white/15 px-5 py-4 md:hidden" aria-label="Mobile navigation">
+            <div className="flex flex-col gap-4">
+              {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="text-sm font-medium uppercase tracking-widest text-white">{link.label}</Link>)}
+              <Link href={authenticated ? '/wishlist' : '/login'} onClick={() => setMenuOpen(false)} className="text-sm font-medium uppercase tracking-widest text-white">Wishlist</Link>
+            </div>
+          </nav>
+        )}
       </div>
     </header>
   );

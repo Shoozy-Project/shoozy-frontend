@@ -54,18 +54,18 @@ function ResetPasswordForm() {
   if (state === 'success') {
     return (
       <div className="flex flex-col items-center text-center py-8 animate-fade-in">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#f0fdf4] border-2 border-[#16a34a]">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-success-light)] border-2 border-[#16a34a]">
           <CheckCircle className="w-10 h-10 text-[#16a34a]" aria-hidden="true" />
         </div>
-        <h1 className="text-3xl font-serif font-bold text-black mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
+        <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
           Password Updated!
         </h1>
-        <p className="text-sm text-[#6b7280] mb-8">
+        <p className="text-sm text-[var(--text-muted)] mb-8">
           Your password has been changed successfully. You can now sign in with your new password.
         </p>
         <Link
           href="/login"
-          className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-black text-white hover:bg-[#1a1a1a] transition-colors"
+          className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity"
         >
           Sign In
         </Link>
@@ -76,13 +76,13 @@ function ResetPasswordForm() {
   if (state === 'invalid' || state === 'expired' || state === 'used') {
     return (
       <div className="flex flex-col items-center text-center py-8 animate-fade-in">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#fef2f2] border-2 border-[#dc2626]">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-error-light)] border-2 border-[#dc2626]">
           <XCircle className="w-10 h-10 text-[#dc2626]" aria-hidden="true" />
         </div>
-        <h1 className="text-3xl font-serif font-bold text-black mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
+        <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
           {state === 'used' ? 'Already Used' : state === 'expired' ? 'Link Expired' : 'Invalid Link'}
         </h1>
-        <p className="text-sm text-[#6b7280] mb-8">
+        <p className="text-sm text-[var(--text-muted)] mb-8">
           {state === 'used'
             ? 'This reset link has already been used. Request a new one if needed.'
             : state === 'expired'
@@ -91,7 +91,7 @@ function ResetPasswordForm() {
         </p>
         <Link
           href="/forgot-password"
-          className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-black text-white hover:bg-[#1a1a1a] transition-colors"
+          className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity"
         >
           Request New Link
         </Link>
@@ -102,16 +102,16 @@ function ResetPasswordForm() {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl lg:text-4xl font-serif font-bold text-black tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
+        <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
           Set New Password
         </h1>
-        <p className="mt-2 text-sm text-[#6b7280]">
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           Choose a strong password for your account.
         </p>
       </div>
 
       {serverError && (
-        <div role="alert" className="flex items-start gap-3 p-4 mb-5 bg-[#fef2f2] border border-[#fecaca] rounded-sm animate-fade-in">
+        <div role="alert" className="flex items-start gap-3 p-4 mb-5 bg-[var(--color-error-light)] border border-[#fecaca] dark:border-[#5c2020] rounded-sm animate-fade-in">
           <AlertCircle className="w-4 h-4 text-[#dc2626] shrink-0 mt-0.5" aria-hidden="true" />
           <p className="text-sm text-[#dc2626]">{serverError}</p>
         </div>
@@ -148,10 +148,10 @@ function ResetPasswordForm() {
           id="reset-password-submit-btn"
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-4 text-xs font-semibold tracking-widest uppercase bg-black text-white hover:bg-[#1a1a1a] transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isSubmitting && (
-            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
           {isSubmitting ? 'Updating...' : 'Update Password'}
         </button>
@@ -166,7 +166,7 @@ export default function ResetPasswordPage() {
       fallback={
         <div className="flex flex-col items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-[#FF8C00] animate-spin mb-3" aria-hidden="true" />
-          <p className="text-sm text-[#6b7280]">Loading reset password form...</p>
+          <p className="text-sm text-[var(--text-muted)]">Loading reset password form...</p>
         </div>
       }
     >

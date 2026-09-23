@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 import { ExternalLink, AlertTriangle, ShoppingBag, ShieldCheck, Truck, Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -82,7 +83,7 @@ export default function ProductPreviewModal({
             </span>
           </div>
           <a
-            href={`/product/${product.slug}`}
+            href={`/products/${product.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#FF8C00] hover:underline flex items-center gap-1 font-medium transition-all"
@@ -126,19 +127,16 @@ export default function ProductPreviewModal({
                 </div>
 
                 <AnimatePresence mode="wait">
-                  <motion.img
+                  <motion.div
                     key={activeImage}
-                    src={activeImage}
-                    alt={p.name}
                     initial={{ opacity: 0.4, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0.4 }}
                     transition={{ duration: 0.2 }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800';
-                    }}
-                  />
+                    className="absolute inset-0"
+                  >
+                    <CommerceImage src={activeImage} alt={p.name} sizes="(max-width: 768px) 100vw, 50vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                  </motion.div>
                 </AnimatePresence>
               </div>
 
@@ -152,19 +150,11 @@ export default function ProductPreviewModal({
                         key={m.id || idx}
                         type="button"
                         onClick={() => setSelectedImage(m.url)}
-                        className={`w-16 h-16 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${
+                        className={`relative w-16 h-16 rounded-lg border-2 overflow-hidden shrink-0 transition-all ${
                           isSelected ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/20 scale-105' : 'border-gray-200 opacity-70 hover:opacity-100'
                         }`}
                       >
-                        {/* eslint-disable-next-html-element-suppression */}
-                        <img
-                          src={m.url}
-                          alt={`Thumbnail ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
-                          }}
-                        />
+                        <CommerceImage src={m.url} alt={`Thumbnail ${idx + 1}`} sizes="64px" className="object-cover" />
                       </button>
                     );
                   })}
@@ -292,7 +282,7 @@ export default function ProductPreviewModal({
                 <Button 
                   className="w-full bg-black hover:bg-gray-800 text-white py-5 font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                   onClick={() => {
-                    window.open(`/product/${p.slug}`, '_blank');
+                    window.open(`/products/${p.slug}`, '_blank');
                   }}
                 >
                   <ShoppingBag className="w-4 h-4 text-[#FF8C00]" /> Add to Bag & Order COD

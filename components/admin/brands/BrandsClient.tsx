@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
-import Image from 'next/image';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 import {
   Plus,
   Search,
@@ -347,11 +347,10 @@ const BrandsClient = () => {
                         <div className="flex items-center gap-2.5">
                           {b.logoUrl ? (
                             <div className="w-7 h-7 rounded border border-gray-200 overflow-hidden relative shrink-0 bg-white p-0.5">
-                              <Image
+                              <CommerceImage
                                 src={b.logoUrl}
                                 alt={b.name}
-                                fill
-                                unoptimized
+                                sizes="28px"
                                 className="object-contain"
                               />
                             </div>
