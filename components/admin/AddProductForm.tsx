@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useForm, useWatch, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,10 +17,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { addProductSchema, type AddProductInput } from '@/validations/product';
+import { createAddProductSchema, type AddProductInput } from '@/validations/product';
 import { productsApi } from '@/lib/api/products';
-import { isAxiosError } from 'axios';
 import { majorToMinorString } from '@/lib/format-money';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 type ProductFormVariant = AddProductInput['variants'][number];
 
@@ -45,10 +45,12 @@ interface GalleryItem {
 }
 
 export default function AddProductForm({ productId }: { productId?: string }) {
+  const { locale, t } = useTranslations();
+  const productSchema = useMemo(() => createAddProductSchema(locale), [locale]);
   const router = useRouter();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [prevBasePrice, setPrevBasePrice] = useState<number>(0);
+  const prevBasePriceRef = useRef(0);
   const [descriptionTab, setDescriptionTab] = useState<'write' | 'preview'>('write');
   const [colorImageAssignments, setColorImageAssignments] = useState<Record<string, string>>({});
 
@@ -76,12 +78,12 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors }
   } = useForm<AddProductInput>({
-    resolver: zodResolver(addProductSchema) as Resolver<AddProductInput>,
+    resolver: zodResolver(productSchema) as Resolver<AddProductInput>,
     defaultValues: {
       status: 'DRAFT',
       gender: 'UNISEX',
@@ -93,12 +95,12 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     }
   });
 
-  const productName = watch('name');
-  const selectedBrandId = watch('brandId');
-  const basePrice = watch('basePrice') || 0;
-  const skuPrefix = watch('skuPrefix') || '';
-  const description = watch('description') || '';
-  const variants = watch('variants') || [];
+  const productName = useWatch({ control, name: 'name' });
+  const selectedBrandId = useWatch({ control, name: 'brandId' });
+  const basePrice = useWatch({ control, name: 'basePrice' }) || 0;
+  const skuPrefix = useWatch({ control, name: 'skuPrefix' }) || '';
+  const description = useWatch({ control, name: 'description' }) || '';
+  const variants = useWatch({ control, name: 'variants' }) || [];
   const liveSizeGuides = formContext?.sizeGuides.filter(
     (sizeGuide) => !sizeGuide.brandId || sizeGuide.brandId === selectedBrandId
   ) ?? [];
@@ -187,34 +189,42 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   }, [productId, productName, isSkuPrefixTouched, setValue]);
 
   // Manage option inputs (e.g. Size, Color)
-  const [optionInputs, setOptionInputs] = useState<{ name: string; rawValues: string }[]>([
-    { name: 'Size', rawValues: '40, 41, 42' },
-    { name: 'Color', rawValues: 'Black, White' }
-  ]);
+  const [optionInputs, setOptionInputs] = useState<{ name: string; nameAr: string; rawValues: string; rawValuesAr: string }[]>([]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- The remote product payload hydrates editor-only state after the query resolves. */
   useEffect(() => {
     if (!productDetail) return;
     setOptionInputs(productDetail.options.map((option) => ({
-      name: option.name,
+      name: option.translations?.en?.name ?? option.name,
+      nameAr: option.translations?.ar?.name ?? '',
       rawValues: option.values.map((value) => value.value).join(', '),
+      rawValuesAr: option.values.map((value) => value.translations?.ar?.displayValue ?? '').join('، '),
     })));
     reset({
-      name: productDetail.name,
+      name: productDetail.translations?.en?.name ?? productDetail.name,
+      nameAr: productDetail.translations?.ar?.name ?? '',
       slug: productDetail.slug,
       brandId: productDetail.brandId,
       sizeGuideId: productDetail.sizeGuideId,
       skuPrefix: productDetail.skuPrefix,
-      shortDescription: productDetail.shortDescription,
-      description: productDetail.description,
+      shortDescription: productDetail.translations?.en?.shortDescription ?? productDetail.shortDescription,
+      shortDescriptionAr: productDetail.translations?.ar?.shortDescription ?? '',
+      description: productDetail.translations?.en?.description ?? productDetail.description,
+      descriptionAr: productDetail.translations?.ar?.description ?? '',
       basePrice: Number(productDetail.basePrice),
       compareAtPrice: productDetail.compareAtPrice ? Number(productDetail.compareAtPrice) : null,
-      material: productDetail.material,
+      material: productDetail.translations?.en?.material ?? productDetail.material,
+      materialAr: productDetail.translations?.ar?.material ?? '',
+      seoTitle: productDetail.translations?.en?.seoTitle ?? productDetail.seoTitle,
+      seoTitleAr: productDetail.translations?.ar?.seoTitle ?? '',
+      seoDescription: productDetail.translations?.en?.seoDescription ?? productDetail.seoDescription,
+      seoDescriptionAr: productDetail.translations?.ar?.seoDescription ?? '',
       gender: productDetail.gender === 'MALE' || productDetail.gender === 'FEMALE'
         ? productDetail.gender
         : 'UNISEX',
       status: productDetail.status,
       categories: productDetail.categories.map((category) => category.id),
-      options: productDetail.options.map((option) => ({ name: option.name, values: option.values.map((value) => value.value) })),
+      options: productDetail.options.map((option) => ({ name: option.translations?.en?.name ?? option.name, values: option.values.map((value) => value.value) })),
       variants: productDetail.variants.map((variant) => ({
         id: variant.id,
         sku: variant.sku,
@@ -246,9 +256,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     })));
     setIsSkuPrefixTouched(true);
   }, [productDetail, reset]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const addOptionField = () => {
-    setOptionInputs([...optionInputs, { name: '', rawValues: '' }]);
+    setOptionInputs([...optionInputs, { name: '', nameAr: '', rawValues: '', rawValuesAr: '' }]);
   };
 
   const removeOptionField = (index: number) => {
@@ -257,7 +268,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     setOptionInputs(updated);
   };
 
-  const handleOptionChange = (index: number, field: 'name' | 'rawValues', value: string) => {
+  const handleOptionChange = (index: number, field: 'name' | 'nameAr' | 'rawValues' | 'rawValuesAr', value: string) => {
     const updated = [...optionInputs];
     updated[index][field] = value;
     setOptionInputs(updated);
@@ -288,7 +299,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     const updatedAssignments = { ...colorImageAssignments, [colorValueClientKey]: url };
     setColorImageAssignments(updatedAssignments);
 
-    const currentVariants = watch('variants') || [];
+    const currentVariants = variants;
     const updatedVariants = currentVariants.map((v: ProductFormVariant) => {
       if (v.selectedOptionValueKeys[optionKey(colorOptionIndex)] === colorValueClientKey) {
         return { ...v, colorImage: url || null };
@@ -316,14 +327,14 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       setValue('variants', [{
         sku: `${effectivePrefix}-DEFAULT`,
         title: `${productName || 'Product'} - Default`,
-        stockQuantity: currentDefault ? currentDefault.stockQuantity : 10,
-        price: currentDefault && currentDefault.price !== prevBasePrice ? currentDefault.price : basePrice,
+        stockQuantity: currentDefault ? currentDefault.stockQuantity : 0,
+        price: currentDefault && currentDefault.price !== prevBasePriceRef.current ? currentDefault.price : basePrice,
         barcode: currentDefault ? currentDefault.barcode : '',
         isActive: currentDefault ? currentDefault.isActive : true,
         colorImage: null,
         selectedOptionValueKeys: {},
       }]);
-      setPrevBasePrice(basePrice);
+      prevBasePriceRef.current = basePrice;
       return;
     }
 
@@ -350,7 +361,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       );
       
       if (existing) {
-        const inheritedPrice = existing.price === prevBasePrice ? basePrice : existing.price;
+        const inheritedPrice = existing.price === prevBasePriceRef.current ? basePrice : existing.price;
         return {
           ...existing,
           sku: existing.sku || variantSku,
@@ -367,7 +378,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       return {
         sku: variantSku,
         title: title,
-        stockQuantity: 10,
+        stockQuantity: 0,
         price: basePrice,
         barcode: '',
         isActive: true,
@@ -377,7 +388,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     });
 
     setValue('variants', generatedVariants);
-    setPrevBasePrice(basePrice);
+    prevBasePriceRef.current = basePrice;
     // Variant rows are the effect output; adding them as a dependency would regenerate indefinitely.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [optionInputs, productName, basePrice, skuPrefix, setValue]);
@@ -404,14 +415,14 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       position: previous.length + index,
     }))]);
     setIsUploading(false);
-    toast.success(`${selected.length} image file${selected.length === 1 ? '' : 's'} ready to upload with the product.`);
+    toast.success(t('admin.imageFilesReady', { count: selected.length }));
   };
 
   const handleAddPastedUrl = () => {
     if (!pastedUrl.trim()) return;
     const url = pastedUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      toast.error('Please enter a valid HTTP or HTTPS image URL.');
+      toast.error(t('admin.imageUrlInvalid'));
       return;
     }
 
@@ -426,7 +437,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     });
 
     setPastedUrl('');
-    toast.success('Image URL added to gallery.');
+    toast.success(t('admin.imageUrlAdded'));
   };
 
   const setPrimaryImage = (id: string) => {
@@ -497,7 +508,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   };
 
   const renderDescriptionPreview = () => {
-    if (!description) return <p className="text-gray-400 text-xs italic">Nothing to preview yet.</p>;
+    if (!description) return <p className="text-gray-400 text-xs italic">{t('admin.nothingPreview')}</p>;
 
     const parsed = description
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -520,6 +531,26 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     mutationFn: async (data: AddProductInput) => {
       const fileGallery = gallery.filter((image) => image.file);
       const files = fileGallery.map((image) => image.file!);
+      const englishTranslation = {
+        name: data.name.trim(),
+        shortDescription: data.shortDescription?.trim() || null,
+        description: data.description?.trim() || null,
+        material: data.material?.trim() || null,
+        seoTitle: data.seoTitle?.trim() || null,
+        seoDescription: data.seoDescription?.trim() || null,
+      };
+      const arabicName = data.nameAr?.trim();
+      const localizedProduct = arabicName ? {
+        en: englishTranslation,
+        ar: {
+          name: arabicName,
+          shortDescription: data.shortDescriptionAr?.trim() || null,
+          description: data.descriptionAr?.trim() || null,
+          material: data.materialAr?.trim() || null,
+          seoTitle: data.seoTitleAr?.trim() || null,
+          seoDescription: data.seoDescriptionAr?.trim() || null,
+        },
+      } : (productId ? { en: englishTranslation } : undefined);
       const product = {
         name: data.name,
         slug: data.slug,
@@ -531,24 +562,40 @@ export default function AddProductForm({ productId }: { productId?: string }) {
         compareAtPrice: data.compareAtPrice != null ? data.compareAtPrice.toFixed(2) : null,
         description: data.description || null,
         material: data.material || null,
+        seoTitle: data.seoTitle || null,
+        seoDescription: data.seoDescription || null,
         gender: data.gender,
         status: productId ? data.status : 'DRAFT' as const,
+        ...(localizedProduct ? { translations: localizedProduct } : {}),
       };
       const categories = {
         categoryIds: data.categories,
         primaryCategoryId: data.categories[0] ?? null,
       };
-      const options = data.options.map((opt, optionIndex) => ({
+      const options = data.options.map((opt, optionIndex) => {
+        const optionInput = optionInputs[optionIndex];
+        const arabicValues = (optionInput?.rawValuesAr ?? '').split(/[,،]/).map((value) => value.trim());
+        const optionNameAr = optionInput?.nameAr.trim();
+        return {
           clientKey: optionKey(optionIndex),
           name: opt.name,
           position: optionIndex,
+          translations: {
+            en: { name: opt.name },
+            ...(optionNameAr ? { ar: { name: optionNameAr } } : {}),
+          },
           values: opt.values.map((value, valueIndex) => ({
             clientKey: valueKey(optionIndex, valueIndex),
             value,
             displayValue: value,
             position: valueIndex,
+            translations: {
+              en: { displayValue: value },
+              ...(arabicValues[valueIndex] ? { ar: { displayValue: arabicValues[valueIndex] } } : {}),
+            },
           })),
-        }));
+        };
+      });
       const variantsPayload = data.variants.map((variant, variantIndex) => ({
           clientKey: variantKey(variantIndex),
           id: variant.id,
@@ -597,12 +644,13 @@ export default function AddProductForm({ productId }: { productId?: string }) {
             ?? (indexedValue && !retainedValueIds.has(indexedValue.id) ? indexedValue : undefined)
             ?? existing?.values.find((candidate) => !retainedValueIds.has(candidate.id));
           if (existingValue) retainedValueIds.add(existingValue.id);
-          return { ...(existingValue ? { id: existingValue.id } : {}), clientKey: value.clientKey, value: value.value, displayValue: value.displayValue, position: value.position };
+          return { ...(existingValue ? { id: existingValue.id } : {}), clientKey: value.clientKey, value: value.value, displayValue: value.displayValue, position: value.position, translations: value.translations };
         });
         return {
           ...(existing ? { id: existing.id } : { clientKey: option.clientKey }),
           name: option.name,
           position: option.position,
+          translations: option.translations,
           values: {
             upsert: valueUpserts,
             deleteIds: (existing?.values ?? []).filter((value) => !retainedValueIds.has(value.id)).map((value) => value.id),
@@ -631,19 +679,14 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       // Targeted Query Invalidation
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['product-detail', productId] });
-      toast.success(productId ? 'Product updated successfully!' : 'Product created as a draft.');
+      toast.success(t(productId ? 'admin.productUpdatedSuccess' : 'admin.productDraftSuccess'));
       // Immediate Optimistic Navigation Feedback
       router.push('/admin/products');
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        const errorMsg = err.response?.data?.error?.message || 'The product could not be saved.';
-        setServerError(errorMsg);
-        toast.error(errorMsg);
-      } else {
-        setServerError('Network error. Please try again.');
-        toast.error('Network error. Please try again.');
-      }
+    onError: () => {
+      const errorMessage = t('admin.productSaveError');
+      setServerError(errorMessage);
+      toast.error(errorMessage);
     },
   });
 
@@ -658,8 +701,8 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   if (formContextQuery.isError || (productId && productDetailQuery.isError)) {
     return (
       <div className="p-8 rounded-xl border bg-white text-center">
-        <p className="text-sm text-red-600">The product editor data could not be loaded.</p>
-        <Button type="button" variant="outline" className="mt-4" onClick={() => { formContextQuery.refetch(); if (productId) productDetailQuery.refetch(); }}>Try again</Button>
+        <p className="text-sm text-red-600">{t('admin.productEditorLoadError')}</p>
+        <Button type="button" variant="outline" className="mt-4" onClick={() => { formContextQuery.refetch(); if (productId) productDetailQuery.refetch(); }}>{t('common.retry')}</Button>
       </div>
     );
   }
@@ -670,7 +713,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       <div className="flex items-center gap-4">
         <Link href="/admin/products">
           <Button variant="ghost" size="sm" className="flex items-center gap-1.5 hover:bg-gray-100">
-            <ArrowLeft className="w-4 h-4" /> Back to Catalog
+            <ArrowLeft className="w-4 h-4 rtl:rotate-180" /> {t('admin.backCatalog')}
           </Button>
         </Link>
       </div>
@@ -691,24 +734,26 @@ export default function AddProductForm({ productId }: { productId?: string }) {
           {/* Card 1: Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Configure core shoe details displayed to buyers.</CardDescription>
+              <CardTitle>{t('admin.basicInformation')}</CardTitle>
+              <CardDescription>{t('admin.basicInformationCopy')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Shoe Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Air Monarch IV"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
-                  {...register('name')}
-                />
-                {errors.name?.message && <p className="text-xs text-red-500 mt-1">{String(errors.name.message)}</p>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2" dir="ltr">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.englishShoeName')}</label>
+                  <input type="text" lang="en" placeholder="e.g. Air Monarch IV" className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('name')} />
+                  {errors.name?.message && <p className="mt-1 text-xs text-red-500">{String(errors.name.message)}</p>}
+                </div>
+                <div className="space-y-2" dir="rtl">
+                  <label className="text-xs font-semibold text-gray-500">{t('admin.arabicShoeName')}</label>
+                  <input type="text" lang="ar" placeholder="مثال: إير مونارك 4" className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('nameAr')} />
+                  {errors.nameAr?.message && <p className="mt-1 text-xs text-red-500">{String(errors.nameAr.message)}</p>}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Slug</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.slug')}</label>
                   <input 
                     type="text" 
                     placeholder="e.g. air-monarch-iv"
@@ -719,8 +764,8 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center justify-between">
-                    <span>SKU Prefix</span>
-                    <span className="text-[10px] text-gray-400 font-normal">Auto-suggested / Overridable</span>
+                    <span>{t('admin.skuPrefix')}</span>
+                    <span className="text-[10px] text-gray-400 font-normal">{t('admin.skuAuto')}</span>
                   </label>
                   <input 
                     type="text" 
@@ -733,20 +778,21 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Short Description</label>
-                <textarea 
-                  rows={2}
-                  placeholder="A brief 1-2 sentence description of the shoe."
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] resize-none"
-                  {...register('shortDescription')}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2" dir="ltr">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.englishShortDescription')}</label>
+                  <textarea lang="en" rows={2} placeholder="A brief description of the shoe." className="w-full resize-none rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('shortDescription')} />
+                </div>
+                <div className="space-y-2" dir="rtl">
+                  <label className="text-xs font-semibold text-gray-500">{t('admin.arabicShortDescription')}</label>
+                  <textarea lang="ar" rows={2} placeholder="وصف مختصر للحذاء." className="w-full resize-none rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('shortDescriptionAr')} />
+                </div>
               </div>
 
               {/* Formatted Rich Description Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Description</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.description')}</label>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -755,7 +801,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                         descriptionTab === 'write' ? 'bg-[#FF8C00] text-white font-semibold' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      Write
+                      {t('admin.write')}
                     </button>
                     <button
                       type="button"
@@ -764,7 +810,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                         descriptionTab === 'preview' ? 'bg-[#FF8C00] text-white font-semibold' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <Eye className="w-3.5 h-3.5" /> Preview
+                      <Eye className="w-3.5 h-3.5" /> {t('admin.preview')}
                     </button>
                   </div>
                 </div>
@@ -774,7 +820,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                     <div className="flex items-center gap-1.5 p-1.5 bg-gray-50 border border-gray-200 rounded-t-lg">
                       <button
                         type="button"
-                        title="Bold"
+                        title={t('admin.bold')}
                         onClick={() => insertFormat('bold')}
                         className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
                       >
@@ -782,7 +828,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                       </button>
                       <button
                         type="button"
-                        title="Italic"
+                        title={t('admin.italic')}
                         onClick={() => insertFormat('italic')}
                         className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
                       >
@@ -790,7 +836,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                       </button>
                       <button
                         type="button"
-                        title="Bullet List"
+                        title={t('admin.bulletList')}
                         onClick={() => insertFormat('list')}
                         className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
                       >
@@ -798,7 +844,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                       </button>
                       <button
                         type="button"
-                        title="Code Block"
+                        title={t('admin.codeBlock')}
                         onClick={() => insertFormat('code')}
                         className="p-1.5 hover:bg-gray-200 rounded text-gray-600 transition-colors"
                       >
@@ -819,25 +865,31 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                   </div>
                 )}
               </div>
+
+              <div className="space-y-2" dir="rtl">
+                <label className="text-xs font-semibold text-gray-500">{t('admin.detailedArabicDescription')}</label>
+                <textarea lang="ar" rows={5} placeholder="تفاصيل الراحة والمقاسات والخامات..." className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('descriptionAr')} />
+                {errors.descriptionAr?.message && <p className="text-xs text-red-500">{String(errors.descriptionAr.message)}</p>}
+              </div>
             </CardContent>
           </Card>
 
           {/* Card 2: Pricing (No Input Spinners) */}
           <Card>
             <CardHeader>
-              <CardTitle>Pricing (TND)</CardTitle>
-              <CardDescription>Define base prices and comparison figures in Tunisian Dinar.</CardDescription>
+              <CardTitle>{t('admin.pricingTnd')}</CardTitle>
+              <CardDescription>{t('admin.pricingCopy')}</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Base Price (TND)</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.basePriceTnd')}</label>
                 <div className="relative flex items-center">
-                  <div className="absolute left-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
+                  <div className="absolute start-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
                   <input 
                     type="number" 
                     step="0.01"
                     placeholder="129.99"
-                    className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full ps-12 pe-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     {...register('basePrice', { valueAsNumber: true })}
                   />
                 </div>
@@ -845,14 +897,14 @@ export default function AddProductForm({ productId }: { productId?: string }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Compare At Price (TND)</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.comparePriceTnd')}</label>
                 <div className="relative flex items-center">
-                  <div className="absolute left-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
+                  <div className="absolute start-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
                   <input 
                     type="number" 
                     step="0.01"
                     placeholder="150.00"
-                    className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full ps-12 pe-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     {...register('compareAtPrice', { valueAsNumber: true })}
                   />
                 </div>
@@ -865,9 +917,9 @@ export default function AddProductForm({ productId }: { productId?: string }) {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-[#FF8C00]" /> Multi-Image Gallery
+                  <ImageIcon className="w-5 h-5 text-[#FF8C00]" /> {t('admin.multiImageGallery')}
                 </CardTitle>
-                <CardDescription>Upload local files or paste image URLs. Set cover image and positions.</CardDescription>
+                <CardDescription>{t('admin.galleryCopy')}</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -884,21 +936,21 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                   <Upload className="w-6 h-6" />
                 </div>
                 <p className="text-xs font-semibold text-gray-700">
-                  {isUploading ? 'Uploading file(s)...' : 'Click or drag multiple image files here'}
+                  {t(isUploading ? 'admin.uploadingFiles' : 'admin.dropImages')}
                 </p>
-                <p className="text-[10px] text-gray-400">Supports PNG, JPG, WEBP up to 10MB each</p>
+                <p className="text-[10px] text-gray-400">{t('admin.imageSupport')}</p>
               </div>
 
               {/* Paste URL input */}
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <LinkIcon className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="url"
-                    placeholder="Or paste direct image URL (e.g. https://images.unsplash.com/...)"
+                    placeholder={t('admin.pasteImageUrl')}
                     value={pastedUrl}
                     onChange={(e) => setPastedUrl(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#FF8C00]"
+                    className="w-full ps-9 pe-4 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#FF8C00]"
                   />
                 </div>
                 <Button
@@ -908,7 +960,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                   onClick={handleAddPastedUrl}
                   className="text-xs flex items-center gap-1.5"
                 >
-                  <PlusCircle className="w-3.5 h-3.5 text-[#FF8C00]" /> Add URL
+                  <PlusCircle className="w-3.5 h-3.5 text-[#FF8C00]" /> {t('admin.addUrl')}
                 </Button>
               </div>
 
@@ -923,18 +975,16 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                       }`}
                     >
                       <div className="aspect-square relative bg-gray-100">
-                        {/* eslint-disable-next-html-element-suppression */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img.url}
-                          alt={`Product preview ${idx + 1}`}
+                          alt={t('admin.productPreviewImage', { number: idx + 1 })}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
-                          }}
+                          onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                         />
                         {img.isPrimary && (
-                          <span className="absolute top-1.5 left-1.5 bg-[#FF8C00] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1">
-                            <Star className="w-2.5 h-2.5 fill-white" /> Primary Cover
+                          <span className="absolute top-1.5 start-1.5 bg-[#FF8C00] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-white" /> {t('admin.primaryCover')}
                           </span>
                         )}
                       </div>
@@ -947,10 +997,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                             onClick={() => setPrimaryImage(img.id)}
                             className="text-[10px] text-gray-600 hover:text-[#FF8C00] font-medium"
                           >
-                            Set Cover
+                            {t('admin.setCover')}
                           </button>
                         ) : (
-                          <span className="text-[10px] text-[#FF8C00] font-bold">Cover Image</span>
+                          <span className="text-[10px] text-[#FF8C00] font-bold">{t('admin.coverImage')}</span>
                         )}
 
                         <div className="flex items-center gap-0.5">
@@ -959,7 +1009,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                             onClick={() => moveGalleryImage(idx, 'up')}
                             disabled={idx === 0}
                             className="p-1 text-gray-400 hover:text-black disabled:opacity-30"
-                            title="Move Up"
+                            title={t('admin.moveUp')}
                           >
                             <MoveUp className="w-3 h-3" />
                           </button>
@@ -968,7 +1018,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                             onClick={() => moveGalleryImage(idx, 'down')}
                             disabled={idx === gallery.length - 1}
                             className="p-1 text-gray-400 hover:text-black disabled:opacity-30"
-                            title="Move Down"
+                            title={t('admin.moveDown')}
                           >
                             <MoveDown className="w-3 h-3" />
                           </button>
@@ -976,7 +1026,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                             type="button"
                             onClick={() => removeGalleryImage(img.id)}
                             className="p-1 text-red-500 hover:text-red-700"
-                            title="Remove Image"
+                            title={t('admin.removeImage')}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -987,7 +1037,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                 </div>
               ) : (
                 <div className="text-center py-4 text-gray-400 text-xs italic">
-                  No images added yet. Upload or paste a URL above.
+                  {t('admin.noImages')}
                 </div>
               )}
             </CardContent>
@@ -997,19 +1047,19 @@ export default function AddProductForm({ productId }: { productId?: string }) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Product Options</CardTitle>
-                <CardDescription>Define customized configurations (like sizes, colors).</CardDescription>
+                <CardTitle>{t('admin.productOptions')}</CardTitle>
+                <CardDescription>{t('admin.productOptionsCopy')}</CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={addOptionField} className="flex items-center gap-1">
-                <PlusCircle className="w-4 h-4 text-[#FF8C00]" /> Add Option
+                <PlusCircle className="w-4 h-4 text-[#FF8C00]" /> {t('admin.addOption')}
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {optionInputs.map((opt, index) => (
                 <div key={index} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100 animate-fade-in">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5 md:col-span-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Option Name</label>
+                  <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5" dir="ltr">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('admin.englishOptionName')}</label>
                       <input 
                         type="text" 
                         placeholder="e.g. Size, Color"
@@ -1018,8 +1068,12 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00]"
                       />
                     </div>
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Values (Comma Separated)</label>
+                    <div className="space-y-1.5" dir="rtl">
+                      <label className="text-[10px] font-bold text-gray-400">{t('admin.arabicOptionName')}</label>
+                      <input type="text" lang="ar" placeholder="مثال: اللون" value={opt.nameAr} onChange={(e) => handleOptionChange(index, 'nameAr', e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#FF8C00] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1.5" dir="ltr">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('admin.englishValues')}</label>
                       <input 
                         type="text" 
                         placeholder="e.g. 40, 41, 42 or Black, White"
@@ -1027,6 +1081,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                         onChange={(e) => handleOptionChange(index, 'rawValues', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00]"
                       />
+                    </div>
+                    <div className="space-y-1.5" dir="rtl">
+                      <label className="text-[10px] font-bold text-gray-400">{t('admin.arabicValues')}</label>
+                      <input type="text" lang="ar" placeholder="مثال: أسود، أبيض — اترك المقاسات الرقمية فارغة" value={opt.rawValuesAr} onChange={(e) => handleOptionChange(index, 'rawValuesAr', e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#FF8C00] focus:outline-none" />
                     </div>
                   </div>
                   <Button 
@@ -1044,7 +1102,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
               {optionInputs.length === 0 && (
                 <div className="text-center py-6 text-gray-400 flex flex-col items-center justify-center gap-1.5">
                   <Info className="w-5 h-5 text-gray-300" />
-                  <p className="text-xs">No custom options configured. Product will register with a single Default variant.</p>
+                  <p className="text-xs">{t('admin.noCustomOptions')}</p>
                 </div>
               )}
             </CardContent>
@@ -1054,10 +1112,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Variants Matrix & Color Image Mapping</span>
+                <span>{t('admin.variantsMatrix')}</span>
               </CardTitle>
               <CardDescription>
-                Assign photos per Color option. Changes apply automatically across all size variants for that color.
+                {t('admin.variantsMatrixCopy')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 overflow-hidden">
@@ -1067,7 +1125,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                       <Palette className="w-3.5 h-3.5 text-[#FF8C00]" />
-                      Color Image Assignments ({colorValues.length} Colors Detected)
+                      {t('admin.colorAssignments', { count: colorValues.length })}
                     </h4>
                   </div>
 
@@ -1092,7 +1150,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                                 assignedUrl ? 'bg-amber-50 text-[#FF8C00] border-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-100'
                               }`}
                             >
-                              {assignedUrl ? 'Dedicated Photo' : 'Primary Fallback'}
+                              {t(assignedUrl ? 'admin.dedicatedPhoto' : 'admin.primaryFallback')}
                             </Badge>
                           </div>
 
@@ -1110,10 +1168,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                               onChange={(e) => handleColorImageAssign(colorValueClientKey, e.target.value)}
                               className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:border-[#FF8C00] bg-white cursor-pointer"
                             >
-                              <option value="">(Fallback: Primary Cover Image)</option>
+                              <option value="">{t('admin.fallbackPrimary')}</option>
                               {gallery.map((g, gIdx) => (
                                 <option key={g.id} value={g.url}>
-                                  Image #{gIdx + 1} {g.isPrimary ? '(Primary Cover)' : ''}
+                                  {t('admin.imageNumber', { number: gIdx + 1 })} {g.isPrimary ? `(${t('admin.primaryCover')})` : ''}
                                 </option>
                               ))}
                             </select>
@@ -1130,11 +1188,11 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Variant Name</TableHead>
-                      <TableHead className="w-[170px]">SKU Code</TableHead>
-                      <TableHead className="w-[100px]">Stock Qty</TableHead>
-                      <TableHead className="w-[145px]">Price (TND)</TableHead>
-                      <TableHead className="w-[180px]">Assigned Image</TableHead>
+                      <TableHead>{t('admin.variantName')}</TableHead>
+                      <TableHead className="w-[170px]">{t('admin.skuCode')}</TableHead>
+                      <TableHead className="w-[100px]">{t('admin.stockQuantity')}</TableHead>
+                      <TableHead className="w-[145px]">{t('admin.priceTnd')}</TableHead>
+                      <TableHead className="w-[180px]">{t('admin.assignedImage')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1166,13 +1224,13 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                           </TableCell>
                           <TableCell>
                             <div className="relative flex items-center">
-                              <span className="absolute left-2 text-gray-400 text-[10px] font-semibold pointer-events-none select-none">د.ت</span>
+                              <span className="absolute start-2 text-gray-400 text-[10px] font-semibold pointer-events-none select-none">د.ت</span>
                               <input 
                                 type="number" 
                                 step="0.001"
                                 value={v.price}
                                 onChange={(e) => handleVariantFieldChange(index, 'price', e.target.value)}
-                                className="w-full pl-6 pr-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full ps-6 pe-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             </div>
                           </TableCell>
@@ -1187,10 +1245,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                               </div>
                               <div className="min-w-0 flex flex-col">
                                 <span className="text-[11px] font-medium text-black truncate">
-                                  {v.colorImage ? (matchedColor ? `Color (${matchedColor})` : 'Dedicated Image') : 'Primary Cover'}
+                                  {v.colorImage ? (matchedColor ? t('admin.colorNamed', { name: matchedColor }) : t('admin.dedicatedImage')) : t('admin.primaryCover')}
                                 </span>
                                 <span className="text-[9px] text-gray-400">
-                                  {v.colorImage ? 'Color Group' : 'Fallback Rule'}
+                                  {t(v.colorImage ? 'admin.colorGroup' : 'admin.fallbackRule')}
                                 </span>
                               </div>
                             </div>
@@ -1202,7 +1260,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                     {variants.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-6 text-gray-400">
-                          Configure options or SKU parameters to view variants.
+                          {t('admin.configureVariants')}
                         </TableCell>
                       </TableRow>
                     )}
@@ -1212,14 +1270,14 @@ export default function AddProductForm({ productId }: { productId?: string }) {
 
               {errors.variants && (
                 <p className="px-4 py-2 text-xs text-red-500 border-t border-red-100 bg-red-50/50">
-                  Each variant must select one valid value for every product option.
+                  {t('admin.variantSelectionError')}
                 </p>
               )}
 
               <div className="p-3 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-[#FF8C00] shrink-0" />
                 <span>
-                  <strong>Color-to-Image Rule:</strong> Selecting a photo for a color automatically applies it to all size variants of that color. Unassigned colors fall back to using the primary product cover image.
+                  <strong>{t('admin.colorImageRule')}</strong> {t('admin.colorImageRuleCopy')}
                 </span>
               </div>
             </CardContent>
@@ -1232,20 +1290,20 @@ export default function AddProductForm({ productId }: { productId?: string }) {
           {/* Card 7: Save & Status actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Catalog Status</CardTitle>
+              <CardTitle>{t('admin.catalogStatus')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Publish Status</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.publishStatus')}</label>
                 <select 
                   disabled={!productId}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
                   {...register('status')}
                 >
-                  <option value="DRAFT">Draft (Save & Edit Later)</option>
-                  {productId && <option value="ACTIVE">Active (Publish Immediately)</option>}
+                  <option value="DRAFT">{t('admin.draftLater')}</option>
+                  {productId && <option value="ACTIVE">{t('admin.activeImmediately')}</option>}
                 </select>
-                {!productId && <p className="text-[11px] text-gray-400">New products are created as drafts and can be published after validation.</p>}
+                {!productId && <p className="text-[11px] text-gray-400">{t('admin.newProductsDraft')}</p>}
               </div>
             </CardContent>
             <CardFooter className="bg-gray-50/50 flex flex-col gap-2 pt-4">
@@ -1256,11 +1314,11 @@ export default function AddProductForm({ productId }: { productId?: string }) {
               >
                 {saveProductMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Saving Product...
+                    <Loader2 className="w-4 h-4 animate-spin" /> {t('admin.savingProduct')}
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" /> Save Product
+                    <Save className="w-4 h-4" /> {t('admin.saveProduct')}
                   </>
                 )}
               </Button>
@@ -1270,19 +1328,19 @@ export default function AddProductForm({ productId }: { productId?: string }) {
           {/* Card 8: Categorization & Attributes */}
           <Card>
             <CardHeader>
-              <CardTitle>Organization</CardTitle>
-              <CardDescription>Assign matching categories, brands, and target tags.</CardDescription>
+              <CardTitle>{t('admin.organization')}</CardTitle>
+              <CardDescription>{t('admin.organizationCopy')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               
               {/* Brand dropdown — live from API via React Query */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Manufacturer Brand</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.manufacturerBrand')}</label>
                 <select 
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
                   {...register('brandId')}
                 >
-                  <option value="">Select a Brand</option>
+                  <option value="">{t('admin.selectBrand')}</option>
                   {liveBrands.map(brand => (
                     <option key={brand.id} value={brand.id}>{brand.name}</option>
                   ))}
@@ -1291,12 +1349,12 @@ export default function AddProductForm({ productId }: { productId?: string }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Size Guide</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.sizeGuide')}</label>
                 <select
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
                   {...register('sizeGuideId')}
                 >
-                  <option value="">No size guide</option>
+                  <option value="">{t('admin.noSizeGuide')}</option>
                   {liveSizeGuides.map((sizeGuide) => (
                     <option key={sizeGuide.id} value={sizeGuide.id}>{sizeGuide.name}</option>
                   ))}
@@ -1305,10 +1363,10 @@ export default function AddProductForm({ productId }: { productId?: string }) {
 
               {/* Categories check grid — live from API via React Query */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Linked Categories</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.linkedCategories')}</label>
                 <div className="grid grid-cols-1 gap-2 p-3 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
                   {liveCategories.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-2">No active categories found. Add categories first.</p>
+                    <p className="text-xs text-gray-400 text-center py-2">{t('admin.noActiveCategories')}</p>
                   ) : (
                     liveCategories.map(category => (
                       <label key={category.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -1328,26 +1386,42 @@ export default function AddProductForm({ productId }: { productId?: string }) {
 
               {/* Target gender */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Gender Segment</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.genderSegment')}</label>
                 <select 
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
                   {...register('gender')}
                 >
-                  <option value="UNISEX">Unisex Segment</option>
-                  <option value="MALE">Male Segment</option>
-                  <option value="FEMALE">Female Segment</option>
+                  <option value="UNISEX">{t('admin.unisexSegment')}</option>
+                  <option value="MALE">{t('admin.maleSegment')}</option>
+                  <option value="FEMALE">{t('admin.femaleSegment')}</option>
                 </select>
               </div>
 
-              {/* Material */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Material Specification</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Leather, Suede"
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
-                  {...register('material')}
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2" dir="ltr">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.englishMaterial')}</label>
+                  <input type="text" lang="en" placeholder="e.g. Leather, Suede" className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('material')} />
+                </div>
+                <div className="space-y-2" dir="rtl">
+                  <label className="text-xs font-semibold text-gray-500">{t('admin.arabicMaterial')}</label>
+                  <input type="text" lang="ar" placeholder="مثال: جلد، شمواه" className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm focus:border-[#FF8C00] focus:outline-none" {...register('materialAr')} />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.localizedSeo')}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2" dir="ltr">
+                    <label className="text-xs text-gray-500">{t('admin.englishSeoTitle')}</label>
+                    <input type="text" lang="en" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" {...register('seoTitle')} />
+                    <textarea lang="en" rows={3} placeholder={t('admin.englishMetaDescription')} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" {...register('seoDescription')} />
+                  </div>
+                  <div className="space-y-2" dir="rtl">
+                    <label className="text-xs text-gray-500">{t('admin.arabicSeoTitle')}</label>
+                    <input type="text" lang="ar" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" {...register('seoTitleAr')} />
+                    <textarea lang="ar" rows={3} placeholder={t('admin.arabicMetaDescription')} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" {...register('seoDescriptionAr')} />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

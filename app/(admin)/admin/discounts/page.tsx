@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import PromotionsClient from '@/components/admin/promotions/PromotionsClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Discounts & Coupons | Shoezy Admin',
-  description: 'Manage checkout discounts and coupon codes.',
-};
+export const generateMetadata = () => adminMetadata('promotion.title', 'meta.adminDiscountsDescription');
 
 export default function DiscountsPage() {
   return <PromotionsClient />;

@@ -7,6 +7,7 @@ import {
   ChevronsRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 export interface DataTablePaginationProps {
   /** Current 1-indexed page number */
@@ -38,8 +39,10 @@ export function DataTablePagination({
   onPageChange,
   onPageSizeChange,
   className = '',
-  itemLabel = 'items',
+  itemLabel,
 }: DataTablePaginationProps) {
+  const { t } = useTranslations();
+  const resolvedItemLabel = itemLabel ?? t('pagination.items');
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
@@ -66,12 +69,12 @@ export function DataTablePagination({
       {/* Left side: Rows per page + Range count */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-600">Rows per page:</span>
+          <span className="font-medium text-gray-600">{t('pagination.rowsPerPage')}</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
             className="h-8 px-2 py-1 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:border-[#FF8C00] cursor-pointer"
-            aria-label="Rows per page"
+            aria-label={t('pagination.rowsPerPage')}
           >
             {pageSizeOptions.map((option) => (
               <option key={option} value={option}>
@@ -83,11 +86,7 @@ export function DataTablePagination({
 
         <span className="text-gray-300 hidden sm:inline">|</span>
 
-        <span className="font-medium text-gray-600">
-          Showing <span className="font-semibold text-black">{startItem}</span>–
-          <span className="font-semibold text-black">{endItem}</span> of{' '}
-          <span className="font-semibold text-black">{totalItems}</span> {itemLabel}
-        </span>
+        <span className="font-medium text-gray-600">{t('pagination.showing', { start: startItem, end: endItem, total: totalItems, items: resolvedItemLabel })}</span>
       </div>
 
       {/* Right side: Pagination Navigation Buttons */}
@@ -99,10 +98,10 @@ export function DataTablePagination({
           onClick={() => onPageChange(1)}
           disabled={currentPage <= 1}
           className="h-8 w-8 p-0 border-gray-200 text-gray-600 hover:text-black hover:bg-gray-100 disabled:opacity-40"
-          aria-label="First page"
-          title="First page"
+          aria-label={t('pagination.first')}
+          title={t('pagination.first')}
         >
-          <ChevronsLeft className="w-4 h-4" aria-hidden="true" />
+          <ChevronsLeft className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         </Button>
 
         {/* Previous Page */}
@@ -112,10 +111,10 @@ export function DataTablePagination({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           className="h-8 w-8 p-0 border-gray-200 text-gray-600 hover:text-black hover:bg-gray-100 disabled:opacity-40"
-          aria-label="Previous page"
-          title="Previous page"
+          aria-label={t('pagination.previous')}
+          title={t('pagination.previous')}
         >
-          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+          <ChevronLeft className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         </Button>
 
         {/* First Ellipsis */}
@@ -137,7 +136,7 @@ export function DataTablePagination({
                   ? 'bg-[#FF8C00] hover:bg-[#e67e00] text-white border-[#FF8C00]'
                   : 'border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-black'
               }`}
-              aria-label={`Page ${pageNum}`}
+              aria-label={t('pagination.page', { page: pageNum })}
               aria-current={isActive ? 'page' : undefined}
             >
               {pageNum}
@@ -157,10 +156,10 @@ export function DataTablePagination({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= safeTotalPages}
           className="h-8 w-8 p-0 border-gray-200 text-gray-600 hover:text-black hover:bg-gray-100 disabled:opacity-40"
-          aria-label="Next page"
-          title="Next page"
+          aria-label={t('pagination.next')}
+          title={t('pagination.next')}
         >
-          <ChevronRight className="w-4 h-4" aria-hidden="true" />
+          <ChevronRight className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         </Button>
 
         {/* Last Page */}
@@ -170,10 +169,10 @@ export function DataTablePagination({
           onClick={() => onPageChange(safeTotalPages)}
           disabled={currentPage >= safeTotalPages}
           className="h-8 w-8 p-0 border-gray-200 text-gray-600 hover:text-black hover:bg-gray-100 disabled:opacity-40"
-          aria-label="Last page"
-          title="Last page"
+          aria-label={t('pagination.last')}
+          title={t('pagination.last')}
         >
-          <ChevronsRight className="w-4 h-4" aria-hidden="true" />
+          <ChevronsRight className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         </Button>
       </div>
     </div>

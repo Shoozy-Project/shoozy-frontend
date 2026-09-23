@@ -1,14 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface PasswordStrengthBarProps {
   password: string;
 }
 
-function getStrength(password: string): { label: string; level: 0 | 1 | 2 | 3; color: string } {
+function getStrength(password: string): { labelKey: string; level: 0 | 1 | 2 | 3; color: string } {
   if (!password || password.length < 12) {
-    return { label: 'Too short', level: 0, color: '#dc2626' };
+    return { labelKey: 'auth.strengthShort', level: 0, color: '#dc2626' };
   }
 
   let score = 0;
@@ -17,15 +18,16 @@ function getStrength(password: string): { label: string; level: 0 | 1 | 2 | 3; c
   if (/[0-9]/.test(password)) score++;
   if (/[^a-zA-Z0-9]/.test(password)) score++;
 
-  if (score <= 1) return { label: 'Weak', level: 1, color: '#dc2626' };
-  if (score === 2 || score === 3) return { label: 'Fair', level: 2, color: '#f59e0b' };
-  return { label: 'Strong', level: 3, color: '#16a34a' };
+  if (score <= 1) return { labelKey: 'auth.strengthWeak', level: 1, color: '#dc2626' };
+  if (score === 2 || score === 3) return { labelKey: 'auth.strengthFair', level: 2, color: '#f59e0b' };
+  return { labelKey: 'auth.strengthStrong', level: 3, color: '#16a34a' };
 }
 
 export default function PasswordStrengthBar({ password }: PasswordStrengthBarProps) {
+  const { t } = useTranslations();
   if (!password) return null;
 
-  const { label, level, color } = getStrength(password);
+  const { labelKey, level, color } = getStrength(password);
   const percent = (level / 3) * 100;
 
   return (
@@ -40,7 +42,7 @@ export default function PasswordStrengthBar({ password }: PasswordStrengthBarPro
         />
       </div>
       <p className="text-xs font-medium" style={{ color }}>
-        {label}
+        {t(labelKey)}
       </p>
     </div>
   );

@@ -1,3 +1,5 @@
+import type { EntityTranslation, TranslationMap } from '@/types/localization';
+
 // ─── Brand Types ────────────────────────────────────────────
 
 export interface BrandDto {
@@ -9,6 +11,7 @@ export interface BrandDto {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export interface BrandListParams {
@@ -26,6 +29,7 @@ export interface CreateBrandPayload {
   description?: string | null;
   logoUrl?: string | null;
   isActive?: boolean;
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export type UpdateBrandPayload = Partial<CreateBrandPayload>;

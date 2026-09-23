@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import type { OrderStatus, PaymentStatus } from '@/lib/api/orders';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface OrderStatusBadgeProps {
   status: OrderStatus;
@@ -9,6 +10,7 @@ interface OrderStatusBadgeProps {
 }
 
 export function OrderStatusBadge({ status, className = '' }: OrderStatusBadgeProps) {
+  const { t } = useTranslations();
   const getBadgeStyle = (status: OrderStatus) => {
     switch (status) {
       case 'PENDING':
@@ -28,25 +30,6 @@ export function OrderStatusBadge({ status, className = '' }: OrderStatusBadgePro
     }
   };
 
-  const getLabel = (status: OrderStatus) => {
-    switch (status) {
-      case 'PENDING':
-        return 'Pending Verification';
-      case 'CONFIRMED':
-        return 'Confirmed';
-      case 'SHIPPED':
-        return 'Shipped';
-      case 'DELIVERED':
-        return 'Delivered';
-      case 'RETURNED':
-        return 'Returned';
-      case 'CANCELLED':
-        return 'Cancelled';
-      default:
-        return status;
-    }
-  };
-
   return (
     <Badge
       variant="outline"
@@ -54,7 +37,7 @@ export function OrderStatusBadge({ status, className = '' }: OrderStatusBadgePro
         status
       )} ${className}`}
     >
-      {getLabel(status)}
+      {t(`status.${status}`)}
     </Badge>
   );
 }
@@ -68,6 +51,7 @@ export function PaymentStatusBadge({
   paymentStatus,
   paymentMethod = 'COD',
 }: PaymentStatusBadgeProps) {
+  const { t } = useTranslations();
   const getStyle = (status: PaymentStatus) => {
     switch (status) {
       case 'PAID':
@@ -91,7 +75,7 @@ export function PaymentStatusBadge({
           paymentStatus
         )}`}
       >
-        {paymentStatus}
+        {t(`status.${paymentStatus}`)}
       </span>
     </div>
   );

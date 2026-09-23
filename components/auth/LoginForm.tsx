@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
-import { loginSchema, type LoginInput } from '@/validations/auth';
+import { createLoginSchema, type LoginInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import PasswordInput from './PasswordInput';
@@ -14,6 +14,7 @@ import SocialAuthButtons from './SocialAuthButtons';
 import { isAxiosError } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { adminCapabilityQueryOptions } from '@/lib/hooks/use-admin-capability';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string }) {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
   const [serverError, setServerError] = useState<string | null>(null);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const { locale, t } = useTranslations();
+  const loginSchema = useMemo(() => createLoginSchema(locale), [locale]);
 
   const {
     register,
@@ -49,7 +52,7 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
         if (isAxiosError(capabilityError)) {
           if (capabilityError.response?.status === 401) {
             useAuthStore.getState().clearAuth();
-            setServerError('Your session could not be verified. Please sign in again.');
+            setServerError(t('auth.sessionInvalid'));
             return;
           }
           if (capabilityError.response?.status === 403) {
@@ -57,30 +60,30 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
             return;
           }
         }
-        setServerError('Signed in, but the admin access check is currently unavailable. Please try again.');
+        setServerError(t('auth.adminUnavailable'));
       }
     } catch (err) {
       if (isAxiosError(err)) {
         const code = err.response?.data?.error?.code;
         switch (code) {
           case 'AUTH_INVALID_CREDENTIALS':
-            setServerError('Incorrect email or password. Please try again.');
+            setServerError(t('auth.invalidCredentials'));
             break;
           case 'AUTH_EMAIL_NOT_VERIFIED':
             setVerificationNeeded(true);
             setVerificationEmail(data.email);
             break;
           case 'AUTH_ACCOUNT_INACTIVE':
-            setServerError('This account has been deactivated. Please contact support.');
+            setServerError(t('auth.accountInactive'));
             break;
           case 'AUTH_RATE_LIMITED':
-            setServerError('Too many attempts. Please try again later.');
+            setServerError(t('auth.rateLimited'));
             break;
           default:
-            setServerError('Something went wrong. Please try again.');
+            setServerError(t('auth.genericError'));
         }
       } else {
-        setServerError('Network error. Please check your connection and try again.');
+        setServerError(t('auth.networkError'));
       }
     }
   };
@@ -93,10 +96,10 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
           className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight"
           style={{ fontFamily: 'var(--font-serif)' }}
         >
-          Welcome Back
+          {t('auth.welcome')}
         </h1>
         <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Sign in to access your Shoezy account.
+          {t('auth.loginCopy')}
         </p>
       </div>
 
@@ -110,7 +113,7 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
         </div>
         <div className="relative flex justify-center">
           <span className="px-4 bg-[var(--surface-primary)] text-xs text-[var(--text-faint)] tracking-widest uppercase">
-            or sign in with email
+            {t('auth.emailLogin')}
           </span>
         </div>
       </div>
@@ -133,7 +136,7 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
           className="flex flex-col gap-2 p-4 mb-5 bg-[var(--color-warning-light)] border border-[#fde68a] dark:border-[#5c4a10] rounded-sm animate-fade-in"
         >
           <p className="text-sm text-[#92400e] dark:text-[#fbbf24] font-medium">
-            Please verify your email before signing in.
+            {t('auth.verifyBeforeLogin')}
           </p>
           <ResendVerification email={verificationEmail} />
         </div>
@@ -152,7 +155,7 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
             htmlFor="login-email"
             className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
           >
-            Email Address
+            {t('auth.email')}
           </label>
           <input
             id="login-email"
@@ -181,7 +184,7 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
         {/* Password */}
         <PasswordInput
           id="login-password"
-          label="Password"
+          label={t('auth.password')}
           registration={register('password')}
           error={errors.password?.message}
           autoComplete="current-password"
@@ -197,14 +200,14 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
               {...register('rememberMe')}
             />
             <span className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors">
-              Remember Me
+              {t('auth.remember')}
             </span>
           </label>
           <Link
             href="/forgot-password"
             className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline-offset-2 hover:underline transition-colors"
           >
-            Forgot Password?
+            {t('auth.forgot')}
           </Link>
         </div>
 
@@ -218,18 +221,18 @@ export default function LoginForm({ redirectTo = '/' }: { redirectTo?: string })
           {isSubmitting && (
             <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
-          {isSubmitting ? 'Signing In...' : 'Sign In'}
+          {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
         </button>
       </form>
 
       {/* Register Link */}
       <p className="mt-8 text-center text-sm text-[var(--text-muted)]">
-        Don&apos;t have an account?{' '}
+        {t('auth.noAccount')}{' '}
         <Link
           href="/register"
           className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline"
         >
-          Join Shoezy
+          {t('auth.join')}
         </Link>
       </p>
     </div>
@@ -241,6 +244,7 @@ function ResendVerification({ email }: { email: string }) {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const { t } = useTranslations();
 
   const handleResend = async () => {
     if (loading || cooldown > 0) return;
@@ -262,7 +266,7 @@ function ResendVerification({ email }: { email: string }) {
   };
 
   if (sent) {
-    return <p className="text-xs text-[#92400e] dark:text-[#fbbf24]">Verification email sent! Check your inbox.</p>;
+    return <p className="text-xs text-[#92400e] dark:text-[#fbbf24]">{t('auth.verificationSent')}</p>;
   }
 
   return (
@@ -272,7 +276,7 @@ function ResendVerification({ email }: { email: string }) {
       disabled={loading || cooldown > 0}
       className="text-xs text-[#92400e] dark:text-[#fbbf24] font-semibold underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
     >
-      {loading ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend verification email →'}
+      {loading ? t('auth.sending') : cooldown > 0 ? t('auth.resendIn', { seconds: cooldown }) : `${t('auth.resendVerification')} →`}
     </button>
   );
 }

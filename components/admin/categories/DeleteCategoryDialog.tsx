@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
-import { isAxiosError } from 'axios';
 
 import {
   AlertDialog,
@@ -16,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { categoriesApi } from '@/lib/api/categories';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface DeleteCategoryDialogProps {
   open: boolean;
@@ -30,22 +30,18 @@ const DeleteCategoryDialog = ({
   categoryId,
   categoryName,
 }: DeleteCategoryDialogProps) => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
     mutationFn: () => categoriesApi.delete(categoryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success(`Category "${categoryName}" has been deleted.`);
+      toast.success(t('admin.categoryDeleted', { name: categoryName }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        const msg = err.response?.data?.error?.message ?? 'Failed to delete category.';
-        toast.error(msg);
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+    onError: () => {
+      toast.error(t('admin.categoryDeleteError'));
       onOpenChange(false);
     },
   });
@@ -59,13 +55,11 @@ const DeleteCategoryDialog = ({
               <Trash2 className="w-4 h-4 text-red-600" aria-hidden="true" />
             </div>
             <AlertDialogTitle className="text-base font-semibold">
-              Delete Category
+              {t('admin.categoryDeleteTitle')}
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
-            Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">&quot;{categoryName}&quot;</span>? This action
-            cannot be undone and may affect products linked to this category.
+            {t('admin.categoryDeleteCopy', { name: categoryName })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
@@ -73,7 +67,7 @@ const DeleteCategoryDialog = ({
             disabled={deleteMutation.isPending}
             className="flex-1 sm:flex-none"
           >
-            Cancel
+            {t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             id={`confirm-delete-category-${categoryId}`}
@@ -84,10 +78,10 @@ const DeleteCategoryDialog = ({
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Deleting...
+                {t('common.deleting')}
               </>
             ) : (
-              'Delete Category'
+              t('admin.categoryDeleteTitle')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -7,7 +7,16 @@ export function formatMinorAmount(amountMinor: string, minorUnit: number) {
   return `${negative ? '-' : ''}${integer}${fraction}`;
 }
 
-export function formatMinorMoney(amountMinor: string, currency: string, minorUnit = currency === 'TND' ? 3 : 2) {
+export function formatMinorMoney(amountMinor: string, currency: string, minorUnit = currency === 'TND' ? 3 : 2, locale = 'en-TN') {
+  const amount = Number(formatMinorAmount(amountMinor, minorUnit));
+  if (Number.isFinite(amount)) {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: minorUnit,
+      maximumFractionDigits: minorUnit,
+    }).format(amount);
+  }
   return `${formatMinorAmount(amountMinor, minorUnit)} ${currency}`;
 }
 

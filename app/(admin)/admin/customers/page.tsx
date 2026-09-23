@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import UsersClient from '@/components/admin/users/UsersClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Customers | Shoezy Admin',
-  description: 'Browse customer profiles and manage account status.',
-};
+export const generateMetadata = () => adminMetadata('admin.customersTitle', 'meta.adminCustomersDescription');
 
 export default function AdminCustomersPage() {
   return <UsersClient />;

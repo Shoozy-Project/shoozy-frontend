@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import CollectionsClient from '@/components/admin/collections/CollectionsClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Collections | Shoezy Admin',
-  description: 'Group products into custom thematic, seasonal, or promotional collections.',
-};
+export const generateMetadata = () => adminMetadata('admin.productCollections', 'meta.adminCollectionsDescription');
 
 export default function AdminCollectionsPage() {
   return <CollectionsClient />;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,7 +9,6 @@ import {
   Loader2,
   Award,
 } from 'lucide-react';
-import { isAxiosError } from 'axios';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 import {
@@ -25,9 +24,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-import { brandSchema, type BrandFormInput } from '@/validations/brand';
+import { createBrandSchema, type BrandFormInput } from '@/validations/brand';
 import { brandsApi } from '@/lib/api/brands';
 import type { BrandDto } from '@/types/brand';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface BrandFormModalProps {
   open: boolean;
@@ -45,6 +45,8 @@ const generateSlug = (name: string) =>
     .replace(/(^-|-$)/g, '');
 
 const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps) => {
+  const { locale, t } = useTranslations();
+  const brandSchema = useMemo(() => createBrandSchema(locale), [locale]);
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
 
@@ -57,7 +59,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -65,8 +67,10 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
     resolver: zodResolver(brandSchema) as import('react-hook-form').Resolver<BrandFormInput>,
     defaultValues: {
       name: '',
+      nameAr: '',
       slug: '',
       description: '',
+      descriptionAr: '',
       logoUrl: '',
       isActive: true,
     },
@@ -76,17 +80,21 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   useEffect(() => {
     if (open && editTarget) {
       reset({
-        name: editTarget.name,
+        name: editTarget.translations?.en?.name ?? editTarget.name,
+        nameAr: editTarget.translations?.ar?.name ?? '',
         slug: editTarget.slug,
-        description: editTarget.description ?? '',
+        description: editTarget.translations?.en?.description ?? editTarget.description ?? '',
+        descriptionAr: editTarget.translations?.ar?.description ?? '',
         logoUrl: editTarget.logoUrl ?? '',
         isActive: editTarget.isActive,
       });
     } else if (open && !editTarget) {
       reset({
         name: '',
+        nameAr: '',
         slug: '',
         description: '',
+        descriptionAr: '',
         logoUrl: '',
         isActive: true,
       });
@@ -94,15 +102,23 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   }, [open, editTarget, reset]);
 
   // ─── Auto-generate Slug (create mode only) ──────────────────
-  const nameValue = watch('name');
+  const nameValue = useWatch({ control, name: 'name' });
   useEffect(() => {
     if (!isEdit) {
       setValue('slug', generateSlug(nameValue ?? ''), { shouldValidate: false });
     }
   }, [nameValue, isEdit, setValue]);
 
-  const isActiveValue = watch('isActive');
-  const logoUrlValue = watch('logoUrl');
+  const isActiveValue = useWatch({ control, name: 'isActive' });
+  const logoUrlValue = useWatch({ control, name: 'logoUrl' });
+  const nameArValue = useWatch({ control, name: 'nameAr' });
+
+  const translations = (data: BrandFormInput, creating: boolean) => {
+    const en = { name: data.name.trim(), description: data.description?.trim() || null };
+    const arabicName = data.nameAr?.trim();
+    if (arabicName) return { en, ar: { name: arabicName, description: data.descriptionAr?.trim() || null } };
+    return creating ? undefined : { en };
+  };
 
   // ─── Handle File Selection ─────────────────────────────────
   // ─── Create Mutation ────────────────────────────────────────
@@ -114,19 +130,14 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         description: data.description || null,
         logoUrl: data.logoUrl || null,
         isActive: data.isActive,
+        translations: translations(data, true),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast.success(`Brand "${res.data.data.name}" created successfully!`);
+      toast.success(t('admin.brandCreated', { name: res.data.data.name }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to create brand.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
-    },
+    onError: () => toast.error(t('admin.brandCreateError')),
   });
 
   // ─── Update Mutation ────────────────────────────────────────
@@ -138,19 +149,14 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         description: data.description || null,
         logoUrl: data.logoUrl || null,
         isActive: data.isActive,
+        translations: translations(data, false),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast.success(`Brand "${res.data.data.name}" updated successfully!`);
+      toast.success(t('admin.brandUpdated', { name: res.data.data.name }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update brand.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
-    },
+    onError: () => toast.error(t('admin.brandUpdateError')),
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -174,10 +180,10 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-black">
-                {isEdit ? 'Edit Brand' : 'Add New Partner Brand'}
+                {t(isEdit ? 'admin.editBrand' : 'admin.addPartnerBrand')}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                {isEdit ? 'Update partner brand details.' : 'Fill in partner brand details.'}
+                {t(isEdit ? 'admin.updateBrandDetails' : 'admin.fillBrandDetails')}
               </DialogDescription>
             </div>
           </div>
@@ -186,24 +192,37 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         {/* Form Body */}
         <form onSubmit={handleSubmit(onSubmit)} id="brand-form">
           <div className="px-6 py-5 space-y-5">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="brand-name" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Brand Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="brand-name"
-                placeholder="e.g. Nike"
-                className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                {...register('name')}
-              />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.localizedBrandInfo')}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="brand-name">{t('admin.englishName')} <span className="text-red-500">*</span></Label>
+                  <Input id="brand-name" lang="en" placeholder="e.g. Nike" {...register('name')} />
+                  {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="brand-name-ar">{t('admin.arabicName')}</Label>
+                  <Input id="brand-name-ar" lang="ar" placeholder="مثال: نايك" {...register('nameAr')} />
+                  {errors.nameAr && <p className="text-xs text-red-500">{errors.nameAr.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="brand-description">{t('admin.englishDescription')}</Label>
+                  <textarea id="brand-description" lang="en" rows={3} placeholder="Athletic and lifestyle wear." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('description')} />
+                  {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="brand-description-ar">{t('admin.arabicDescription')}</Label>
+                  <textarea id="brand-description-ar" lang="ar" rows={3} placeholder="ملابس وأحذية رياضية." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('descriptionAr')} />
+                  {errors.descriptionAr && <p className="text-xs text-red-500">{errors.descriptionAr.message}</p>}
+                </div>
+              </div>
+              {!nameArValue?.trim() && <p className="mt-3 text-[11px] text-gray-400">{t('admin.arabicOptional')}</p>}
             </div>
 
             {/* Slug */}
             <div className="space-y-1.5">
               <Label htmlFor="brand-slug" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Slug <span className="text-red-500">*</span>
+                {t('admin.slug')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="brand-slug"
@@ -211,29 +230,14 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
                 className="font-mono text-sm bg-gray-50 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
                 {...register('slug')}
               />
-              <p className="text-[11px] text-gray-400">Auto-generated from name. Lowercase alphanumeric with hyphens.</p>
+              <p className="text-[11px] text-gray-400">{t('admin.slugHint')}</p>
               {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
-            </div>
-
-            {/* Description / Slogan */}
-            <div className="space-y-1.5">
-              <Label htmlFor="brand-description" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Description / Slogan <span className="text-gray-400 font-normal">(optional)</span>
-              </Label>
-              <textarea
-                id="brand-description"
-                rows={3}
-                placeholder="Just Do It. Athletic and lifestyle wear."
-                className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 resize-none bg-background"
-                {...register('description')}
-              />
-              {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
             </div>
 
             {/* Brand Logo URL */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Brand Logo <span className="text-gray-400 font-normal">(optional)</span>
+                {t('admin.brandLogo')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
               <div className="space-y-2">
                 <Input
@@ -248,7 +252,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
                   <div className="relative w-full h-32 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                     <CommerceImage
                       src={logoUrlValue}
-                      alt="Logo preview"
+                      alt={t('admin.logoPreview')}
                       sizes="640px"
                       className="object-contain p-2"
                     />
@@ -260,11 +264,11 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
             {/* Active Status */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
               <div>
-                <p className="text-sm font-medium text-black">Active Status</p>
+                <p className="text-sm font-medium text-black">{t('admin.activeStatus')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {isActiveValue
-                    ? 'Brand is active and visible in product catalog.'
-                    : 'Brand is inactive and hidden from filters.'}
+                    ? t('admin.brandActiveCopy')
+                    : t('admin.brandInactiveCopy')}
                 </p>
               </div>
               <Switch
@@ -272,7 +276,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
                 checked={isActiveValue}
                 onCheckedChange={(val) => setValue('isActive', val)}
                 className="data-[state=checked]:bg-[#FF8C00]"
-                aria-label="Toggle brand active status"
+                aria-label={t('admin.toggleActiveStatus')}
               />
             </div>
           </div>
@@ -286,7 +290,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
               disabled={isPending}
               className="flex-1 sm:flex-none"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -297,12 +301,12 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isEdit ? 'Saving...' : 'Creating...'}
+                  {t(isEdit ? 'admin.saving' : 'admin.creating')}
                 </>
               ) : isEdit ? (
-                'Save Changes'
+                t('admin.saveChanges')
               ) : (
-                'Create Brand'
+                t('admin.createBrand')
               )}
             </Button>
           </DialogFooter>

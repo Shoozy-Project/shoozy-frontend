@@ -1,33 +1,36 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
-import { registerSchema, type RegisterInput } from '@/validations/auth';
+import { createRegisterSchema, type RegisterInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import PasswordInput from './PasswordInput';
 import PasswordStrengthBar from './PasswordStrengthBar';
 import SocialAuthButtons from './SocialAuthButtons';
 import { isAxiosError } from 'axios';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 export default function RegisterForm() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const { locale, t } = useTranslations();
+  const registerSchema = useMemo(() => createRegisterSchema(locale), [locale]);
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
   });
 
-  const passwordValue = watch('password') ?? '';
+  const passwordValue = useWatch({ control, name: 'password' }) ?? '';
 
   const onSubmit = async (data: RegisterInput) => {
     setServerError(null);
@@ -53,22 +56,22 @@ export default function RegisterForm() {
 
         switch (code) {
           case 'AUTH_EMAIL_ALREADY_EXISTS':
-            setError('email', { message: 'This email is already registered.' });
+            setError('email', { message: t('auth.emailExists') });
             break;
           case 'AUTH_PHONE_ALREADY_EXISTS':
-            setError('phone', { message: 'This phone number is already in use.' });
+            setError('phone', { message: t('auth.phoneExists') });
             break;
           default:
             if (details.length > 0) {
-              details.forEach(({ field, message }: { field: string; message: string }) => {
-                setError(field as keyof RegisterInput, { message });
+              details.forEach(({ field }: { field: string; message: string }) => {
+                setError(field as keyof RegisterInput, { message: t('auth.invalidField') });
               });
             } else {
-              setServerError('Something went wrong. Please try again.');
+              setServerError(t('auth.genericError'));
             }
         }
       } else {
-        setServerError('Network error. Please check your connection and try again.');
+        setServerError(t('auth.networkError'));
       }
     }
   };
@@ -81,10 +84,10 @@ export default function RegisterForm() {
           className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight"
           style={{ fontFamily: 'var(--font-serif)' }}
         >
-          Create Your Account
+          {t('auth.createTitle')}
         </h1>
         <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Join Shoezy for an exclusive luxury experience.
+          {t('auth.createCopy')}
         </p>
       </div>
 
@@ -98,7 +101,7 @@ export default function RegisterForm() {
         </div>
         <div className="relative flex justify-center">
           <span className="px-4 bg-[var(--surface-primary)] text-xs text-[var(--text-faint)] tracking-widest uppercase">
-            or register with email
+            {t('auth.emailRegister')}
           </span>
         </div>
       </div>
@@ -127,7 +130,7 @@ export default function RegisterForm() {
               htmlFor="register-first-name"
               className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
             >
-              First Name
+              {t('auth.firstName')}
             </label>
             <input
               id="register-first-name"
@@ -158,7 +161,7 @@ export default function RegisterForm() {
               htmlFor="register-last-name"
               className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
             >
-              Last Name
+              {t('auth.lastName')}
             </label>
             <input
               id="register-last-name"
@@ -191,7 +194,7 @@ export default function RegisterForm() {
             htmlFor="register-email"
             className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
           >
-            Email Address
+            {t('auth.email')}
           </label>
           <input
             id="register-email"
@@ -223,8 +226,8 @@ export default function RegisterForm() {
             htmlFor="register-phone"
             className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
           >
-            Phone{' '}
-            <span className="text-[var(--text-faint)] normal-case font-normal">(Optional)</span>
+            {t('auth.phone')}{' '}
+            <span className="text-[var(--text-faint)] normal-case font-normal">({t('auth.optional')})</span>
           </label>
           <input
             id="register-phone"
@@ -254,10 +257,10 @@ export default function RegisterForm() {
         <div>
           <PasswordInput
             id="register-password"
-            label="Password"
+            label={t('auth.password')}
             registration={register('password')}
             error={errors.password?.message}
-            placeholder="Minimum 12 characters"
+            placeholder={t('auth.passwordHint')}
             autoComplete="new-password"
           />
           <PasswordStrengthBar password={passwordValue} />
@@ -266,22 +269,22 @@ export default function RegisterForm() {
         {/* Confirm Password */}
         <PasswordInput
           id="register-confirm-password"
-          label="Confirm Password"
+          label={t('auth.confirmPassword')}
           registration={register('confirmPassword')}
           error={errors.confirmPassword?.message}
-          placeholder="Re-enter your password"
+          placeholder={t('auth.passwordAgain')}
           autoComplete="new-password"
         />
 
         {/* Terms note */}
         <p className="text-xs text-[var(--text-faint)] leading-relaxed">
-          By creating an account, you agree to our{' '}
+          {t('auth.termsPrefix')}{' '}
           <Link href="/terms" className="text-[var(--text-primary)] hover:underline">
-            Terms of Service
+            {t('auth.terms')}
           </Link>{' '}
-          and{' '}
+          {t('auth.and')}{' '}
           <Link href="/privacy" className="text-[var(--text-primary)] hover:underline">
-            Privacy Policy
+            {t('auth.privacy')}
           </Link>
           .
         </p>
@@ -296,18 +299,18 @@ export default function RegisterForm() {
           {isSubmitting && (
             <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
-          {isSubmitting ? 'Creating Account...' : 'Create Account'}
+          {isSubmitting ? t('auth.creating') : t('auth.create')}
         </button>
       </form>
 
       {/* Sign In Link */}
       <p className="mt-8 text-center text-sm text-[var(--text-muted)]">
-        Already have an account?{' '}
+        {t('auth.hasAccount')}{' '}
         <Link
           href="/login"
           className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline"
         >
-          Sign In
+          {t('auth.signIn')}
         </Link>
       </p>
     </div>

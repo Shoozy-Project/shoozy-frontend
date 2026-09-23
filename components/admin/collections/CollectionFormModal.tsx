@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -12,7 +12,6 @@ import {
   Package,
   Search,
 } from 'lucide-react';
-import { isAxiosError } from 'axios';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 import {
@@ -29,12 +28,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
 import {
-  collectionSchema,
+  createCollectionSchema,
   type CollectionFormInput,
 } from '@/validations/collection';
 import { collectionsApi } from '@/lib/api/collections';
 import { productsApi, type ProductListDto } from '@/lib/api/products';
 import type { CollectionDto } from '@/types/collection';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CollectionFormModalProps {
   open: boolean;
@@ -85,6 +85,8 @@ const CollectionFormModal = ({
   onOpenChange,
   editTarget,
 }: CollectionFormModalProps) => {
+  const { locale, t } = useTranslations();
+  const collectionSchema = useMemo(() => createCollectionSchema(locale), [locale]);
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
 
@@ -146,7 +148,7 @@ const CollectionFormModal = ({
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -154,20 +156,25 @@ const CollectionFormModal = ({
     resolver: zodResolver(collectionSchema) as import('react-hook-form').Resolver<CollectionFormInput>,
     defaultValues: {
       name: '',
+      nameAr: '',
       slug: '',
       description: '',
+      descriptionAr: '',
       imageUrl: '',
       isActive: true,
     },
   });
 
   // ─── Populate Form on Edit ──────────────────────────────────
+  /* eslint-disable react-hooks/set-state-in-effect -- Opening a remote-backed editor intentionally hydrates its selection state. */
   useEffect(() => {
     if (open && editTarget) {
       reset({
-        name: editTarget.name,
+        name: editTarget.translations?.en?.name ?? editTarget.name,
+        nameAr: editTarget.translations?.ar?.name ?? '',
         slug: editTarget.slug,
-        description: editTarget.description ?? '',
+        description: editTarget.translations?.en?.description ?? editTarget.description ?? '',
+        descriptionAr: editTarget.translations?.ar?.description ?? '',
         imageUrl: editTarget.imageUrl ?? '',
         isActive: editTarget.isActive,
       });
@@ -177,8 +184,10 @@ const CollectionFormModal = ({
     } else if (open && !editTarget) {
       reset({
         name: '',
+        nameAr: '',
         slug: '',
         description: '',
+        descriptionAr: '',
         imageUrl: '',
         isActive: true,
       });
@@ -195,17 +204,26 @@ const CollectionFormModal = ({
     initialProductIdsRef.current = productIds;
     setSelectedProductIds(productIds);
   }, [open, editTarget, collectionDetail]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ─── Auto-generate Slug (create mode only) ──────────────────
-  const nameValue = watch('name');
+  const nameValue = useWatch({ control, name: 'name' });
   useEffect(() => {
     if (!isEdit) {
       setValue('slug', generateSlug(nameValue ?? ''), { shouldValidate: false });
     }
   }, [nameValue, isEdit, setValue]);
 
-  const isActiveValue = watch('isActive');
-  const imageUrlValue = watch('imageUrl');
+  const isActiveValue = useWatch({ control, name: 'isActive' });
+  const imageUrlValue = useWatch({ control, name: 'imageUrl' });
+  const nameArValue = useWatch({ control, name: 'nameAr' });
+
+  const translations = (data: CollectionFormInput, creating: boolean) => {
+    const en = { name: data.name.trim(), description: data.description?.trim() || null };
+    const arabicName = data.nameAr?.trim();
+    if (arabicName) return { en, ar: { name: arabicName, description: data.descriptionAr?.trim() || null } };
+    return creating ? undefined : { en };
+  };
 
   // ─── Handle File Selection ─────────────────────────────────
   // ─── Product Selection Toggle ──────────────────────────────
@@ -227,19 +245,14 @@ const CollectionFormModal = ({
         imageUrl: data.imageUrl || null,
         isActive: data.isActive,
         products: toCollectionProducts(selectedProductIds),
+        translations: translations(data, true),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
-      toast.success(`Collection "${res.data.data.name}" created successfully!`);
+      toast.success(t('admin.collectionCreated', { name: res.data.data.name }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to create collection.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
-    },
+    onError: () => toast.error(t('admin.collectionCreateError')),
   });
 
   // ─── Update Mutation ────────────────────────────────────────
@@ -256,21 +269,16 @@ const CollectionFormModal = ({
         description: data.description || null,
         imageUrl: data.imageUrl || null,
         isActive: data.isActive,
+        translations: translations(data, false),
         ...(productsChanged && { products: toCollectionProducts(selectedProductIds) }),
       });
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
-      toast.success(`Collection "${res.data.data.name}" updated successfully!`);
+      toast.success(t('admin.collectionUpdated', { name: res.data.data.name }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update collection.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
-    },
+    onError: () => toast.error(t('admin.collectionUpdateError')),
   });
 
   const isMembershipLoading = isEdit && isCollectionDetailLoading;
@@ -295,12 +303,12 @@ const CollectionFormModal = ({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-black">
-                {isEdit ? 'Edit Product Collection' : 'Add Product Collection'}
+                {t(isEdit ? 'admin.editCollection' : 'admin.addProductCollection')}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
                 {isEdit
-                  ? 'Update collection details and assigned products.'
-                  : 'Group products into a curated collection.'}
+                  ? t('admin.updateCollectionDetails')
+                  : t('admin.groupCollection')}
               </DialogDescription>
             </div>
           </div>
@@ -309,24 +317,37 @@ const CollectionFormModal = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit(onSubmit)} id="collection-form">
           <div className="px-6 py-5 space-y-5">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="col-name" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Collection Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="col-name"
-                placeholder="e.g. Summer Vibes 2026"
-                className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                {...register('name')}
-              />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.localizedCollectionInfo')}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="col-name">{t('admin.englishName')} <span className="text-red-500">*</span></Label>
+                  <Input id="col-name" lang="en" placeholder="e.g. Summer Vibes 2026" {...register('name')} />
+                  {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="col-name-ar">{t('admin.arabicName')}</Label>
+                  <Input id="col-name-ar" lang="ar" placeholder="مثال: أجواء الصيف 2026" {...register('nameAr')} />
+                  {errors.nameAr && <p className="text-xs text-red-500">{errors.nameAr.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="col-description">{t('admin.englishDescription')}</Label>
+                  <textarea id="col-description" lang="en" rows={3} placeholder="Selected footwear for summer..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('description')} />
+                  {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="col-description-ar">{t('admin.arabicDescription')}</Label>
+                  <textarea id="col-description-ar" lang="ar" rows={3} placeholder="تشكيلة أحذية مختارة للصيف..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('descriptionAr')} />
+                  {errors.descriptionAr && <p className="text-xs text-red-500">{errors.descriptionAr.message}</p>}
+                </div>
+              </div>
+              {!nameArValue?.trim() && <p className="mt-3 text-[11px] text-gray-400">{t('admin.arabicOptional')}</p>}
             </div>
 
             {/* Slug */}
             <div className="space-y-1.5">
               <Label htmlFor="col-slug" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Slug <span className="text-red-500">*</span>
+                {t('admin.slug')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="col-slug"
@@ -337,25 +358,10 @@ const CollectionFormModal = ({
               {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
             </div>
 
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label htmlFor="col-description" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
-              </Label>
-              <textarea
-                id="col-description"
-                rows={3}
-                placeholder="Lightweight and vibrant sneakers for hot weather..."
-                className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 resize-none bg-background"
-                {...register('description')}
-              />
-              {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
-            </div>
-
             {/* Cover / Banner Image */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Banner / Cover Image <span className="text-gray-400 font-normal">(optional)</span>
+                {t('admin.bannerImage')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
 
               <div className="space-y-2">
@@ -371,7 +377,7 @@ const CollectionFormModal = ({
                   <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                     <CommerceImage
                       src={imageUrlValue}
-                      alt="Collection cover preview"
+                      alt={t('admin.collectionPreview')}
                       sizes="640px"
                       className="object-cover"
                     />
@@ -385,7 +391,7 @@ const CollectionFormModal = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                   <Package className="w-3.5 h-3.5 text-[#FF8C00]" />
-                  Assign Products ({selectedProductIds.length} selected)
+                  {t('admin.assignProducts', { count: selectedProductIds.length })}
                 </Label>
                 
                 <div className="flex items-center gap-2">
@@ -395,7 +401,7 @@ const CollectionFormModal = ({
                     disabled={filteredProducts.length === 0}
                     className="text-[11px] font-medium text-[#FF8C00] hover:underline disabled:opacity-50 disabled:no-underline"
                   >
-                    Select All Filtered ({filteredProducts.length})
+                    {t('admin.selectAllFiltered', { count: filteredProducts.length })}
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
@@ -404,26 +410,26 @@ const CollectionFormModal = ({
                     disabled={selectedProductIds.length === 0}
                     className="text-[11px] font-medium text-gray-500 hover:text-red-600 hover:underline disabled:opacity-50 disabled:no-underline"
                   >
-                    Clear Selection
+                    {t('admin.clearSelection')}
                   </button>
                 </div>
               </div>
 
               {/* Embedded Search Input */}
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute start-3 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Search products by name or SKU prefix..."
+                  placeholder={t('admin.searchProductsSku')}
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="pl-8 text-xs h-8 focus-visible:ring-[#FF8C00]"
+                  className="ps-8 pe-8 text-xs h-8 focus-visible:ring-[#FF8C00]"
                 />
                 {productSearch && (
                   <button
                     type="button"
                     onClick={() => setProductSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                    className="absolute end-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -434,13 +440,13 @@ const CollectionFormModal = ({
               {selectedProducts.length > 0 && (
                 <div className="p-2 bg-[#FFF3E0]/40 border border-[#FF8C00]/20 rounded-lg space-y-1.5">
                   <div className="flex items-center justify-between text-[11px] text-[#FF8C00] font-semibold">
-                    <span>Selected Products ({selectedProducts.length})</span>
+                    <span>{t('admin.selectedProducts', { count: selectedProducts.length })}</span>
                     <button
                       type="button"
                       onClick={handleClearSelection}
                       className="text-gray-400 hover:text-red-500 text-[10px]"
                     >
-                      Remove All
+                      {t('admin.removeAll')}
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
@@ -466,22 +472,22 @@ const CollectionFormModal = ({
               {/* Available Products List */}
               {isCollectionDetailError && (
                 <p className="text-xs text-red-500">
-                  Collection membership could not be loaded. Close this dialog and try again before saving.
+                  {t('admin.membershipLoadError')}
                 </p>
               )}
               <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 bg-white shadow-2xs">
                 {isMembershipLoading || isProductsLoading ? (
                   <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin text-[#FF8C00]" />
-                    <span>{isMembershipLoading ? 'Loading collection membership...' : 'Loading products catalog...'}</span>
+                    <span>{t(isMembershipLoading ? 'admin.loadingMembership' : 'admin.loadingProductsCatalog')}</span>
                   </div>
                 ) : isProductsError ? (
                   <div className="py-8 text-center text-xs text-red-500">
-                    Products could not be loaded. Close this dialog and try again.
+                    {t('admin.productsDialogLoadError')}
                   </div>
                 ) : filteredProducts.length === 0 ? (
                   <div className="py-8 text-center text-xs text-gray-400">
-                    {productSearch.trim() ? 'No products match your search query.' : 'No products available.'}
+                    {t(productSearch.trim() ? 'admin.noProductMatches' : 'admin.noProductsAvailable')}
                   </div>
                 ) : (
                   filteredProducts.map((p) => {
@@ -512,7 +518,7 @@ const CollectionFormModal = ({
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0 ml-2">
+                        <div className="text-end shrink-0 ms-2">
                           <span className="font-semibold text-gray-900">{p.basePrice} TND</span>
                         </div>
                       </div>
@@ -525,11 +531,11 @@ const CollectionFormModal = ({
             {/* Active Status */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
               <div>
-                <p className="text-sm font-medium text-black">Active Status</p>
+                <p className="text-sm font-medium text-black">{t('admin.activeStatus')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {isActiveValue
-                    ? 'Collection is visible on store banners and menus.'
-                    : 'Collection is hidden from customer store.'}
+                    ? t('admin.collectionActiveCopy')
+                    : t('admin.collectionInactiveCopy')}
                 </p>
               </div>
               <Switch
@@ -537,7 +543,7 @@ const CollectionFormModal = ({
                 checked={isActiveValue}
                 onCheckedChange={(val) => setValue('isActive', val)}
                 className="data-[state=checked]:bg-[#FF8C00]"
-                aria-label="Toggle active status"
+                aria-label={t('admin.toggleActiveStatus')}
               />
             </div>
           </div>
@@ -551,7 +557,7 @@ const CollectionFormModal = ({
               disabled={isPending}
               className="flex-1 sm:flex-none"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -562,12 +568,12 @@ const CollectionFormModal = ({
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isEdit ? 'Saving...' : 'Creating...'}
+                  {t(isEdit ? 'admin.saving' : 'admin.creating')}
                 </>
               ) : isEdit ? (
-                'Save Changes'
+                t('admin.saveChanges')
               ) : (
-                'Create Collection'
+                t('admin.createCollection')
               )}
             </Button>
           </DialogFooter>

@@ -41,7 +41,7 @@ export default function SplashScreen({ forceShow = false }: SplashScreenProps) {
           className="fixed inset-0 z-[9999] flex items-center justify-center"
           style={{ backgroundColor: 'var(--surface-primary)' }}
           aria-hidden="true"
-          aria-label="Loading Shoezy"
+          aria-label="Loading Shoozy"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -51,7 +51,7 @@ export default function SplashScreen({ forceShow = false }: SplashScreenProps) {
           >
             <Image
               src="/logo.png"
-              alt="Shoezy"
+              alt="Shoozy"
               width={200}
               height={120}
               priority

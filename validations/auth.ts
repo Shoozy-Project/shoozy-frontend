@@ -1,71 +1,79 @@
 import { z } from 'zod';
+import type { Locale } from '@/lib/i18n';
+import { translate } from '@/lib/messages';
+
+const m = (locale: Locale, key: string) => translate(locale, key);
 
 // ─── Login ─────────────────────────────────────────────────────
-export const loginSchema = z.object({
+export const createLoginSchema = (locale: Locale = 'en') => z.object({
   email: z
     .string()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+    .min(1, m(locale, 'validation.emailRequired'))
+    .email(m(locale, 'validation.emailInvalid')),
+  password: z.string().min(1, m(locale, 'validation.passwordRequired')),
   rememberMe: z.boolean().optional(),
 });
 
 // ─── Register ──────────────────────────────────────────────────
-export const registerSchema = z
+export const createRegisterSchema = (locale: Locale = 'en') => z
   .object({
     firstName: z
       .string()
-      .min(1, 'First name is required')
-      .max(100, 'First name must be under 100 characters'),
+      .min(1, m(locale, 'validation.firstNameRequired'))
+      .max(100, m(locale, 'validation.firstNameMax')),
     lastName: z
       .string()
-      .min(1, 'Last name is required')
-      .max(100, 'Last name must be under 100 characters'),
+      .min(1, m(locale, 'validation.lastNameRequired'))
+      .max(100, m(locale, 'validation.lastNameMax')),
     email: z
       .string()
-      .min(1, 'Email is required')
-      .email('Please enter a valid email address'),
+      .min(1, m(locale, 'validation.emailRequired'))
+      .email(m(locale, 'validation.emailInvalid')),
     phone: z
       .string()
-      .min(7, 'Phone number is too short')
-      .max(32, 'Phone number is too long')
+      .min(7, m(locale, 'validation.phoneShort'))
+      .max(32, m(locale, 'validation.phoneLong'))
       .optional()
       .or(z.literal(''))
       .transform((v) => (v === '' ? undefined : v)),
     password: z
       .string()
-      .min(12, 'Password must be at least 12 characters')
-      .max(72, 'Password is too long'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
+      .min(12, m(locale, 'validation.passwordMin'))
+      .max(72, m(locale, 'validation.passwordMax')),
+    confirmPassword: z.string().min(1, m(locale, 'validation.passwordConfirm')),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: m(locale, 'validation.passwordMatch'),
     path: ['confirmPassword'],
   });
 
 // ─── Forgot Password ───────────────────────────────────────────
-export const forgotPasswordSchema = z.object({
+export const createForgotPasswordSchema = (locale: Locale = 'en') => z.object({
   email: z
     .string()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
+    .min(1, m(locale, 'validation.emailRequired'))
+    .email(m(locale, 'validation.emailInvalid')),
 });
 
 // ─── Reset Password ────────────────────────────────────────────
-export const resetPasswordSchema = z
+export const createResetPasswordSchema = (locale: Locale = 'en') => z
   .object({
     newPassword: z
       .string()
-      .min(12, 'Password must be at least 12 characters')
-      .max(72, 'Password is too long'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
+      .min(12, m(locale, 'validation.passwordMin'))
+      .max(72, m(locale, 'validation.passwordMax')),
+    confirmPassword: z.string().min(1, m(locale, 'validation.passwordConfirm')),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: m(locale, 'validation.passwordMatch'),
     path: ['confirmPassword'],
   });
 
 // ─── Inferred Types ────────────────────────────────────────────
+export const loginSchema = createLoginSchema();
+export const registerSchema = createRegisterSchema();
+export const forgotPasswordSchema = createForgotPasswordSchema();
+export const resetPasswordSchema = createResetPasswordSchema();
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

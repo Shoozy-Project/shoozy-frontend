@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 import {
   Plus,
@@ -41,6 +40,7 @@ import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import dynamic from 'next/dynamic';
 import { brandsApi } from '@/lib/api/brands';
 import type { BrandDto, BrandListParams } from '@/types/brand';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 const BrandFormModal = dynamic(() => import('./BrandFormModal'), { ssr: false });
 const DeleteBrandDialog = dynamic(() => import('./DeleteBrandDialog'), { ssr: false });
@@ -76,6 +76,7 @@ const SkeletonRow = () => (
 );
 
 const BrandsClient = () => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   // ─── Local State ───────────────────────────────────────────
@@ -135,18 +136,14 @@ const BrandsClient = () => {
     },
 
     onSuccess: (_, { isActive }) => {
-      toast.success(isActive ? 'Brand activated.' : 'Brand deactivated.');
+      toast.success(t(isActive ? 'admin.brandActivated' : 'admin.brandDeactivated'));
     },
 
-    onError: (err, _vars, context) => {
+    onError: (_err, _vars, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['brands', queryParams], context.previousData);
       }
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update status.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+      toast.error(t('admin.statusUpdateError'));
     },
 
     onSettled: () => {
@@ -201,10 +198,10 @@ const BrandsClient = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black flex items-center gap-2">
             <Award className="w-6 h-6 text-[#FF8C00]" aria-hidden="true" />
-            Brands Directory
+            {t('admin.brandsDirectory')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage partner manufacturers, logos, descriptions, and availability.
+            {t('admin.brandsDirectoryCopy')}
           </p>
         </div>
         <Button
@@ -213,7 +210,7 @@ const BrandsClient = () => {
           className="bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2 shrink-0"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
-          Add Brand
+          {t('admin.addBrand')}
         </Button>
       </div>
 
@@ -223,23 +220,23 @@ const BrandsClient = () => {
         <CardHeader className="border-b border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
-              <CardTitle className="text-base">Brands List</CardTitle>
+              <CardTitle className="text-base">{t('admin.brandsList')}</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                {pagination ? `${pagination.total} total partner brands` : 'View and manage all associated partner brands.'}
+                {pagination ? t('admin.brandsCount', { count: pagination.total }) : t('admin.brandsManage')}
               </CardDescription>
             </div>
 
             {/* Search */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
               <input
                 id="brand-search"
                 type="text"
                 value={rawSearch}
                 onChange={handleSearchChange}
-                placeholder="Search brands..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
-                aria-label="Search brands"
+                placeholder={t('admin.searchBrands')}
+                className="w-full ps-9 pe-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
+                aria-label={t('admin.searchBrands')}
               />
             </div>
 
@@ -249,11 +246,11 @@ const BrandsClient = () => {
               value={statusFilter}
               onChange={handleStatusFilterChange}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 cursor-pointer"
-              aria-label="Filter by status"
+              aria-label={t('admin.filterStatus')}
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('admin.allStatus')}</option>
+              <option value="active">{t('status.ACTIVE')}</option>
+              <option value="inactive">{t('status.INACTIVE')}</option>
             </select>
 
             {/* Clear Filters */}
@@ -265,7 +262,7 @@ const BrandsClient = () => {
                 className="text-gray-500 hover:text-black flex items-center gap-1.5 shrink-0"
               >
                 <FilterX className="w-4 h-4" aria-hidden="true" />
-                Clear
+                {t('admin.clear')}
               </Button>
             )}
           </div>
@@ -277,11 +274,11 @@ const BrandsClient = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/80">
-                  <TableHead className="w-[120px]">Brand ID</TableHead>
-                  <TableHead>Brand Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right pr-4">Actions</TableHead>
+                  <TableHead className="w-[120px]">{t('admin.brandId')}</TableHead>
+                  <TableHead>{t('admin.brandName')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('admin.description')}</TableHead>
+                  <TableHead>{t('admin.tableStatus')}</TableHead>
+                  <TableHead className="text-end pe-4">{t('admin.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -295,9 +292,9 @@ const BrandsClient = () => {
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
-                        <p className="text-sm font-medium">Failed to load brands directory.</p>
+                        <p className="text-sm font-medium">{t('admin.brandsLoadError')}</p>
                         <Button variant="outline" size="sm" onClick={() => refetch()}>
-                          Try Again
+                          {t('admin.tryAgain')}
                         </Button>
                       </div>
                     </TableCell>
@@ -313,9 +310,9 @@ const BrandsClient = () => {
                           <Building2 className="w-6 h-6 text-gray-300" aria-hidden="true" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-500">No brands found</p>
+                          <p className="text-sm font-medium text-gray-500">{t('admin.noBrands')}</p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {hasActiveFilters ? 'Try adjusting search or filter criteria.' : 'Get started by adding your first partner brand.'}
+                            {t(hasActiveFilters ? 'admin.adjustFilters' : 'admin.addFirstBrand')}
                           </p>
                         </div>
                         {!hasActiveFilters && (
@@ -324,8 +321,8 @@ const BrandsClient = () => {
                             onClick={handleOpenAdd}
                             className="mt-1 bg-[#FF8C00] hover:bg-[#e67e00] text-white"
                           >
-                            <Plus className="w-4 h-4 mr-1.5" />
-                            Add Brand
+                            <Plus className="w-4 h-4 me-1.5" />
+                            {t('admin.addBrand')}
                           </Button>
                         )}
                       </div>
@@ -372,17 +369,17 @@ const BrandsClient = () => {
                       <TableCell>
                         {b.isActive ? (
                           <Badge className="bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 text-xs">
-                            Active
+                            {t('status.ACTIVE')}
                           </Badge>
                         ) : (
                           <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 border border-gray-200 text-xs">
-                            Inactive
+                            {t('status.INACTIVE')}
                           </Badge>
                         )}
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="text-right pr-4 py-3">
+                      <TableCell className="text-end pe-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {/* Toggle Status */}
                           <Button
@@ -392,7 +389,7 @@ const BrandsClient = () => {
                             onClick={() => handleToggleStatus(b)}
                             disabled={toggleMutation.isPending && toggleMutation.variables?.id === b.id}
                             className="h-8 w-8 p-0 hover:bg-amber-50"
-                            title={b.isActive ? 'Deactivate brand' : 'Activate brand'}
+                            title={t(b.isActive ? 'admin.deactivateBrand' : 'admin.activateBrand')}
                           >
                             {toggleMutation.isPending && toggleMutation.variables?.id === b.id ? (
                               <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
@@ -410,7 +407,7 @@ const BrandsClient = () => {
                             size="sm"
                             onClick={() => handleOpenEdit(b)}
                             className="h-8 w-8 p-0 hover:bg-blue-50"
-                            title={`Edit ${b.name}`}
+                            title={t('admin.editNamed', { name: b.name })}
                           >
                             <Edit className="w-4 h-4 text-blue-600" />
                           </Button>
@@ -422,7 +419,7 @@ const BrandsClient = () => {
                             size="sm"
                             onClick={() => handleOpenDelete(b)}
                             className="h-8 w-8 p-0 hover:bg-red-50"
-                            title={`Delete ${b.name}`}
+                            title={t('admin.deleteNamed', { name: b.name })}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
@@ -446,7 +443,7 @@ const BrandsClient = () => {
                 setLimit(newSize);
                 setPage(1);
               }}
-              itemLabel="brands"
+              itemLabel={t('admin.brands')}
             />
           )}
         </CardContent>

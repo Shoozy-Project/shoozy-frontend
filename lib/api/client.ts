@@ -11,6 +11,7 @@ export const apiClient = axios.create({
 // ─── Token getter (avoids circular import with Zustand store) ──
 let getToken: (() => string | null) | null = null;
 let clearAuth: (() => void) | null = null;
+let getLocale: (() => 'ar' | 'en') | null = null;
 
 export function registerAuthHandlers(
   tokenGetter: () => string | null,
@@ -20,11 +21,18 @@ export function registerAuthHandlers(
   clearAuth = authClearer;
 }
 
+export function registerLocaleHandler(localeGetter: () => 'ar' | 'en') {
+  getLocale = localeGetter;
+}
+
 // ─── Request Interceptor: attach Bearer token ──────────────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getToken?.();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.headers) {
+    config.headers['Accept-Language'] = getLocale?.() ?? 'en';
   }
   return config;
 });

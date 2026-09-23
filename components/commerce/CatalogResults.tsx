@@ -1,8 +1,11 @@
+'use client';
+
 import { CatalogFilters, CatalogSortControl } from '@/components/commerce/CatalogFilters';
 import { Pagination } from '@/components/commerce/Pagination';
 import { ProductCard } from '@/components/commerce/ProductCard';
 import type { PaginatedData } from '@/types/api';
 import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogProductDto } from '@/types/commerce';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CatalogResultsProps {
   result: PaginatedData<CatalogProductDto>;
@@ -15,10 +18,11 @@ interface CatalogResultsProps {
 }
 
 export function CatalogResults({ result, brands, categories, collections, searchParams, pathname = '/products', showFilters = true }: CatalogResultsProps) {
+  const { t } = useTranslations();
   return (
     <>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b pb-5">
-        <p className="text-sm text-muted-foreground">{result.pagination.total} {result.pagination.total === 1 ? 'product' : 'products'}</p>
+        <p className="text-sm text-muted-foreground">{result.pagination.total === 1 ? t('catalog.productOne') : t('catalog.productCount', { count: result.pagination.total })}</p>
         {pathname === '/products' && <CatalogSortControl />}
       </div>
       <div className={showFilters ? 'grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)]' : ''}>
@@ -30,8 +34,8 @@ export function CatalogResults({ result, brands, categories, collections, search
             </div>
           ) : (
             <div className="rounded-xl border border-dashed px-6 py-20 text-center">
-              <h2 className="font-serif text-2xl">No products found</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Try removing a filter or using a different search.</p>
+              <h2 className="font-serif text-2xl">{t('catalog.noProducts')}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{t('catalog.noProductsCopy')}</p>
             </div>
           )}
           <Pagination pagination={result.pagination} pathname={pathname} searchParams={searchParams} />

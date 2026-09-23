@@ -14,11 +14,12 @@ import {
 import { cn } from '@/lib/utils';
 import { isTheme, type Theme } from '@/lib/theme';
 import { useThemeStore } from '@/stores/theme-store';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
-const options: Array<{ value: Theme; label: string; icon: typeof Sun }> = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
+const options: Array<{ value: Theme; labelKey: string; icon: typeof Sun }> = [
+  { value: 'light', labelKey: 'theme.light', icon: Sun },
+  { value: 'dark', labelKey: 'theme.dark', icon: Moon },
+  { value: 'system', labelKey: 'theme.system', icon: Monitor },
 ];
 
 const subscribeToHydration = () => () => undefined;
@@ -33,6 +34,7 @@ export function ThemeToggle({
   const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const { t } = useTranslations();
 
   const selectedTheme = mounted ? theme : 'system';
   const SelectedIcon = options.find((option) => option.value === selectedTheme)?.icon ?? Monitor;
@@ -42,8 +44,8 @@ export function ThemeToggle({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={`Theme: ${selectedTheme}`}
-          title="Choose theme"
+          aria-label={t('theme.current', { theme: t(`theme.${selectedTheme}`) })}
+          title={t('theme.choose')}
           className={cn(
             'inline-flex size-8 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:pointer-events-none disabled:opacity-50',
             tone === 'inverse'
@@ -56,7 +58,7 @@ export function ThemeToggle({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-44">
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('theme.title')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup
           value={selectedTheme}
@@ -69,7 +71,7 @@ export function ThemeToggle({
             return (
               <DropdownMenuRadioItem key={option.value} value={option.value} className="gap-2 px-2.5 py-2">
                 <Icon className="size-4" aria-hidden="true" />
-                {option.label}
+                {t(option.labelKey)}
               </DropdownMenuRadioItem>
             );
           })}

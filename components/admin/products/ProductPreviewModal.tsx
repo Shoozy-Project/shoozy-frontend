@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
-import { ExternalLink, AlertTriangle, ShoppingBag, ShieldCheck, Truck, Loader2 } from 'lucide-react';
+import { ExternalLink, AlertTriangle, ShieldCheck, Truck, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { productsApi, type ProductListDto } from '@/lib/api/products';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface ProductPreviewModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ export default function ProductPreviewModal({
   onOpenChange,
   product,
 }: ProductPreviewModalProps) {
+  const { locale, t } = useTranslations();
   // Fetch complete product details dynamically via React Query
   const { data: fullProductData, isLoading, isError } = useQuery({
     queryKey: ['product-detail', product.id],
@@ -40,10 +42,7 @@ export default function ProductPreviewModal({
   const [selectedImage, setSelectedImage] = useState<string>('');
   const activeImage = selectedImage || mediaList[0]?.url || '';
 
-  // Variant selections
   const variants = p?.variants || [];
-  const [selectedSize, setSelectedSize] = useState<string>('42');
-  const [selectedColor, setSelectedColor] = useState<string>('Black');
 
   // Calculate pricing & discount
   const basePriceNum = Number(p?.basePrice) || 0;
@@ -52,6 +51,9 @@ export default function ProductPreviewModal({
   const discountPercent = hasDiscount
     ? Math.round(((comparePriceNum - basePriceNum) / comparePriceNum) * 100)
     : 0;
+  const priceFormatter = new Intl.NumberFormat(locale === 'ar' ? 'ar-TN' : 'en-TN', {
+    style: 'currency', currency: 'TND', minimumFractionDigits: 3, maximumFractionDigits: 3,
+  });
 
   // Stock assessment
   const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
@@ -62,13 +64,13 @@ export default function ProductPreviewModal({
       : 'bg-red-50 text-red-700 border-red-200';
 
   const stockLabel = totalStock > 5 
-    ? `In Stock (${totalStock} available)`
+    ? t('admin.inStockCount', { count: totalStock })
     : totalStock > 0 
-      ? `Low Stock (${totalStock} left)`
-      : 'Out of Stock';
+      ? t('admin.lowStockCount', { count: totalStock })
+      : t('catalog.outOfStock');
 
   // Category breadcrumb
-  const categoryName = p?.categories.find((category) => category.isPrimary)?.name || p?.categories[0]?.name || 'Footwear';
+  const categoryName = p?.categories.find((category) => category.isPrimary)?.name || p?.categories[0]?.name || t('admin.footwear');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,7 +81,7 @@ export default function ProductPreviewModal({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">
-              Customer Storefront Live Preview
+              {t('admin.liveStorefrontPreview')}
             </span>
           </div>
           <a
@@ -88,7 +90,7 @@ export default function ProductPreviewModal({
             rel="noopener noreferrer"
             className="text-xs text-[#FF8C00] hover:underline flex items-center gap-1 font-medium transition-all"
           >
-            Open Live Product Page <ExternalLink className="w-3.5 h-3.5" />
+            {t('admin.openLiveProduct')} <ExternalLink className="w-3.5 h-3.5 rtl:rotate-180" />
           </a>
         </div>
 
@@ -100,7 +102,7 @@ export default function ProductPreviewModal({
               <Loader2 className="w-8 h-8 animate-spin text-[#FF8C00]" />
             )}
             <p className="text-xs font-medium">
-              {isError ? 'Unable to load the product preview.' : 'Loading high-fidelity storefront preview...'}
+              {t(isError ? 'admin.previewLoadError' : 'admin.previewLoading')}
             </p>
           </div>
         ) : (
@@ -113,15 +115,15 @@ export default function ProductPreviewModal({
               <div className="relative aspect-square rounded-xl bg-gray-50 border border-gray-100 overflow-hidden group">
                 
                 {/* Badges Overlay */}
-                <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 items-start">
+                <div className="absolute top-3 start-3 z-10 flex flex-col gap-1.5 items-start">
                   {hasDiscount && (
                     <span className="bg-red-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-md shadow-md">
-                      -{discountPercent}% OFF
+                      -{discountPercent}% {t('admin.off')}
                     </span>
                   )}
                   {p.status === 'ACTIVE' && (
                     <span className="bg-emerald-600 text-white font-semibold text-[10px] px-2 py-0.5 rounded shadow">
-                      New Arrival
+                      {t('admin.newArrival')}
                     </span>
                   )}
                 </div>
@@ -154,7 +156,7 @@ export default function ProductPreviewModal({
                           isSelected ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/20 scale-105' : 'border-gray-200 opacity-70 hover:opacity-100'
                         }`}
                       >
-                        <CommerceImage src={m.url} alt={`Thumbnail ${idx + 1}`} sizes="64px" className="object-cover" />
+                        <CommerceImage src={m.url} alt={t('admin.thumbnail', { number: idx + 1 })} sizes="64px" className="object-cover" />
                       </button>
                     );
                   })}
@@ -170,7 +172,7 @@ export default function ProductPreviewModal({
                 {/* Category & Brand Breadcrumb */}
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="uppercase tracking-widest font-semibold text-gray-400">
-                    Home / Catalog / {categoryName}
+                    {t('header.shop')} / {t('admin.products')} / {categoryName}
                   </span>
                   {p.brand && (
                     <span className="font-bold text-[#FF8C00] uppercase tracking-wider">
@@ -194,85 +196,39 @@ export default function ProductPreviewModal({
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3 pt-1 border-t border-gray-100">
                   <span className="text-2xl font-extrabold text-emerald-600">
-                    {basePriceNum.toFixed(3)} <span className="text-sm font-semibold">TND</span>
+                    {priceFormatter.format(basePriceNum)}
                   </span>
                   {hasDiscount && (
                     <span className="text-sm font-semibold text-gray-400 line-through">
-                      {comparePriceNum.toFixed(3)} TND
+                      {priceFormatter.format(comparePriceNum)}
                     </span>
                   )}
-                  <Badge className={`ml-auto text-[10px] ${stockBadgeColor}`}>
+                  <Badge className={`ms-auto text-[10px] ${stockBadgeColor}`}>
                     {stockLabel}
                   </Badge>
                 </div>
 
-                {/* Interactive Variant Options (Colors & Sizes) */}
-                <div className="space-y-3 pt-2">
-                  
-                  {/* Colors Selector */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
-                      <span>Color Option</span>
-                      <span className="text-gray-400 font-normal">{selectedColor}</span>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {['Black', 'White', 'Red', 'Blue', 'Brown'].map((color) => {
-                        const isSelected = selectedColor === color;
-                        return (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => setSelectedColor(color)}
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                              isSelected
-                                ? 'bg-black text-white border-black shadow'
-                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            {color}
-                          </button>
-                        );
-                      })}
+                {p.options.length > 0 && <div className="space-y-3 pt-2">
+                  {p.options.map((option) => <div key={option.id} className="space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-700">{option.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {option.values.map((value) => <span key={value.id} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
+                        {value.colorHex && <span className="h-3 w-3 rounded-full border" style={{ backgroundColor: value.colorHex }} />}
+                        {value.displayValue || value.value}
+                      </span>)}
                     </div>
-                  </div>
-
-                  {/* Size Pills Selector */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
-                      <span>Shoe Size (EU)</span>
-                      <span className="text-gray-400 font-normal">EUR {selectedSize}</span>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {['40', '41', '42', '43', '44'].map((size) => {
-                        const isSelected = selectedSize === size;
-                        return (
-                          <button
-                            key={size}
-                            type="button"
-                            onClick={() => setSelectedSize(size)}
-                            className={`w-10 h-10 rounded-lg border text-xs font-bold transition-all flex items-center justify-center ${
-                              isSelected
-                                ? 'bg-[#FF8C00] text-white border-[#FF8C00] shadow-md scale-105'
-                                : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            {size}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                  </div>)}
+                </div>}
 
                 {/* Customer Guarantees */}
                 <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-[11px] text-gray-600">
                     <Truck className="w-4 h-4 text-[#FF8C00]" />
-                    <span>Free Nationwide Delivery</span>
+                    <span>{t('admin.shippingAtCheckout')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-gray-600">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>COD Cash on Delivery</span>
+                    <span>{t('checkout.cod')}</span>
                   </div>
                 </div>
               </div>
@@ -282,14 +238,14 @@ export default function ProductPreviewModal({
                 <Button 
                   className="w-full bg-black hover:bg-gray-800 text-white py-5 font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                   onClick={() => {
-                    window.open(`/products/${p.slug}`, '_blank');
+                    window.open(`/products/${p.slug}`, '_blank', 'noopener,noreferrer');
                   }}
                 >
-                  <ShoppingBag className="w-4 h-4 text-[#FF8C00]" /> Add to Bag & Order COD
+                  <ExternalLink className="w-4 h-4 text-[#FF8C00] rtl:rotate-180" /> {t('admin.openProductPage')}
                 </Button>
                 
                 <p className="text-[10px] text-center text-gray-400">
-                  This preview renders the exact storefront presentation for public customers.
+                  {t('admin.previewAuthority')}
                 </p>
               </div>
 

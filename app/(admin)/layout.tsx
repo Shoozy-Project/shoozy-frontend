@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ChevronRight, Bell, ExternalLink, Sparkles } from 'lucide-react';
+import { ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/api/auth';
@@ -18,6 +18,10 @@ import { isAxiosError } from 'axios';
 import Sidebar, { navItems } from '@/components/admin/Sidebar';
 import MobileNav from '@/components/admin/MobileNav';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { notificationKeys } from '@/lib/hooks/use-notifications';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -32,6 +36,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isLoading = useAuthStore((s) => s.isLoading);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { t } = useTranslations();
   const capability = useAdminCapability(isInitialized && !isLoading && !!user, user?.id);
   const capabilityStatus = isAxiosError(capability.error) ? capability.error.response?.status : undefined;
 
@@ -90,7 +95,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     } catch {
       // Clear state even if request fails
     } finally {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all });
       clearAuth();
+      queryClient.removeQueries({ queryKey: notificationKeys.all });
       router.push('/login');
     }
   };
@@ -104,9 +111,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return (
       <div className="min-h-screen grid place-items-center bg-background p-6">
         <div className="max-w-md rounded-xl border bg-card p-8 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-foreground">Admin access check unavailable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Your session is still signed in, but the server could not verify admin access.</p>
-          <button type="button" onClick={() => capability.refetch()} className="mt-5 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e67e00]">Try again</button>
+          <h1 className="text-lg font-semibold text-foreground">{t('admin.accessUnavailable')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t('admin.accessUnavailableCopy')}</p>
+          <button type="button" onClick={() => capability.refetch()} className="mt-5 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e67e00]">{t('common.retry')}</button>
         </div>
       </div>
     );
@@ -115,7 +122,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const currentPage =
     navItems.find(
       (n) => pathname === n.href || (n.href !== '/admin' && pathname.startsWith(n.href))
-    )?.label ?? 'Admin Dashboard';
+    )?.labelKey ?? 'admin.dashboardTitle';
+  const currentPageLabel = t(currentPage);
 
   return (
     <div className="admin-theme min-h-screen bg-background text-foreground flex flex-col lg:flex-row antialiased">
@@ -130,25 +138,26 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* ── Mobile Top Header & Navigation Drawer ─────────────────── */}
       <MobileNav
         user={user}
-        currentPage={currentPage}
+        currentPage={currentPageLabel}
         onLogout={handleLogout}
         loggingOut={loggingOut}
         onPrefetch={handlePrefetch}
       />
 
       {/* ── Main Content Area ─────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen">
+      <div className="flex-1 flex flex-col lg:ms-64 min-h-screen">
         {/* Desktop Premium Glassmorphism Header */}
         <header className="hidden lg:flex items-center justify-between px-8 h-16 bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-30 shadow-2xs">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-400 font-medium">Shoezy Admin</span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-            <span className="text-gray-900 font-bold tracking-tight">{currentPage}</span>
+            <span className="text-gray-400 font-medium">Shoozy · {t('admin.dashboardTitle')}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-300 rtl:rotate-180" />
+            <span className="text-gray-900 font-bold tracking-tight">{currentPageLabel}</span>
           </div>
 
           {/* Right Header Action Items */}
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <ThemeToggle />
             {/* Storefront External Button */}
             <Link
@@ -156,36 +165,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 hover:text-[#FF8C00] bg-gray-100/80 hover:bg-orange-50/80 border border-gray-200/60 hover:border-[#FF8C00]/30 transition-all duration-200"
-              title="Open Live Shoezy Store"
+              title={t('admin.openStore')}
             >
               <ExternalLink className="w-3.5 h-3.5 text-gray-500" />
-              <span>View Store</span>
+              <span>{t('admin.viewStore')}</span>
             </Link>
 
-            {/* Notification Bell with Indicator Badge */}
-            <button
-              id="admin-notifications-btn"
-              aria-label="Notifications"
-              className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 rounded-xl transition-colors cursor-pointer"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF8C00] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF8C00]" />
-              </span>
-            </button>
+            <NotificationCenter admin compact />
 
             <div className="h-5 w-px bg-gray-200" />
 
             {/* Admin User Pill */}
-            <div className="flex items-center gap-2.5 p-1.5 pl-3 rounded-full bg-gray-50/80 border border-gray-100 shadow-2xs">
-              <div className="text-right leading-none">
+            <div className="flex items-center gap-2.5 p-1.5 ps-3 rounded-full bg-gray-50/80 border border-gray-100 shadow-2xs">
+              <div className="text-end leading-none">
                 <p className="text-xs font-bold text-gray-900">
                   {user.firstName} {user.lastName}
                 </p>
                 <p className="text-[10px] font-semibold text-[#FF8C00] mt-0.5 flex items-center justify-end gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  ADMIN
+                  {t('admin.administrator')}
                 </p>
               </div>
 
@@ -194,7 +192,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   {user.firstName[0]}
                   {user.lastName[0]}
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+                <span className="absolute bottom-0 end-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
               </div>
             </div>
           </div>

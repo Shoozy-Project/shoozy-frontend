@@ -1,16 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { Mail } from 'lucide-react';
-import { forgotPasswordSchema, type ForgotPasswordInput } from '@/validations/auth';
+import { createForgotPasswordSchema, type ForgotPasswordInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const { locale, t } = useTranslations();
+  const forgotPasswordSchema = useMemo(() => createForgotPasswordSchema(locale), [locale]);
 
   const {
     register,
@@ -37,20 +40,19 @@ export default function ForgotPasswordPage() {
           <Mail className="w-10 h-10 text-[#FF8C00]" aria-hidden="true" />
         </div>
         <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
-          Check Your Email
+          {t('auth.checkEmail')}
         </h1>
         <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-sm mb-6">
-          If an account exists for <strong className="text-[var(--text-primary)]">{submittedEmail}</strong>, you&apos;ll
-          receive a password reset link shortly.
+          {t('auth.forgotSent', { email: submittedEmail })}
         </p>
         <p className="text-xs text-[var(--text-faint)] mb-8">
-          Don&apos;t forget to check your spam folder.
+          {t('auth.checkSpam')}
         </p>
         <Link
           href="/login"
           className="text-sm font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors"
         >
-          ← Back to Login
+          ← {t('auth.backLogin')}
         </Link>
       </div>
     );
@@ -60,10 +62,10 @@ export default function ForgotPasswordPage() {
     <div className="animate-fade-in">
       <div className="mb-8">
         <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
-          Forgot Password?
+          {t('auth.forgotTitle')}
         </h1>
         <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Enter your email and we&apos;ll send you a reset link.
+          {t('auth.forgotCopy')}
         </p>
       </div>
 
@@ -75,7 +77,7 @@ export default function ForgotPasswordPage() {
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="forgot-email" className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]">
-            Email Address
+            {t('auth.email')}
           </label>
           <input
             id="forgot-email"
@@ -110,14 +112,14 @@ export default function ForgotPasswordPage() {
           {isSubmitting && (
             <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
-          {isSubmitting ? 'Sending...' : 'Send Reset Link'}
+          {isSubmitting ? t('auth.sending') : t('auth.sendReset')}
         </button>
       </form>
 
       <p className="mt-8 text-center text-sm text-[var(--text-muted)]">
-        Remember your password?{' '}
+        {t('auth.rememberPassword')}{' '}
         <Link href="/login" className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors">
-          Sign In
+          {t('auth.signIn')}
         </Link>
       </p>
     </div>

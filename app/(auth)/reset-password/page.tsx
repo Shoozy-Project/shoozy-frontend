@@ -1,16 +1,17 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Suspense, useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { resetPasswordSchema, type ResetPasswordInput } from '@/validations/auth';
+import { createResetPasswordSchema, type ResetPasswordInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
 import PasswordStrengthBar from '@/components/auth/PasswordStrengthBar';
 import { isAxiosError } from 'axios';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 type State = 'form' | 'success' | 'invalid' | 'expired' | 'used';
 
@@ -19,17 +20,19 @@ function ResetPasswordForm() {
   const token = searchParams.get('token');
   const [state, setState] = useState<State>(token ? 'form' : 'invalid');
   const [serverError, setServerError] = useState<string | null>(null);
+  const { locale, t } = useTranslations();
+  const resetPasswordSchema = useMemo(() => createResetPasswordSchema(locale), [locale]);
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  const newPasswordValue = watch('newPassword') ?? '';
+  const newPasswordValue = useWatch({ control, name: 'newPassword' }) ?? '';
 
   const onSubmit = async (data: ResetPasswordInput) => {
     if (!token) return;
@@ -44,9 +47,9 @@ function ResetPasswordForm() {
         if (code === 'AUTH_TOKEN_EXPIRED') setState('expired');
         else if (code === 'AUTH_TOKEN_USED') setState('used');
         else if (code === 'TOKEN_INVALID') setState('invalid');
-        else setServerError('Something went wrong. Please try again.');
+        else setServerError(t('auth.genericError'));
       } else {
-        setServerError('Network error. Please try again.');
+        setServerError(t('auth.networkError'));
       }
     }
   };
@@ -58,16 +61,16 @@ function ResetPasswordForm() {
           <CheckCircle className="w-10 h-10 text-[#16a34a]" aria-hidden="true" />
         </div>
         <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
-          Password Updated!
+          {t('auth.passwordUpdated')}
         </h1>
         <p className="text-sm text-[var(--text-muted)] mb-8">
-          Your password has been changed successfully. You can now sign in with your new password.
+          {t('auth.passwordUpdatedCopy')}
         </p>
         <Link
           href="/login"
           className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity"
         >
-          Sign In
+          {t('auth.signIn')}
         </Link>
       </div>
     );
@@ -80,20 +83,20 @@ function ResetPasswordForm() {
           <XCircle className="w-10 h-10 text-[#dc2626]" aria-hidden="true" />
         </div>
         <h1 className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-serif)' }}>
-          {state === 'used' ? 'Already Used' : state === 'expired' ? 'Link Expired' : 'Invalid Link'}
+          {state === 'used' ? t('auth.alreadyUsed') : state === 'expired' ? t('auth.linkExpired') : t('auth.invalidLink')}
         </h1>
         <p className="text-sm text-[var(--text-muted)] mb-8">
           {state === 'used'
-            ? 'This reset link has already been used. Request a new one if needed.'
+            ? t('auth.resetUsedCopy')
             : state === 'expired'
-              ? 'This link has expired. Request a new password reset below.'
-              : 'This reset link is invalid. Please request a new one.'}
+              ? t('auth.resetExpiredCopy')
+              : t('auth.resetInvalidCopy')}
         </p>
         <Link
           href="/forgot-password"
           className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity"
         >
-          Request New Link
+          {t('auth.requestNew')}
         </Link>
       </div>
     );
@@ -103,10 +106,10 @@ function ResetPasswordForm() {
     <div className="animate-fade-in">
       <div className="mb-8">
         <h1 className="text-3xl lg:text-4xl font-serif font-bold text-[var(--text-primary)] tracking-tight" style={{ fontFamily: 'var(--font-serif)' }}>
-          Set New Password
+          {t('auth.setPassword')}
         </h1>
         <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Choose a strong password for your account.
+          {t('auth.setPasswordCopy')}
         </p>
       </div>
 
@@ -126,10 +129,10 @@ function ResetPasswordForm() {
         <div>
           <PasswordInput
             id="reset-new-password"
-            label="New Password"
+            label={t('auth.newPassword')}
             registration={register('newPassword')}
             error={errors.newPassword?.message}
-            placeholder="Minimum 12 characters"
+            placeholder={t('auth.passwordHint')}
             autoComplete="new-password"
           />
           <PasswordStrengthBar password={newPasswordValue} />
@@ -137,10 +140,10 @@ function ResetPasswordForm() {
 
         <PasswordInput
           id="reset-confirm-password"
-          label="Confirm New Password"
+          label={t('auth.confirmNewPassword')}
           registration={register('confirmPassword')}
           error={errors.confirmPassword?.message}
-          placeholder="Re-enter your new password"
+          placeholder={t('auth.passwordAgain')}
           autoComplete="new-password"
         />
 
@@ -153,7 +156,7 @@ function ResetPasswordForm() {
           {isSubmitting && (
             <span className="w-4 h-4 border-2 border-[var(--surface-primary)] border-t-transparent rounded-full animate-spin" />
           )}
-          {isSubmitting ? 'Updating...' : 'Update Password'}
+          {isSubmitting ? t('auth.updating') : t('auth.updatePassword')}
         </button>
       </form>
     </div>
@@ -161,12 +164,13 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslations();
   return (
     <Suspense
       fallback={
         <div className="flex flex-col items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-[#FF8C00] animate-spin mb-3" aria-hidden="true" />
-          <p className="text-sm text-[var(--text-muted)]">Loading reset password form...</p>
+          <p className="text-sm text-[var(--text-muted)]">{t('auth.loadingReset')}</p>
         </div>
       }
     >

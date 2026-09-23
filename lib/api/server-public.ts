@@ -1,4 +1,4 @@
-import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { API_BASE_URL } from '@/lib/constants';
 import type { ApiSuccess, PaginatedData } from '@/types/api';
 import type {
@@ -19,11 +19,13 @@ export class PublicApiError extends Error {
 }
 
 async function publicGet<T>(path: string, params?: Record<string, string | number | boolean | undefined>) {
+  const cookieStore = await cookies();
+  const locale = cookieStore.get('shoozy-locale')?.value === 'ar' ? 'ar' : 'en';
   const url = new URL(`${API_BASE_URL.replace(/\/$/, '')}${path}`);
   Object.entries(params ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
   });
-  const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+  const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json', 'Accept-Language': locale } });
   const payload = (await response.json().catch(() => null)) as ApiSuccess<T> | { error?: { message?: string } } | null;
   if (!response.ok || !payload || !('data' in payload)) {
     throw new PublicApiError(payload && 'error' in payload ? payload.error?.message ?? 'Request failed.' : 'Request failed.', response.status);
@@ -33,7 +35,7 @@ async function publicGet<T>(path: string, params?: Record<string, string | numbe
 
 export const serverCatalog = {
   products: (query: CatalogQuery) => publicGet<PaginatedData<CatalogProductDto>>('/catalog/products', query as Record<string, string | number | boolean | undefined>),
-  product: cache((slug: string) => publicGet<CatalogProductDetailDto>(`/catalog/products/${encodeURIComponent(slug)}`)),
+  product: (slug: string) => publicGet<CatalogProductDetailDto>(`/catalog/products/${encodeURIComponent(slug)}`),
   brands: (page = 1, limit = 50) => publicGet<PaginatedData<CatalogBrandDto>>('/catalog/brands', { page, limit }),
   categories: (page = 1, limit = 24) => publicGet<PaginatedData<CatalogCategoryDto>>('/catalog/categories', { page, limit }),
   categoryTree: (page = 1, limit = 50) => publicGet<PaginatedData<CatalogCategoryDto>>('/catalog/categories/tree', { page, limit }),

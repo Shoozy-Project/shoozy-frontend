@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { CatalogResults } from '@/components/commerce/CatalogResults';
 import { serverCatalog, serverCatalogEntities } from '@/lib/api/server-public';
 import type { CatalogQuery, CatalogSort } from '@/types/commerce';
+import { getServerTranslations } from '@/lib/i18n-server';
 
-export const metadata: Metadata = {
-  title: 'Shop Shoes',
-  description: 'Browse the current Shoozy footwear catalog.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getServerTranslations();
+  return { title: t('meta.productsTitle'), description: t('meta.productsDescription') };
+}
 
 const SORTS = new Set<CatalogSort>(['newest', 'nameAsc', 'nameDesc', 'basePriceAsc', 'basePriceDesc']);
 const integer = (value: string | undefined) => value && /^(?:0|[1-9]\d*)$/.test(value) ? value : undefined;
@@ -34,15 +35,15 @@ function catalogQuery(params: Record<string, string | string[] | undefined>): Ca
 }
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = await searchParams;
+  const [params, { t }] = await Promise.all([searchParams, getServerTranslations()]);
   let loaded: Awaited<ReturnType<typeof loadProductsPage>> | null = null;
   try {
     loaded = await loadProductsPage(params);
   } catch {
     loaded = null;
   }
-  if (!loaded) return <div className="mx-auto max-w-3xl px-4 pb-24 pt-40 text-center"><h1 className="font-serif text-4xl">The catalog is unavailable</h1><p className="mt-3 text-muted-foreground">We could not load Shoozy products. Please refresh and try again.</p></div>;
-  return <div className="mx-auto max-w-7xl px-4 pb-20 pt-40 sm:px-6 lg:px-8"><div className="mb-10 max-w-2xl"><p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Shoezy catalog</p><h1 className="mt-3 font-serif text-4xl md:text-5xl">Find your next pair</h1>{typeof params.search === 'string' && <p className="mt-3 text-muted-foreground">Results for “{params.search}”</p>}</div><CatalogResults result={loaded.result} brands={loaded.brands} categories={loaded.categories} collections={loaded.collections} searchParams={params} /></div>;
+  if (!loaded) return <div className="mx-auto max-w-3xl px-4 pb-24 pt-40 text-center"><h1 className="font-serif text-4xl">{t('catalog.unavailable')}</h1><p className="mt-3 text-muted-foreground">{t('catalog.unavailableCopy')}</p></div>;
+  return <div className="mx-auto max-w-7xl px-4 pb-20 pt-40 sm:px-6 lg:px-8"><div className="mb-10 max-w-2xl"><p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{t('catalog.kicker')}</p><h1 className="mt-3 font-serif text-4xl md:text-5xl">{t('catalog.title')}</h1>{typeof params.search === 'string' && <p className="mt-3 text-muted-foreground">{t('catalog.resultsFor', { search: params.search })}</p>}</div><CatalogResults result={loaded.result} brands={loaded.brands} categories={loaded.categories} collections={loaded.collections} searchParams={params} /></div>;
 }
 
 async function loadProductsPage(params: Record<string, string | string[] | undefined>) {

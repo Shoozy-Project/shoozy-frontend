@@ -2,23 +2,24 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Sparkles, Tag } from 'lucide-react';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
-import { Tag, Loader2, Sparkles, Percent, DollarSign, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { promotionsApi, type CouponDto, type DiscountType } from '@/lib/api/promotions';
+import { PromotionTargetSelector } from './PromotionTargetSelector';
+import {
+  promotionsApi,
+  type CouponDto,
+  type DiscountActivationMode,
+  type DiscountScope,
+  type DiscountTargetInput,
+  type DiscountType,
+} from '@/lib/api/promotions';
 import { formatMinorAmount, majorToMinorString } from '@/lib/format-money';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CouponFormModalProps {
   isOpen: boolean;
@@ -26,306 +27,142 @@ interface CouponFormModalProps {
   couponToEdit?: CouponDto | null;
 }
 
-export default function CouponFormModal({
-  isOpen,
-  onClose,
-  couponToEdit,
-}: CouponFormModalProps) {
+function localDateTime(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function existingTargets(coupon?: CouponDto | null): DiscountTargetInput[] {
+  return (coupon?.targets ?? []).reduce<DiscountTargetInput[]>((items, target) => {
+    if (target.productId) items.push({ productId: target.productId });
+    else if (target.variantId) items.push({ variantId: target.variantId });
+    else if (target.categoryId) items.push({ categoryId: target.categoryId });
+    else if (target.collectionId) items.push({ collectionId: target.collectionId });
+    return items;
+  }, []);
+}
+
+export default function CouponFormModal({ isOpen, onClose, couponToEdit }: CouponFormModalProps) {
   const queryClient = useQueryClient();
   const isEditing = !!couponToEdit;
-
-  const [name, setName] = useState(couponToEdit?.name ?? '');
+  const { t } = useTranslations();
+  const [name, setName] = useState(couponToEdit?.translations?.en?.name ?? couponToEdit?.name ?? '');
+  const [nameAr, setNameAr] = useState(couponToEdit?.translations?.ar?.name ?? '');
+  const [description, setDescription] = useState(couponToEdit?.translations?.en?.description ?? couponToEdit?.description ?? '');
+  const [descriptionAr, setDescriptionAr] = useState(couponToEdit?.translations?.ar?.description ?? '');
+  const [activationMode, setActivationMode] = useState<DiscountActivationMode>(couponToEdit?.activationMode ?? 'AUTOMATIC');
   const [code, setCode] = useState(couponToEdit?.code ?? '');
-  const [priority, setPriority] = useState(couponToEdit?.priority.toString() ?? '0');
+  const [priority, setPriority] = useState(String(couponToEdit?.priority ?? 100));
   const [type, setType] = useState<DiscountType>(couponToEdit?.type ?? 'PERCENTAGE');
+  const [scope, setScope] = useState<DiscountScope>(couponToEdit?.scope ?? 'CATALOG');
+  const [targets, setTargets] = useState<DiscountTargetInput[]>(() => existingTargets(couponToEdit));
   const [valueInput, setValueInput] = useState(() => couponToEdit
-    ? couponToEdit.type === 'FIXED_AMOUNT'
-      ? formatMinorAmount(couponToEdit.value, 3)
-      : (Number(couponToEdit.value) / 100).toString()
+    ? couponToEdit.type === 'FIXED_AMOUNT' ? formatMinorAmount(couponToEdit.value, 3) : String(Number(couponToEdit.value) / 100)
     : '10');
-  const [minOrderInput, setMinOrderInput] = useState(() => couponToEdit?.minOrderMinor
-    ? formatMinorAmount(couponToEdit.minOrderMinor, 3)
-    : '0');
+  const [minOrderInput, setMinOrderInput] = useState(() => couponToEdit?.minOrderMinor ? formatMinorAmount(couponToEdit.minOrderMinor, 3) : '');
+  const [maxDiscountInput, setMaxDiscountInput] = useState(() => couponToEdit?.maxDiscountMinor ? formatMinorAmount(couponToEdit.maxDiscountMinor, 3) : '');
   const [usageLimitInput, setUsageLimitInput] = useState(couponToEdit?.usageLimit?.toString() ?? '');
-  const [startDate, setStartDate] = useState(couponToEdit?.startsAt.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState(couponToEdit?.endsAt?.slice(0, 10) ?? '');
+  const [perCustomerInput, setPerCustomerInput] = useState(couponToEdit?.perCustomerLimit?.toString() ?? '');
+  const [startsAt, setStartsAt] = useState(localDateTime(couponToEdit?.startsAt) || localDateTime(new Date().toISOString()));
+  const [endsAt, setEndsAt] = useState(localDateTime(couponToEdit?.endsAt));
   const [isActive, setIsActive] = useState(couponToEdit?.isActive ?? true);
-  const [combinable, setCombinable] = useState(couponToEdit?.combinable ?? true);
+  const [combinable, setCombinable] = useState(couponToEdit?.combinable ?? false);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const numericVal = parseFloat(valueInput) || 0;
       const value = type === 'FIXED_AMOUNT'
         ? majorToMinorString(valueInput, 3)
-        : type === 'PERCENTAGE' ? String(Math.round(numericVal * 100)) : '0';
-      const minOrderMinorValue = majorToMinorString(minOrderInput, 3);
-      const minOrderMinor = minOrderMinorValue === '0' ? null : minOrderMinorValue;
-      const usageLimit = usageLimitInput.trim() ? parseInt(usageLimitInput, 10) : null;
-
+        : type === 'PERCENTAGE' ? String(Math.round((Number(valueInput) || 0) * 100)) : '0';
+      const en = { name: name.trim(), description: description.trim() || null };
+      const arName = nameAr.trim();
+      const translations = arName
+        ? { en, ar: { name: arName, description: descriptionAr.trim() || null } }
+        : isEditing ? { en } : undefined;
       const payload = {
         name: name.trim(),
-        code: code.trim().toUpperCase(),
+        description: description.trim() || null,
+        ...(translations ? { translations } : {}),
+        code: activationMode === 'COUPON' ? code.trim().toUpperCase() : null,
         type,
-        scope: 'ORDER' as const,
+        scope: type === 'FREE_SHIPPING' ? 'ORDER' as const : scope,
         priority: Number.parseInt(priority, 10) || 0,
         value,
         currency: type === 'FIXED_AMOUNT' ? 'TND' : null,
-        minOrderMinor,
-        maxDiscountMinor: null,
-        usageLimit,
-        perCustomerLimit: null,
-        startsAt: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
-        endsAt: endDate ? new Date(endDate).toISOString() : null,
+        minOrderMinor: minOrderInput.trim() ? majorToMinorString(minOrderInput, 3) : null,
+        maxDiscountMinor: type === 'PERCENTAGE' && maxDiscountInput.trim() ? majorToMinorString(maxDiscountInput, 3) : null,
+        usageLimit: usageLimitInput.trim() ? Number.parseInt(usageLimitInput, 10) : null,
+        perCustomerLimit: perCustomerInput.trim() ? Number.parseInt(perCustomerInput, 10) : null,
+        startsAt: new Date(startsAt).toISOString(),
+        endsAt: endsAt ? new Date(endsAt).toISOString() : null,
         isActive,
         combinable,
-        targets: [],
+        targets: type === 'FREE_SHIPPING' || scope === 'ORDER' || scope === 'CATALOG' ? [] : targets,
       };
-
-      if (isEditing && couponToEdit) {
-        return promotionsApi.updateCoupon(couponToEdit.id, payload);
-      }
-      return promotionsApi.createCoupon(payload);
+      return isEditing && couponToEdit
+        ? promotionsApi.updateCoupon(couponToEdit.id, payload)
+        : promotionsApi.createCoupon(payload);
     },
     onSuccess: () => {
-      toast.success(
-        isEditing ? `Coupon '${code.toUpperCase()}' updated` : `Coupon '${code.toUpperCase()}' created`
-      );
-      queryClient.invalidateQueries({ queryKey: ['admin-coupons'] });
+      toast.success(isEditing ? t('promotion.updated') : t('promotion.created'));
+      void queryClient.invalidateQueries({ queryKey: ['admin-promotions'] });
       onClose();
     },
-    onError: (err) => {
-      let msg = 'Failed to save coupon';
-      if (isAxiosError(err) && err.response?.data?.error?.message) {
-        msg = err.response.data.error.message;
-      }
-      toast.error(msg);
-    },
+    onError: () => toast.error(t('promotion.saveError')),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !code.trim()) {
-      toast.error('Discount name and coupon code are required');
-      return;
-    }
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim()) return toast.error(t('promotion.nameRequired'));
+    if (activationMode === 'COUPON' && !code.trim()) return toast.error(t('promotion.codeRequired'));
+    if (type !== 'FREE_SHIPPING' && !['ORDER', 'CATALOG'].includes(scope) && targets.length === 0) return toast.error(t('promotion.targetRequired'));
+    if (endsAt && new Date(endsAt) <= new Date(startsAt)) return toast.error(t('promotion.dateError'));
     mutation.mutate();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-white border border-gray-100 shadow-2xl rounded-2xl p-6">
-        <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-2 text-[#FF8C00]">
-            <Tag className="w-5 h-5" />
-            <DialogTitle className="text-xl font-bold text-gray-900">
-              {isEditing ? 'Edit Coupon Code' : 'Create New Coupon'}
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-gray-500">
-            Configure discount code rules, order thresholds, and expiry limits.
-          </DialogDescription>
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-3xl">
+        <DialogHeader className="sticky top-0 z-10 border-b bg-card px-6 py-5">
+          <div className="flex items-center gap-2 text-[#FF8C00]"><Tag className="size-5" /><DialogTitle className="text-xl text-foreground">{isEditing ? t('promotion.editTitle') : t('promotion.createTitle')}</DialogTitle></div>
+          <DialogDescription>{t('promotion.editorCopy')}</DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="grid grid-cols-[1fr_110px] gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount Name</Label>
-              <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Summer sale" maxLength={150} />
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 py-5">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">{t('promotion.localizedInfo')}</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2" dir="ltr"><Label>{t('promotion.englishName')}</Label><Input lang="en" value={name} onChange={(event) => setName(event.target.value)} maxLength={150} /><Label>{t('promotion.englishDescription')}</Label><textarea lang="en" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="w-full rounded-md border bg-background p-3 text-sm" /></div>
+              <div className="space-y-2" dir="rtl"><Label>{t('promotion.arabicName')}</Label><Input lang="ar" value={nameAr} onChange={(event) => setNameAr(event.target.value)} maxLength={150} /><Label>{t('promotion.arabicDescription')}</Label><textarea lang="ar" value={descriptionAr} onChange={(event) => setDescriptionAr(event.target.value)} rows={3} className="w-full rounded-md border bg-background p-3 text-sm" /></div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Priority</Label>
-              <Input type="number" min="0" value={priority} onChange={(event) => setPriority(event.target.value)} />
-            </div>
-          </div>
-          {/* Coupon Code Input */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-              Coupon Code <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. SHOESY10"
-                className="font-mono font-bold uppercase tracking-wider text-base border-gray-200 focus:border-[#FF8C00] focus:ring-[#FF8C00]/20"
-                maxLength={30}
-              />
-              <Sparkles className="w-4 h-4 text-[#FF8C00] absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
-            </div>
-          </div>
+          </section>
 
-          {/* Discount Type Picker */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-              Discount Type
-            </Label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setType('PERCENTAGE')}
-                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  type === 'PERCENTAGE'
-                    ? 'border-[#FF8C00] bg-[#FFF3E0] text-[#FF8C00] shadow-sm'
-                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <Percent className="w-4 h-4 mb-1" />
-                Percentage (%)
-              </button>
+          <section className="grid gap-4 border-t pt-5 sm:grid-cols-2">
+            <div className="space-y-2"><Label>{t('promotion.activationMode')}</Label><select value={activationMode} onChange={(event) => setActivationMode(event.target.value as DiscountActivationMode)} className="w-full rounded-md border bg-background px-3 py-2"><option value="AUTOMATIC">{t('promotion.automatic')}</option><option value="COUPON">{t('promotion.couponCodeMode')}</option></select></div>
+            <div className="space-y-2"><Label>{t('promotion.priority')}</Label><Input type="number" min="0" value={priority} onChange={(event) => setPriority(event.target.value)} /><p className="text-xs text-muted-foreground">{t('promotion.priorityHelp')}</p></div>
+            {activationMode === 'COUPON' && <div className="space-y-2 sm:col-span-2"><Label>{t('promotion.couponCode')}</Label><div className="relative"><Input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={80} className="font-mono uppercase" dir="ltr" /><Sparkles className="absolute end-3 top-1/2 size-4 -translate-y-1/2 text-[#FF8C00]" /></div></div>}
+            <div className="space-y-2"><Label>{t('promotion.discountType')}</Label><select value={type} onChange={(event) => { const next = event.target.value as DiscountType; setType(next); if (next === 'FREE_SHIPPING') { setScope('ORDER'); setTargets([]); } }} className="w-full rounded-md border bg-background px-3 py-2"><option value="PERCENTAGE">{t('promotion.percentage')}</option><option value="FIXED_AMOUNT">{t('promotion.fixed')}</option><option value="FREE_SHIPPING">{t('promotion.freeShipping')}</option></select></div>
+            <div className="space-y-2"><Label>{t('promotion.value')} {type === 'PERCENTAGE' ? '(%)' : type === 'FIXED_AMOUNT' ? '(TND)' : ''}</Label><Input type="number" min="0" step={type === 'FIXED_AMOUNT' ? '0.001' : '0.01'} value={type === 'FREE_SHIPPING' ? '0' : valueInput} onChange={(event) => setValueInput(event.target.value)} disabled={type === 'FREE_SHIPPING'} /><p className="text-xs text-muted-foreground">{t('promotion.valueHelp')}</p></div>
+            <div className="space-y-2"><Label>{t('promotion.targetScope')}</Label><select value={type === 'FREE_SHIPPING' ? 'ORDER' : scope} disabled={type === 'FREE_SHIPPING'} onChange={(event) => { setScope(event.target.value as DiscountScope); setTargets([]); }} className="w-full rounded-md border bg-background px-3 py-2"><option value="CATALOG">{t('promotion.catalog')}</option><option value="PRODUCT">{t('promotion.products')}</option><option value="VARIANT">{t('promotion.variants')}</option><option value="CATEGORY">{t('promotion.categories')}</option><option value="COLLECTION">{t('promotion.collections')}</option><option value="ORDER">{t('promotion.order')}</option></select></div>
+            <div className="space-y-2"><Label>{t('promotion.maxDiscount')}</Label><Input type="number" min="0" step="0.001" value={maxDiscountInput} onChange={(event) => setMaxDiscountInput(event.target.value)} disabled={type !== 'PERCENTAGE'} placeholder={t('promotion.noCap')} /></div>
+          </section>
 
-              <button
-                type="button"
-                onClick={() => setType('FIXED_AMOUNT')}
-                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  type === 'FIXED_AMOUNT'
-                    ? 'border-[#FF8C00] bg-[#FFF3E0] text-[#FF8C00] shadow-sm'
-                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <DollarSign className="w-4 h-4 mb-1" />
-                Fixed (TND)
-              </button>
+          {type !== 'FREE_SHIPPING' && <section className="space-y-3 border-t pt-5"><h3 className="text-sm font-semibold">{t('promotion.targets')}</h3><PromotionTargetSelector scope={scope} value={targets} onChange={setTargets} coupon={couponToEdit} /></section>}
 
-              <button
-                type="button"
-                onClick={() => setType('FREE_SHIPPING')}
-                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  type === 'FREE_SHIPPING'
-                    ? 'border-[#FF8C00] bg-[#FFF3E0] text-[#FF8C00] shadow-sm'
-                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <Truck className="w-4 h-4 mb-1" />
-                Free Shipping
-              </button>
-            </div>
-          </div>
+          <section className="grid gap-4 border-t pt-5 sm:grid-cols-2">
+            <div className="space-y-2"><Label>{t('promotion.startsAt')}</Label><Input type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} required /></div>
+            <div className="space-y-2"><Label>{t('promotion.endsAt')}</Label><Input type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} /></div>
+            <div className="space-y-2"><Label>{t('promotion.minOrder')}</Label><Input type="number" min="0" step="0.001" value={minOrderInput} onChange={(event) => setMinOrderInput(event.target.value)} placeholder={t('promotion.none')} /></div>
+            <div className="space-y-2"><Label>{t('promotion.globalLimit')}</Label><Input type="number" min="1" value={usageLimitInput} onChange={(event) => setUsageLimitInput(event.target.value)} placeholder={t('promotion.unlimited')} /></div>
+            <div className="space-y-2"><Label>{t('promotion.perCustomer')}</Label><Input type="number" min="1" value={perCustomerInput} onChange={(event) => setPerCustomerInput(event.target.value)} placeholder={t('promotion.unlimited')} /></div>
+          </section>
 
-          {/* Discount Value Input (Hidden if Free Shipping) */}
-          {type !== 'FREE_SHIPPING' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">
-                {type === 'PERCENTAGE' ? 'Discount Percentage (%)' : 'Discount Amount (TND)'}
-              </Label>
-              <Input
-                type="number"
-                step={type === 'PERCENTAGE' ? '1' : '0.500'}
-                min="0.1"
-                value={valueInput}
-                onChange={(e) => setValueInput(e.target.value)}
-                placeholder={type === 'PERCENTAGE' ? '10' : '15.000'}
-                className="border-gray-200 focus:border-[#FF8C00]"
-              />
-            </div>
-          )}
+          <section className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3"><div><Label>{t('promotion.combinable')}</Label><p className="text-xs text-muted-foreground">{t('promotion.combinableHelp')}</p></div><Switch checked={combinable} onCheckedChange={setCombinable} /></div>
+            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3"><div><Label>{t('promotion.active')}</Label><p className="text-xs text-muted-foreground">{t('promotion.activeHelp')}</p></div><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
+          </section>
 
-          {/* Min Order & Usage Limit Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">
-                Min Order (TND)
-              </Label>
-              <Input
-                type="number"
-                step="1"
-                min="0"
-                value={minOrderInput}
-                onChange={(e) => setMinOrderInput(e.target.value)}
-                placeholder="0 = No Min"
-                className="border-gray-200 focus:border-[#FF8C00]"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">
-                Usage Limit
-              </Label>
-              <Input
-                type="number"
-                step="1"
-                min="1"
-                value={usageLimitInput}
-                onChange={(e) => setUsageLimitInput(e.target.value)}
-                placeholder="Unlimited"
-                className="border-gray-200 focus:border-[#FF8C00]"
-              />
-            </div>
-          </div>
-
-          {/* Dates Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="border-gray-200 focus:border-[#FF8C00] text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">Expiry Date (Optional)</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="border-gray-200 focus:border-[#FF8C00] text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Toggles */}
-          <div className="pt-2 space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-              <div>
-                <Label className="text-xs font-bold text-gray-900 cursor-pointer">
-                  Stackable with Sale Items
-                </Label>
-                <p className="text-[11px] text-gray-500">
-                  Allow coupon to stack on top of base sale prices
-                </p>
-              </div>
-              <Switch checked={combinable} onCheckedChange={setCombinable} />
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-              <div>
-                <Label className="text-xs font-bold text-gray-900 cursor-pointer">
-                  Active Status
-                </Label>
-                <p className="text-[11px] text-gray-500">Enable code for customer checkout</p>
-              </div>
-              <Switch checked={isActive} onCheckedChange={setIsActive} />
-            </div>
-          </div>
-
-          <DialogFooter className="pt-4 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="text-xs border-gray-200"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={mutation.isPending}
-              className="bg-[#FF8C00] hover:bg-[#e67e00] text-white text-xs font-bold px-6 shadow-md shadow-[#FF8C00]/20"
-            >
-              {mutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : isEditing ? (
-                'Update Coupon'
-              ) : (
-                'Create Coupon'
-              )}
-            </Button>
-          </DialogFooter>
+          <DialogFooter className="sticky bottom-0 -mx-6 border-t bg-card px-6 py-4"><Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" disabled={mutation.isPending} className="bg-[#FF8C00] text-white hover:bg-[#e67e00]">{mutation.isPending && <Loader2 className="size-4 animate-spin" />}{isEditing ? t('promotion.update') : t('promotion.create')}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

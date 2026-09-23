@@ -2,7 +2,6 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { Loader2 } from 'lucide-react';
 
 import {
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { promotionsApi, type CouponDto } from '@/lib/api/promotions';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface DeleteCouponDialogProps {
   coupon: CouponDto | null;
@@ -30,37 +30,34 @@ export default function DeleteCouponDialog({
   onClose,
 }: DeleteCouponDialogProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
 
   const mutation = useMutation({
     mutationFn: () => promotionsApi.deleteCoupon(coupon!.id),
     onSuccess: () => {
-      toast.success(`Discount '${coupon?.code ?? coupon?.name}' deleted successfully`);
-      queryClient.invalidateQueries({ queryKey: ['admin-coupons'] });
+      toast.success(t('promotion.deleteSuccess', { name: coupon?.code ?? coupon?.name ?? '' }));
+      queryClient.invalidateQueries({ queryKey: ['admin-promotions'] });
       onClose();
     },
-    onError: (err) => {
-      let msg = 'Failed to delete coupon';
-      if (isAxiosError(err) && err.response?.data?.error?.message) {
-        msg = err.response.data.error.message;
-      }
-      toast.error(msg);
+    onError: () => {
+      toast.error(t('promotion.deleteError'));
     },
   });
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent className="bg-white border border-gray-100 shadow-2xl rounded-2xl">
+        <AlertDialogContent className="bg-card border shadow-2xl rounded-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-gray-900">
-            Delete Discount <span className="font-mono text-[#FF8C00]">{coupon?.code ?? coupon?.name}</span>?
+            {t('promotion.deleteTitle', { name: coupon?.code ?? coupon?.name ?? '' })}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-xs text-gray-500">
-            This action cannot be undone. The discount will no longer be available at checkout.
+            {t('promotion.deleteCopy')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
           <AlertDialogCancel onClick={onClose} className="text-xs border-gray-200">
-            Cancel
+            {t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
@@ -72,11 +69,11 @@ export default function DeleteCouponDialog({
           >
             {mutation.isPending ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Deleting...
+                <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                {t('promotion.deleting')}
               </>
             ) : (
-              'Delete Coupon'
+              t('promotion.deleteAction')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

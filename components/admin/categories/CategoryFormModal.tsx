@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -26,9 +26,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-import { categorySchema, type CategoryFormInput } from '@/validations/category';
+import { createCategorySchema, type CategoryFormInput } from '@/validations/category';
 import { categoriesApi } from '@/lib/api/categories';
 import type { CategoryDto } from '@/types/category';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CategoryFormModalProps {
   open: boolean;
@@ -46,6 +47,8 @@ const generateSlug = (name: string) =>
     .replace(/(^-|-$)/g, '');
 
 const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModalProps) => {
+  const { locale, t } = useTranslations();
+  const categorySchema = useMemo(() => createCategorySchema(locale), [locale]);
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
 
@@ -54,7 +57,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -62,8 +65,10 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
     resolver: zodResolver(categorySchema) as import('react-hook-form').Resolver<CategoryFormInput>,
     defaultValues: {
       name: '',
+      nameAr: '',
       slug: '',
       description: '',
+      descriptionAr: '',
       imageUrl: '',
       sortOrder: 0,
       isActive: true,
@@ -75,9 +80,11 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   useEffect(() => {
     if (open && editTarget) {
       reset({
-        name: editTarget.name,
+        name: editTarget.translations?.en?.name ?? editTarget.name,
+        nameAr: editTarget.translations?.ar?.name ?? '',
         slug: editTarget.slug,
-        description: editTarget.description ?? '',
+        description: editTarget.translations?.en?.description ?? editTarget.description ?? '',
+        descriptionAr: editTarget.translations?.ar?.description ?? '',
         imageUrl: editTarget.imageUrl ?? '',
         sortOrder: editTarget.sortOrder,
         isActive: editTarget.isActive,
@@ -86,8 +93,10 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
     } else if (open && !editTarget) {
       reset({
         name: '',
+        nameAr: '',
         slug: '',
         description: '',
+        descriptionAr: '',
         imageUrl: '',
         sortOrder: 0,
         isActive: true,
@@ -97,15 +106,23 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   }, [open, editTarget, reset]);
 
   // ─── Auto-generate slug from name (create only) ──────────────
-  const nameValue = watch('name');
+  const nameValue = useWatch({ control, name: 'name' });
   useEffect(() => {
     if (!isEdit) {
       setValue('slug', generateSlug(nameValue ?? ''), { shouldValidate: false });
     }
   }, [nameValue, isEdit, setValue]);
 
-  const isActiveValue = watch('isActive');
-  const imageUrlValue = watch('imageUrl');
+  const isActiveValue = useWatch({ control, name: 'isActive' });
+  const imageUrlValue = useWatch({ control, name: 'imageUrl' });
+  const nameArValue = useWatch({ control, name: 'nameAr' });
+
+  const translations = (data: CategoryFormInput, creating: boolean) => {
+    const en = { name: data.name.trim(), description: data.description?.trim() || null };
+    const arabicName = data.nameAr?.trim();
+    if (arabicName) return { en, ar: { name: arabicName, description: data.descriptionAr?.trim() || null } };
+    return creating ? undefined : { en };
+  };
 
   // ─── Resolved preview — file takes precedence ────────────────
   // ─── Handle local file selection ─────────────────────────────
@@ -121,22 +138,23 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive,
         parentId: data.parentId || null,
+        translations: translations(data, true),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success(`Category "${res.data.data.name}" created successfully!`);
+      toast.success(t('admin.categoryCreated', { name: res.data.data.name }));
       onOpenChange(false);
     },
     onError: (err) => {
       if (isAxiosError(err)) {
         const code = err.response?.data?.error?.code;
         if (code === 'AUTH_PERMISSION_DENIED' || err.response?.status === 403) {
-          toast.error('Permission denied. Make sure you are logged in as an Admin with categories.manage.any permission.');
+          toast.error(t('admin.permissionDenied'));
         } else {
-          toast.error(err.response?.data?.error?.message ?? 'Failed to create category.');
+          toast.error(t('admin.categoryCreateError'));
         }
       } else {
-        toast.error('An unexpected error occurred.');
+        toast.error(t('admin.categoryCreateError'));
       }
     },
   });
@@ -152,22 +170,23 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive,
         parentId: data.parentId || null,
+        translations: translations(data, false),
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success(`Category "${res.data.data.name}" updated successfully!`);
+      toast.success(t('admin.categoryUpdated', { name: res.data.data.name }));
       onOpenChange(false);
     },
     onError: (err) => {
       if (isAxiosError(err)) {
         const code = err.response?.data?.error?.code;
         if (code === 'AUTH_PERMISSION_DENIED' || err.response?.status === 403) {
-          toast.error('Permission denied. Make sure you are logged in as Admin.');
+          toast.error(t('admin.permissionDenied'));
         } else {
-          toast.error(err.response?.data?.error?.message ?? 'Failed to update category.');
+          toast.error(t('admin.categoryUpdateError'));
         }
       } else {
-        toast.error('An unexpected error occurred.');
+        toast.error(t('admin.categoryUpdateError'));
       }
     },
   });
@@ -193,10 +212,10 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-black">
-                {isEdit ? 'Edit Category' : 'Add New Category'}
+                {t(isEdit ? 'admin.editCategory' : 'admin.addNewCategory')}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                {isEdit ? 'Update category details below.' : 'Fill in details to create a new category.'}
+                {t(isEdit ? 'admin.updateCategoryDetails' : 'admin.fillCategoryDetails')}
               </DialogDescription>
             </div>
           </div>
@@ -206,24 +225,37 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         <form onSubmit={handleSubmit(onSubmit)} id="category-form">
           <div className="px-6 py-5 space-y-5">
 
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="cat-name" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Category Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="cat-name"
-                placeholder="e.g. Running Shoes"
-                className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                {...register('name')}
-              />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('admin.localizedCategoryInfo')}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="cat-name">{t('admin.englishName')} <span className="text-red-500">*</span></Label>
+                  <Input id="cat-name" lang="en" placeholder="e.g. Running Shoes" {...register('name')} />
+                  {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="cat-name-ar">{t('admin.arabicName')}</Label>
+                  <Input id="cat-name-ar" lang="ar" placeholder="مثال: أحذية الجري" {...register('nameAr')} />
+                  {errors.nameAr && <p className="text-xs text-red-500">{errors.nameAr.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="ltr">
+                  <Label htmlFor="cat-description">{t('admin.englishDescription')}</Label>
+                  <textarea id="cat-description" lang="en" rows={3} placeholder="A brief description..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('description')} />
+                  {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                </div>
+                <div className="space-y-1.5" dir="rtl">
+                  <Label htmlFor="cat-description-ar">{t('admin.arabicDescription')}</Label>
+                  <textarea id="cat-description-ar" lang="ar" rows={3} placeholder="وصف موجز للتصنيف..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('descriptionAr')} />
+                  {errors.descriptionAr && <p className="text-xs text-red-500">{errors.descriptionAr.message}</p>}
+                </div>
+              </div>
+              {!nameArValue?.trim() && <p className="mt-3 text-[11px] text-gray-400">{t('admin.arabicOptional')}</p>}
             </div>
 
             {/* Slug */}
             <div className="space-y-1.5">
               <Label htmlFor="cat-slug" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Slug <span className="text-red-500">*</span>
+                {t('admin.slug')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="cat-slug"
@@ -231,41 +263,26 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                 className="font-mono text-sm bg-gray-50 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
                 {...register('slug')}
               />
-              <p className="text-[11px] text-gray-400">Auto-generated from name. Lowercase, alphanumeric, hyphens only.</p>
+              <p className="text-[11px] text-gray-400">{t('admin.slugHint')}</p>
               {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label htmlFor="cat-description" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
-              </Label>
-              <textarea
-                id="cat-description"
-                rows={3}
-                placeholder="A brief description of this category..."
-                className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 resize-none bg-background"
-                {...register('description')}
-              />
-              {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
             </div>
 
             {/* ─── Category Image ─────────────────────────────── */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Category Image <span className="text-gray-400 font-normal">(optional)</span>
+                {t('admin.categoryImage')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
 
               <div className="space-y-2">
                 <div className="relative flex items-center gap-2">
-                  <div className="absolute left-3 text-gray-400">
+                  <div className="absolute start-3 text-gray-400">
                     <LinkIcon className="w-4 h-4" aria-hidden="true" />
                   </div>
                   <Input
                     id="cat-image-url"
                     type="url"
                     placeholder="https://example.com/image.jpg"
-                    className="pl-9 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
+                    className="ps-9 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
                     {...register('imageUrl')}
                   />
                 </div>
@@ -274,7 +291,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                   <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                     <CommerceImage
                       src={imageUrlValue}
-                      alt="URL preview"
+                      alt={t('admin.imagePreview')}
                       sizes="640px"
                       className="object-cover"
                     />
@@ -286,11 +303,11 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
             {/* Active Status */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
               <div>
-                <p className="text-sm font-medium text-black">Active Status</p>
+                <p className="text-sm font-medium text-black">{t('admin.activeStatus')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {isActiveValue
-                    ? 'Category is visible and assignable to products.'
-                    : 'Category is hidden and cannot be assigned.'}
+                    ? t('admin.categoryActiveCopy')
+                    : t('admin.categoryInactiveCopy')}
                 </p>
               </div>
               <Switch
@@ -298,7 +315,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                 checked={isActiveValue}
                 onCheckedChange={(val) => setValue('isActive', val)}
                 className="data-[state=checked]:bg-[#FF8C00]"
-                aria-label="Toggle active status"
+                aria-label={t('admin.toggleActiveStatus')}
               />
             </div>
           </div>
@@ -312,7 +329,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
               disabled={isPending}
               className="flex-1 sm:flex-none"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -323,12 +340,12 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  {isEdit ? 'Saving...' : 'Creating...'}
+                  {t(isEdit ? 'admin.saving' : 'admin.creating')}
                 </>
               ) : isEdit ? (
-                'Save Changes'
+                t('admin.saveChanges')
               ) : (
-                'Create Category'
+                t('admin.createCategory')
               )}
             </Button>
           </DialogFooter>

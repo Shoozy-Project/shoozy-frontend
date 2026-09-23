@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { Playfair_Display, Geist } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
@@ -8,6 +9,10 @@ import { ThemeProvider } from '@/providers/theme-provider';
 import { cn } from "@/lib/utils";
 import { ThemedToaster } from '@/components/theme/ThemedToaster';
 import { THEME_BOOTSTRAP_SCRIPT } from '@/lib/theme';
+import { LOCALE_BOOTSTRAP_SCRIPT } from '@/lib/i18n';
+import { LocaleProvider } from '@/providers/locale-provider';
+import { NotificationSocketProvider } from '@/providers/notification-socket-provider';
+import { getServerTranslations } from '@/lib/i18n-server';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -18,33 +23,29 @@ const playfair = Playfair_Display({
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
-export const metadata: Metadata = {
-  title: {
-    template: '%s | Shoezy',
-    default: 'Shoezy — Quality Shoes. Every Step.',
-  },
-  description:
-    'Discover our premium collection of footwear for men, women, and kids. Quality shoes delivered to your door with Cash on Delivery.',
-  keywords: ['shoes', 'footwear', 'luxury shoes', 'sneakers', 'boots', 'Shoezy'],
-  authors: [{ name: 'Shoezy' }],
-  creator: 'Shoezy',
-  openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    siteName: 'Shoezy',
-    title: 'Shoezy — Quality Shoes. Every Step.',
-    description: 'Premium footwear collection for every occasion.',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, t } = await getServerTranslations();
+  return {
+    title: { template: '%s | Shoozy', default: t('meta.defaultTitle') },
+    description: t('meta.defaultDescription'),
+    keywords: locale === 'ar' ? ['أحذية', 'أحذية فاخرة', 'أحذية رياضية', 'شوزي'] : ['shoes', 'footwear', 'luxury shoes', 'sneakers', 'boots', 'Shoozy'],
+    authors: [{ name: 'Shoozy' }],
+    creator: 'Shoozy',
+    openGraph: { type: 'website', locale: locale === 'ar' ? 'ar_TN' : 'en_US', siteName: 'Shoozy', title: t('meta.defaultTitle'), description: t('meta.ogDescription') },
+  };
+}
 
 interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const cookieStore = await cookies();
+  const locale = cookieStore.get('shoozy-locale')?.value === 'ar' ? 'ar' : 'en';
   return (
     <html
-      lang="en"
+      lang={locale}
+      dir={locale === 'ar' ? 'rtl' : 'ltr'}
       className={cn(playfair.variable, "font-sans", geist.variable)}
       suppressHydrationWarning
     >
@@ -54,13 +55,21 @@ export default function RootLayout({ children }: RootLayoutProps) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
         />
+        <Script
+          id="shoozy-locale-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: LOCALE_BOOTSTRAP_SCRIPT }}
+        />
         <QueryProvider>
+          <LocaleProvider>
           <ThemeProvider>
+            <NotificationSocketProvider />
             {/* Splash screen — shows on first load AND while auth rehydrates */}
             <SplashScreenWrapper />
             {children}
             <ThemedToaster />
           </ThemeProvider>
+          </LocaleProvider>
         </QueryProvider>
       </body>
     </html>

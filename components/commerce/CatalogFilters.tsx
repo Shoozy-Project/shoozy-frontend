@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatMinorAmount, majorToMinorString } from '@/lib/format-money';
 import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogSort } from '@/types/commerce';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CatalogFiltersProps {
   brands: CatalogBrandDto[];
@@ -16,12 +17,12 @@ interface CatalogFiltersProps {
   collections: CatalogCollectionDto[];
 }
 
-const SORTS: Array<{ value: CatalogSort; label: string }> = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'nameAsc', label: 'Name: A–Z' },
-  { value: 'nameDesc', label: 'Name: Z–A' },
-  { value: 'basePriceAsc', label: 'Base price: low to high' },
-  { value: 'basePriceDesc', label: 'Base price: high to low' },
+const SORTS: Array<{ value: CatalogSort; labelKey: string }> = [
+  { value: 'newest', labelKey: 'catalog.newest' },
+  { value: 'nameAsc', labelKey: 'catalog.nameAsc' },
+  { value: 'nameDesc', labelKey: 'catalog.nameDesc' },
+  { value: 'basePriceAsc', labelKey: 'catalog.priceAsc' },
+  { value: 'basePriceDesc', labelKey: 'catalog.priceDesc' },
 ];
 
 function displayMinor(value: string | null) {
@@ -30,42 +31,43 @@ function displayMinor(value: string | null) {
 
 function FilterFields({ brands, categories, collections, idPrefix }: CatalogFiltersProps & { idPrefix: string }) {
   const searchParams = useSearchParams();
+  const { t } = useTranslations();
   const min = searchParams.get('minPriceMinor');
   const max = searchParams.get('maxPriceMinor');
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-catalog-search`}>Search</Label>
-        <Input id={`${idPrefix}-catalog-search`} name="search" defaultValue={searchParams.get('search') ?? ''} placeholder="Search shoes" />
+        <Label htmlFor={`${idPrefix}-catalog-search`}>{t('common.search')}</Label>
+        <Input id={`${idPrefix}-catalog-search`} name="search" defaultValue={searchParams.get('search') ?? ''} placeholder={t('catalog.searchShoes')} />
       </div>
       {[
-        ['category', 'Category', categories],
-        ['brand', 'Brand', brands],
-        ['collection', 'Collection', collections],
+        ['category', 'catalog.category', categories],
+        ['brand', 'catalog.brand', brands],
+        ['collection', 'catalog.collection', collections],
       ].map(([name, label, options]) => (
         <div className="space-y-2" key={name as string}>
-          <Label htmlFor={`${idPrefix}-filter-${name}`}>{label as string}</Label>
+          <Label htmlFor={`${idPrefix}-filter-${name}`}>{t(label as string)}</Label>
           <select id={`${idPrefix}-filter-${name}`} name={name as string} defaultValue={searchParams.get(name as string) ?? ''} className="h-9 w-full rounded-lg border bg-background px-3 text-sm">
-            <option value="">All</option>
+            <option value="">{t('catalog.all')}</option>
             {(options as Array<{ slug: string; name: string }>).map((option) => <option key={option.slug} value={option.slug}>{option.name}</option>)}
           </select>
         </div>
       ))}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-min-price`}>Min TND</Label>
-          <Input id={`${idPrefix}-min-price`} name="minPrice" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" title="Enter a positive amount with up to three decimal places" defaultValue={displayMinor(min)} />
+          <Label htmlFor={`${idPrefix}-min-price`}>{t('catalog.minPrice')}</Label>
+          <Input id={`${idPrefix}-min-price`} name="minPrice" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" title={t('catalog.amountHint')} defaultValue={displayMinor(min)} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-max-price`}>Max TND</Label>
-          <Input id={`${idPrefix}-max-price`} name="maxPrice" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" title="Enter a positive amount with up to three decimal places" defaultValue={displayMinor(max)} />
+          <Label htmlFor={`${idPrefix}-max-price`}>{t('catalog.maxPrice')}</Label>
+          <Input id={`${idPrefix}-max-price`} name="maxPrice" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" title={t('catalog.amountHint')} defaultValue={displayMinor(max)} />
         </div>
       </div>
       <label className="flex items-center gap-3 text-sm">
         <input type="checkbox" name="inStock" value="true" defaultChecked={searchParams.get('inStock') === 'true'} className="size-4" />
-        In stock only
+        {t('catalog.inStockOnly')}
       </label>
-      <Button type="submit" className="h-10 w-full">Apply filters</Button>
+      <Button type="submit" className="h-10 w-full">{t('catalog.applyFilters')}</Button>
     </div>
   );
 }
@@ -75,6 +77,7 @@ export function CatalogFilters(props: CatalogFiltersProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useTranslations();
   const active = useMemo(() => ['search', 'category', 'brand', 'collection', 'gender', 'season', 'size', 'color', 'minPriceMinor', 'maxPriceMinor', 'inStock'].filter((key) => searchParams.has(key)), [searchParams]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -92,7 +95,7 @@ export function CatalogFilters(props: CatalogFiltersProps) {
     const maxMinor = max ? majorToMinorString(max, 3) : undefined;
     const maxInput = event.currentTarget.elements.namedItem('maxPrice') as HTMLInputElement | null;
     if (minMinor && maxMinor && BigInt(minMinor) > BigInt(maxMinor)) {
-      maxInput?.setCustomValidity('Maximum price must be greater than or equal to minimum price.');
+      maxInput?.setCustomValidity(t('catalog.priceRangeError'));
       maxInput?.reportValidity();
       return;
     }
@@ -119,25 +122,25 @@ export function CatalogFilters(props: CatalogFiltersProps) {
   const form = (idPrefix: string) => <form key={`${idPrefix}-${searchParams}`} onSubmit={submit}><FilterFields {...props} idPrefix={idPrefix} /></form>;
   const pills = active.length > 0 && <div className="mb-5 flex flex-wrap gap-2">{active.map((key) => {
     const raw = searchParams.get(key) ?? '';
-    const value = key === 'minPriceMinor' || key === 'maxPriceMinor' ? `${displayMinor(raw) || raw} TND` : key === 'inStock' ? 'In stock' : raw;
-    const label = key === 'minPriceMinor' ? 'Min' : key === 'maxPriceMinor' ? 'Max' : key.replace(/([A-Z])/g, ' $1');
-    return <button type="button" key={key} onClick={() => remove(key)} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs capitalize" aria-label={`Remove ${label} filter`}><span>{label}: {value}</span><X className="size-3" /></button>;
+    const value = key === 'minPriceMinor' || key === 'maxPriceMinor' ? `${displayMinor(raw) || raw} TND` : key === 'inStock' ? t('catalog.inStock') : raw;
+    const label = key === 'minPriceMinor' ? t('catalog.min') : key === 'maxPriceMinor' ? t('catalog.max') : t(`catalog.${key}`);
+    return <button type="button" key={key} onClick={() => remove(key)} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs capitalize" aria-label={t('catalog.removeFilter', { name: label })}><span>{label}: {value}</span><X className="size-3" /></button>;
   })}</div>;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 lg:hidden">
         <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
-          <DialogTrigger asChild><Button variant="outline" className="h-10"><SlidersHorizontal /> Filters {active.length ? `(${active.length})` : ''}</Button></DialogTrigger>
-          <DialogContent className="left-auto right-0 top-0 h-dvh max-h-dvh w-[min(90vw,420px)] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none p-6">
-            <DialogHeader><DialogTitle>Filter products</DialogTitle><DialogDescription>Results update from the Shoozy catalog.</DialogDescription></DialogHeader>
+          <DialogTrigger asChild><Button variant="outline" className="h-10"><SlidersHorizontal /> {t('catalog.filters')} {active.length ? `(${active.length})` : ''}</Button></DialogTrigger>
+          <DialogContent className="start-auto end-0 top-0 h-dvh max-h-dvh w-[min(90vw,420px)] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none p-6">
+            <DialogHeader><DialogTitle>{t('catalog.filterProducts')}</DialogTitle><DialogDescription>{t('catalog.filterCopy')}</DialogDescription></DialogHeader>
             {pills}
             {form('mobile')}
           </DialogContent>
         </Dialog>
-        {active.length > 0 && <Button variant="ghost" onClick={clear}><X /> Clear all</Button>}
+        {active.length > 0 && <Button variant="ghost" onClick={clear}><X /> {t('catalog.clearAll')}</Button>}
       </div>
       <aside className="hidden lg:block">
-        <div className="mb-5 flex items-center justify-between"><h2 className="font-serif text-xl">Filters</h2>{active.length > 0 && <button type="button" onClick={clear} className="text-xs underline">Clear all</button>}</div>
+        <div className="mb-5 flex items-center justify-between"><h2 className="font-serif text-xl">{t('catalog.filters')}</h2>{active.length > 0 && <button type="button" onClick={clear} className="text-xs underline">{t('catalog.clearAll')}</button>}</div>
         {pills}
         {form('desktop')}
       </aside>
@@ -150,9 +153,10 @@ export function CatalogSortControl() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const value = (searchParams.get('sort') ?? 'newest') as CatalogSort;
+  const { t } = useTranslations();
   return (
     <label className="flex items-center gap-2 text-sm">
-      <span>Sort</span>
+      <span>{t('catalog.sort')}</span>
       <select
         value={value}
         onChange={(event) => {
@@ -163,7 +167,7 @@ export function CatalogSortControl() {
         }}
         className="h-9 rounded-lg border bg-background px-3"
       >
-        {SORTS.map((sort) => <option value={sort.value} key={sort.value}>{sort.label}</option>)}
+        {SORTS.map((sort) => <option value={sort.value} key={sort.value}>{t(sort.labelKey)}</option>)}
       </select>
     </label>
   );

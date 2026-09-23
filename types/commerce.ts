@@ -39,6 +39,21 @@ export interface CatalogCollectionDto extends CatalogEntityDto {
   updatedAt: string;
 }
 
+export interface PromotionalPricingDto {
+  originalPriceMinor: string;
+  effectivePriceMinor: string;
+  discountMinor: string;
+  discountPercentageBasisPoints: string;
+  promotions: Array<{
+    discountId: string;
+    name: string;
+    type: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING';
+    value: string;
+    amountMinor: string;
+    endsAt: string | null;
+  }>;
+}
+
 export interface CatalogProductDto {
   id: string;
   name: string;
@@ -47,6 +62,8 @@ export interface CatalogProductDto {
   basePrice: string;
   compareAtPrice: string | null;
   minimumVariantPriceMinor: string | null;
+  minimumEffectivePriceMinor?: string | null;
+  promotionalPricing?: PromotionalPricingDto | null;
   inStock: boolean;
   gender: string | null;
   season: string | null;
@@ -80,6 +97,7 @@ export interface CatalogVariantDto {
   weightGrams: number | null;
   priceMinor: string;
   compareAtPriceMinor: string | null;
+  promotionalPricing?: PromotionalPricingDto | null;
   optionValues: CatalogOptionValueDto[];
 }
 

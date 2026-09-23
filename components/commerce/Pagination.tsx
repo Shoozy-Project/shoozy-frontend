@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import type { Pagination as PaginationDto } from '@/types/api';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 function pageHref(pathname: string, current: URLSearchParams, page: number) {
   const params = new URLSearchParams(current);
@@ -10,6 +13,7 @@ function pageHref(pathname: string, current: URLSearchParams, page: number) {
 }
 
 export function Pagination({ pagination, pathname, searchParams }: { pagination: PaginationDto; pathname: string; searchParams?: Record<string, string | string[] | undefined> }) {
+  const { t } = useTranslations();
   if (pagination.totalPages <= 1) return null;
   const current = new URLSearchParams();
   Object.entries(searchParams ?? {}).forEach(([key, value]) => {
@@ -20,10 +24,10 @@ export function Pagination({ pagination, pathname, searchParams }: { pagination:
   const pages = Array.from({ length: last - first + 1 }, (_, index) => first + index);
 
   return (
-    <nav aria-label="Pagination" className="mt-12 flex flex-wrap items-center justify-center gap-2">
+    <nav aria-label={t('catalog.pagination')} className="mt-12 flex flex-wrap items-center justify-center gap-2">
       {pagination.page > 1 ? (
-        <Link className="rounded-md border px-3 py-2 text-sm hover:bg-muted" href={pageHref(pathname, current, pagination.page - 1)}>Previous</Link>
-      ) : <span className="rounded-md border px-3 py-2 text-sm opacity-40">Previous</span>}
+        <Link className="rounded-md border px-3 py-2 text-sm hover:bg-muted" href={pageHref(pathname, current, pagination.page - 1)}>{t('common.previous')}</Link>
+      ) : <span className="rounded-md border px-3 py-2 text-sm opacity-40">{t('common.previous')}</span>}
       {pages.map((page) => (
         <Link
           key={page}
@@ -35,8 +39,8 @@ export function Pagination({ pagination, pathname, searchParams }: { pagination:
         </Link>
       ))}
       {pagination.page < pagination.totalPages ? (
-        <Link className="rounded-md border px-3 py-2 text-sm hover:bg-muted" href={pageHref(pathname, current, pagination.page + 1)}>Next</Link>
-      ) : <span className="rounded-md border px-3 py-2 text-sm opacity-40">Next</span>}
+        <Link className="rounded-md border px-3 py-2 text-sm hover:bg-muted" href={pageHref(pathname, current, pagination.page + 1)}>{t('common.next')}</Link>
+      ) : <span className="rounded-md border px-3 py-2 text-sm opacity-40">{t('common.next')}</span>}
     </nav>
   );
 }

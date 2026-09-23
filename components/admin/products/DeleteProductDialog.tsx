@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
-import { isAxiosError } from 'axios';
 
 import {
   AlertDialog,
@@ -16,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { productsApi } from '@/lib/api/products';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface DeleteProductDialogProps {
   open: boolean;
@@ -30,6 +30,7 @@ const DeleteProductDialog = ({
   productId,
   productName,
 }: DeleteProductDialogProps) => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -39,15 +40,11 @@ const DeleteProductDialog = ({
       queryClient.invalidateQueries({ queryKey: ['product-stats'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast.success(`Product "${productName}" has been removed from catalog.`);
+      toast.success(t('admin.productDeleted', { name: productName }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to delete product.');
-      } else {
-        toast.error('An unexpected error occurred while deleting product.');
-      }
+    onError: () => {
+      toast.error(t('admin.productDeleteError'));
       onOpenChange(false);
     },
   });
@@ -61,13 +58,11 @@ const DeleteProductDialog = ({
               <Trash2 className="w-4 h-4 text-red-600" aria-hidden="true" />
             </div>
             <AlertDialogTitle className="text-base font-semibold text-gray-900">
-              Delete Product Listing
+              {t('admin.productDeleteTitle')}
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
-            Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">&quot;{productName}&quot;</span>?
-            This will unpublish the product, remove its variant mappings, and move it to archived state.
+            {t('admin.productDeleteCopy', { name: productName })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
@@ -75,7 +70,7 @@ const DeleteProductDialog = ({
             disabled={deleteMutation.isPending}
             className="flex-1 sm:flex-none"
           >
-            Cancel
+            {t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             id={`confirm-delete-product-${productId}`}
@@ -86,10 +81,10 @@ const DeleteProductDialog = ({
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Deleting...
+                {t('common.deleting')}
               </>
             ) : (
-              'Delete Product'
+              t('admin.deleteProduct')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

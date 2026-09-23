@@ -3,7 +3,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
-import { registerAuthHandlers } from '@/lib/api/client';
+import { registerAuthHandlers, registerLocaleHandler } from '@/lib/api/client';
+import { useLocaleStore } from '@/stores/locale-store';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -47,6 +48,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
       () => useAuthStore.getState().accessToken,
       () => useAuthStore.getState().clearAuth(),
     );
+    registerLocaleHandler(() => useLocaleStore.getState().locale);
   }, []);
 
   // ─── Rehydrate session on mount via refresh cookie ─────────────

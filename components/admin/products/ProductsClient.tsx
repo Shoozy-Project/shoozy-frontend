@@ -14,14 +14,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import dynamic from 'next/dynamic';
 import { productsApi, type ProductListDto } from '@/lib/api/products';
-import { isAxiosError } from 'axios';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import type { PaginatedData } from '@/types/api';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 const DeleteProductDialog = dynamic(() => import('./DeleteProductDialog'), { ssr: false });
 const ProductPreviewModal = dynamic(() => import('./ProductPreviewModal'), { ssr: false });
 
 export default function ProductsClient() {
+  const { locale, t } = useTranslations();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -73,22 +74,18 @@ export default function ProductsClient() {
       return { previousData };
     },
 
-    onError: (err, _variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['products', queryParams], context.previousData);
       }
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update catalog status.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+      toast.error(t('admin.catalogStatusError'));
     },
 
     onSuccess: (_, variables) => {
       toast.success(
         variables.nextStatus === 'ACTIVE'
-          ? 'Product published to store.'
-          : 'Product reverted to draft.'
+          ? t('admin.productPublished')
+          : t('admin.productDrafted')
       );
     },
 
@@ -106,15 +103,15 @@ export default function ProductsClient() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black flex items-center gap-2">
-            <Package className="w-6 h-6 text-[#FF8C00]" /> Products Catalog
+            <Package className="w-6 h-6 text-[#FF8C00]" /> {t('admin.productsCatalog')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage your store shoe inventory, categories, pricing, and stock levels.
+            {t('admin.productsCatalogCopy')}
           </p>
         </div>
         <Link href="/admin/products/new">
           <Button className="bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2 cursor-pointer font-medium">
-            <Plus className="w-4 h-4" /> Add Product
+            <Plus className="w-4 h-4" /> {t('admin.addProduct')}
           </Button>
         </Link>
       </div>
@@ -123,23 +120,23 @@ export default function ProductsClient() {
       <Card>
         <CardHeader className="border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <CardTitle>Shoes Directory</CardTitle>
-            <CardDescription>View, filter, and edit your shoe listings.</CardDescription>
+            <CardTitle>{t('admin.shoesDirectory')}</CardTitle>
+            <CardDescription>{t('admin.shoesDirectoryCopy')}</CardDescription>
           </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                  placeholder="Search by name or slug..."
+                  placeholder={t('admin.searchProduct')}
                 value={searchInput}
                 onChange={(e) => {
                   setSearchInput(e.target.value);
                   setPage(1);
                 }}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
+                className="w-full ps-9 pe-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
               />
             </div>
 
@@ -153,9 +150,9 @@ export default function ProductsClient() {
                 }}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
               >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Published (Active)</option>
-                <option value="DRAFT">Draft</option>
+                <option value="ALL">{t('admin.allStatuses')}</option>
+                <option value="ACTIVE">{t('admin.publishedActive')}</option>
+                <option value="DRAFT">{t('admin.draft')}</option>
               </select>
             </div>
           </div>
@@ -166,12 +163,12 @@ export default function ProductsClient() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Shoe Name</TableHead>
-                  <TableHead>SKU Prefix</TableHead>
-                  <TableHead>Price (TND)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('admin.shoeName')}</TableHead>
+                  <TableHead>{t('admin.skuPrefix')}</TableHead>
+                  <TableHead>{t('admin.priceTnd')}</TableHead>
+                  <TableHead>{t('admin.tableStatus')}</TableHead>
+                  <TableHead>{t('admin.updated')}</TableHead>
+                  <TableHead className="text-end">{t('admin.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,7 +177,7 @@ export default function ProductsClient() {
                     <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                         <Loader2 className="w-6 h-6 animate-spin text-[#FF8C00]" />
-                        <span className="text-sm">Loading catalog...</span>
+                        <span className="text-sm">{t('admin.loadingCatalog')}</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -189,7 +186,7 @@ export default function ProductsClient() {
                 {isError && !isLoading && (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-red-500">
-                      Failed to load products directory. Please refresh.
+                      {t('admin.productsLoadError')}
                     </TableCell>
                   </TableRow>
                 )}
@@ -199,9 +196,9 @@ export default function ProductsClient() {
                     <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-1">
                         <Package className="w-8 h-8 text-gray-300" />
-                        <p className="text-sm font-semibold text-gray-600">No products found</p>
+                        <p className="text-sm font-semibold text-gray-600">{t('admin.noProducts')}</p>
                         <p className="text-xs text-gray-400">
-                          {hasActiveFilters ? 'Try adjusting your search or status filter.' : 'Click "+ Add Product" to create your first listing.'}
+                          {t(hasActiveFilters ? 'admin.adjustProductFilters' : 'admin.createFirstProduct')}
                         </p>
                       </div>
                     </TableCell>
@@ -223,7 +220,7 @@ export default function ProductsClient() {
                           <div className="flex items-center gap-2 mt-0.5">
                             {discountPercent && (
                               <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
-                                -{discountPercent}% OFF
+                                -{discountPercent}% {t('admin.off')}
                               </span>
                             )}
                           </div>
@@ -232,7 +229,7 @@ export default function ProductsClient() {
 
                       {/* SKU */}
                       <TableCell className="font-mono text-xs text-gray-600 font-medium">
-                        {p.skuPrefix || 'N/A'}
+                        {p.skuPrefix || t('admin.notApplicable')}
                       </TableCell>
 
                       {/* Price */}
@@ -254,22 +251,22 @@ export default function ProductsClient() {
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-100 border border-gray-300 text-[11px]'
                           }
                         >
-                          {p.status}
+                          {t(`status.${p.status}`)}
                         </Badge>
                       </TableCell>
 
                       <TableCell className="text-xs text-gray-500">
-                        {new Date(p.updatedAt).toLocaleDateString()}
+                        {new Date(p.updatedAt).toLocaleDateString(locale)}
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="text-right">
+                      <TableCell className="text-end">
                         <div className="flex items-center justify-end gap-1">
                           {/* Customer Preview Modal button */}
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Customer Storefront Preview"
+                            title={t('admin.storefrontPreview')}
                             onClick={() => setPreviewTarget(p)}
                             className="h-8 w-8 p-0 text-purple-600 hover:bg-purple-50"
                           >
@@ -280,7 +277,7 @@ export default function ProductsClient() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title={p.status === 'ACTIVE' ? 'Revert to Draft' : 'Publish to Store'}
+                            title={t(p.status === 'ACTIVE' ? 'admin.revertDraft' : 'admin.publishStore')}
                             onClick={() =>
                               toggleStatusMutation.mutate({
                                 id: p.id,
@@ -296,7 +293,7 @@ export default function ProductsClient() {
 
                           {/* Edit Product */}
                           <Link href={`/admin/products/new?edit=${p.id}`}>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50 text-blue-600" title="Edit Product">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50 text-blue-600" title={t('admin.editProduct')}>
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
@@ -307,7 +304,7 @@ export default function ProductsClient() {
                             size="sm"
                             onClick={() => setDeleteTarget(p)}
                             className="h-8 w-8 p-0 hover:bg-red-50 text-red-600"
-                            title="Delete Product"
+                            title={t('admin.deleteProduct')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -331,7 +328,7 @@ export default function ProductsClient() {
               totalItems={pagination.total}
               pageSize={limit}
               onPageSizeChange={() => {}}
-              itemLabel="products"
+              itemLabel={t('admin.products')}
             />
           </div>
         )}

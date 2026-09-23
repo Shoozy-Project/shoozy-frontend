@@ -1,5 +1,15 @@
 import apiClient from './client';
 import type { ApiSuccess, PaginatedData } from '@/types/api';
+import type { TranslationMap } from '@/types/localization';
+
+export interface ProductTranslation {
+  name: string;
+  shortDescription: string | null;
+  description: string | null;
+  material: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+}
 
 export interface ProductListDto {
   id: string; brandId: string; sizeGuideId: string | null; name: string; slug: string;
@@ -8,6 +18,7 @@ export interface ProductListDto {
   gender: string | null; season: string | null; status: 'DRAFT' | 'ACTIVE';
   seoTitle: string | null; seoDescription: string | null; publishedAt: string | null;
   createdAt: string; updatedAt: string; deletedAt: string | null;
+  translations?: TranslationMap<ProductTranslation>;
 }
 
 export interface ProductMediaDto {
@@ -18,10 +29,12 @@ export interface ProductMediaDto {
 export interface ProductOptionValueDto {
   id: string; optionId: string; value: string; displayValue: string | null;
   colorHex: string | null; metadataJson: unknown; position: number;
+  translations?: TranslationMap<{ displayValue: string }>;
 }
 
 export interface ProductOptionDto {
   id: string; productId: string; name: string; position: number; values: ProductOptionValueDto[];
+  translations?: TranslationMap<{ name: string }>;
 }
 
 export interface ProductVariantDto {
@@ -51,6 +64,7 @@ export interface ProductFields {
   compareAtPrice?: string | null; description?: string | null; material?: string | null;
   gender?: string | null; season?: string | null; status?: 'DRAFT' | 'ACTIVE';
   seoTitle?: string | null; seoDescription?: string | null;
+  translations?: TranslationMap<ProductTranslation>;
 }
 
 interface NewMediaInput {
@@ -61,11 +75,13 @@ interface NewMediaInput {
 interface ProductOptionValueUpdateInput {
   id?: string; clientKey?: string; value?: string; displayValue?: string | null;
   colorHex?: string | null; metadataJson?: unknown; position?: number;
+  translations?: TranslationMap<{ displayValue: string }>;
 }
 
 interface ProductOptionUpdateInput {
   id?: string; clientKey?: string; name?: string; position?: number;
   values?: { upsert: ProductOptionValueUpdateInput[]; deleteIds: string[] };
+  translations?: TranslationMap<{ name: string }>;
 }
 
 interface ProductVariantUpdateInput {
@@ -78,7 +94,7 @@ interface ProductVariantUpdateInput {
 export interface ProductEditorCreateInput {
   product: ProductFields & { status?: 'DRAFT' };
   categories?: { categoryIds: string[]; primaryCategoryId: string | null };
-  options?: Array<{ clientKey: string; name: string; position?: number; values: Array<{ clientKey: string; value: string; displayValue?: string | null; colorHex?: string | null; position?: number }> }>;
+  options?: Array<{ clientKey: string; name: string; position?: number; translations?: TranslationMap<{ name: string }>; values: Array<{ clientKey: string; value: string; displayValue?: string | null; colorHex?: string | null; position?: number; translations?: TranslationMap<{ displayValue: string }> }> }>;
   variants?: Array<{ clientKey: string; sku: string; barcode?: string | null; title: string; isActive?: boolean; stockQuantity?: number; weightGrams?: number | null; priceMinor: string; costMinor?: string | null; compareAtPriceMinor?: string | null; optionValueClientKeys: string[] }>;
   media?: NewMediaInput[];
 }

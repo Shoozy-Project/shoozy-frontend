@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import StoreSettingsClient from '@/components/admin/StoreSettingsClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Settings | Shoezy Admin',
-  description: 'Manage Shoezy store configuration settings.',
-};
+export const generateMetadata = () => adminMetadata('admin.storeSettings', 'meta.adminSettingsDescription');
 
 export default function AdminSettingsPage() {
   return <StoreSettingsClient />;

@@ -1,24 +1,19 @@
 import { z } from 'zod';
+import type { Locale } from '@/lib/i18n';
+import { translate } from '@/lib/messages';
 
-export const collectionSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Collection name is required')
-    .max(150, 'Name must be at most 150 characters'),
-  slug: z
-    .string()
-    .min(1, 'Slug is required')
-    .max(180, 'Slug must be at most 180 characters')
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens only'),
-  description: z.string().max(2000, 'Description too long').nullable().optional(),
-  imageUrl: z
-    .string()
-    .url('Must be a valid image URL')
-    .max(500)
-    .nullable()
-    .optional()
-    .or(z.literal('')),
-  isActive: z.boolean(),
-});
+export function createCollectionSchema(locale: Locale = 'en') {
+  const m = (key: string) => translate(locale, key);
+  return z.object({
+    name: z.string().min(1, m('validation.collectionNameRequired')).max(150, m('validation.name150')),
+    nameAr: z.string().trim().max(150, m('validation.arabicName150')).optional(),
+    slug: z.string().min(1, m('validation.slugRequired')).max(180, m('validation.slug180')).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, m('validation.slugPattern')),
+    description: z.string().max(2000, m('validation.descriptionLong')).nullable().optional(),
+    descriptionAr: z.string().max(2000, m('validation.arabicDescriptionLong')).nullable().optional(),
+    imageUrl: z.string().url(m('validation.imageUrlInvalid')).max(500).nullable().optional().or(z.literal('')),
+    isActive: z.boolean(),
+  });
+}
 
-export type CollectionFormInput = z.infer<typeof collectionSchema>;
+export const collectionSchema = createCollectionSchema();
+export type CollectionFormInput = z.infer<ReturnType<typeof createCollectionSchema>>;

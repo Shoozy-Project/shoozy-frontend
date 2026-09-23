@@ -1,15 +1,17 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 export default function BrandStory() {
+  const { locale, t } = useTranslations();
   return (
     <section className="w-full bg-background py-32 md:py-48 px-4 sm:px-6 md:px-8">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch">
         
         {/* Left: Vertical Text */}
         <motion.div 
-          initial={{ opacity: 0, x: -30 }}
+          initial={{ opacity: 0, x: locale === 'ar' ? 30 : -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -19,7 +21,7 @@ export default function BrandStory() {
             className="font-serif text-3xl md:text-5xl lg:text-6xl text-foreground uppercase tracking-[0.2em] md:rotate-180"
             style={{ writingMode: 'vertical-rl' }}
           >
-            L&apos;ARTISANAT
+            {t('home.craftTitle')}
           </h3>
         </motion.div>
 
@@ -41,7 +43,7 @@ export default function BrandStory() {
           className="w-full md:w-[70%] flex items-center mt-12 md:mt-0 pt-12 md:pt-0 border-t md:border-t-0 border-foreground"
         >
           <p className="font-sans text-xl md:text-3xl text-foreground leading-relaxed font-light">
-            Crafted with passion since the beginning. Every stitch and every cut of our premium calfskin is performed by master artisans, ensuring a timeless silhouette and unparalleled comfort.
+            {t('home.craftCopy')}
           </p>
         </motion.div>
 

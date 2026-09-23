@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ProductDetailClient } from '@/components/commerce/ProductDetailClient';
 import { PublicApiError, serverCatalog } from '@/lib/api/server-public';
+import { getServerTranslations } from '@/lib/i18n-server';
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const [{ slug }, { t }] = await Promise.all([params, getServerTranslations()]);
   try {
     const product = await serverCatalog.product(slug);
     const description = product.seoDescription ?? product.shortDescription ?? product.description ?? undefined;
@@ -16,11 +17,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       openGraph: { title: product.seoTitle ?? product.name, description, images: image ? [{ url: image.url, alt: image.altText ?? product.name }] : undefined },
     };
-  } catch { return { title: 'Product' }; }
+  } catch { return { title: t('meta.productTitle') }; }
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { slug } = await params;
+  const [{ slug }, { t }] = await Promise.all([params, getServerTranslations()]);
   let loaded: { product: Awaited<ReturnType<typeof serverCatalog.product>>; sizeGuide: Awaited<ReturnType<typeof serverCatalog.sizeGuide>> | null } | null = null;
   try {
     const product = await serverCatalog.product(slug);
@@ -30,6 +31,6 @@ export default async function ProductPage({ params }: Props) {
     if (error instanceof PublicApiError && error.status === 404) notFound();
     loaded = null;
   }
-  if (!loaded) return <div className="mx-auto max-w-3xl px-4 pb-24 pt-40 text-center"><h1 className="font-serif text-4xl">Product unavailable</h1><p className="mt-3 text-muted-foreground">We could not load this product. Please try again shortly.</p></div>;
+  if (!loaded) return <div className="mx-auto max-w-3xl px-4 pb-24 pt-40 text-center"><h1 className="font-serif text-4xl">{t('product.unavailable')}</h1><p className="mt-3 text-muted-foreground">{t('product.unavailableCopy')}</p></div>;
   return <div className="mx-auto max-w-7xl px-4 pb-24 pt-40 sm:px-6 lg:px-8"><ProductDetailClient product={loaded.product} sizeGuide={loaded.sizeGuide} /></div>;
 }

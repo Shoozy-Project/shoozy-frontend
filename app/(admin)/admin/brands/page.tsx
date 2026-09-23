@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import BrandsClient from '@/components/admin/brands/BrandsClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Brands | Shoezy Admin',
-  description: 'Manage Shoezy partner manufacturers, logos, websites, and catalog items.',
-};
+export const generateMetadata = () => adminMetadata('admin.brandsDirectory', 'meta.adminBrandsDescription');
 
 export default function AdminBrandsPage() {
   return <BrandsClient />;

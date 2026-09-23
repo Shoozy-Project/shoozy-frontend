@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import {
   Star,
   Eye,
@@ -29,10 +28,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { reviewsApi, type ReviewDto, type ReviewStatus } from '@/lib/api/reviews';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export default function ReviewsClient() {
+  const { locale, t } = useTranslations();
   const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -68,17 +69,11 @@ export default function ReviewsClient() {
       reviewsApi.moderate(id, status),
     onSuccess: (_, variables) => {
       toast.success(
-        variables.status === 'APPROVED' ? 'Review approved & published!' : 'Review rejected'
+        t(variables.status === 'APPROVED' ? 'admin.reviewApproved' : 'admin.reviewRejected')
       );
       queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
     },
-    onError: (err) => {
-      let msg = 'Failed to update review status';
-      if (isAxiosError(err) && err.response?.data?.error?.message) {
-        msg = err.response.data.error.message;
-      }
-      toast.error(msg);
-    },
+    onError: () => toast.error(t('admin.reviewStatusError')),
   });
 
   const getStatusBadge = (status: ReviewStatus) => {
@@ -86,20 +81,20 @@ export default function ReviewsClient() {
       case 'APPROVED':
         return (
           <Badge className="bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 text-[10px] font-semibold">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Approved
+            <CheckCircle2 className="w-3 h-3 me-1" /> {t('status.APPROVED')}
           </Badge>
         );
       case 'REJECTED':
         return (
           <Badge className="bg-red-50 text-red-700 hover:bg-red-50 border border-red-200 text-[10px] font-semibold">
-            <XCircle className="w-3 h-3 mr-1" /> Rejected
+            <XCircle className="w-3 h-3 me-1" /> {t('status.REJECTED')}
           </Badge>
         );
       case 'PENDING':
       default:
         return (
           <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 text-[10px] font-semibold">
-            <Clock className="w-3 h-3 mr-1" /> Pending
+            <Clock className="w-3 h-3 me-1" /> {t('status.PENDING')}
           </Badge>
         );
     }
@@ -107,7 +102,7 @@ export default function ReviewsClient() {
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(locale === 'ar' ? 'ar-TN' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -120,10 +115,10 @@ export default function ReviewsClient() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-            <Star className="w-6 h-6 text-[#FF8C00]" /> Customer Reviews & Ratings
+            <Star className="w-6 h-6 text-[#FF8C00]" /> {t('admin.reviewsTitle')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Moderate verified purchase feedback, approve ratings, and manage customer product reviews.
+            {t('admin.reviewsCopy')}
           </p>
         </div>
       </div>
@@ -133,9 +128,9 @@ export default function ReviewsClient() {
         <CardHeader className="border-b border-gray-100 p-4 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-bold text-gray-900">Review Moderation Catalog</CardTitle>
+              <CardTitle className="text-base font-bold text-gray-900">{t('admin.reviewModeration')}</CardTitle>
               <CardDescription className="text-xs text-gray-500">
-                Only approved reviews appear on storefront product pages and influence star ratings.
+                {t('admin.reviewModerationCopy')}
               </CardDescription>
             </div>
 
@@ -156,7 +151,7 @@ export default function ReviewsClient() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {st === 'ALL' ? 'All Reviews' : st}
+                {st === 'ALL' ? t('admin.allReviews') : t(`status.${st}`)}
               </button>
             ))}
           </div>
@@ -167,14 +162,14 @@ export default function ReviewsClient() {
             <Table>
               <TableHeader className="bg-gray-50/50">
                 <TableRow>
-                  <TableHead className="w-[110px] text-xs font-bold">Review ID</TableHead>
-                  <TableHead className="text-xs font-bold">Customer</TableHead>
-                  <TableHead className="text-xs font-bold">Product</TableHead>
-                  <TableHead className="text-xs font-bold">Rating</TableHead>
-                  <TableHead className="text-xs font-bold">Comment</TableHead>
-                  <TableHead className="text-xs font-bold">Status</TableHead>
-                  <TableHead className="text-xs font-bold">Date</TableHead>
-                  <TableHead className="text-right text-xs font-bold">Actions</TableHead>
+                  <TableHead className="w-[110px] text-xs font-bold">{t('admin.reviewId')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.customer')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.product')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.rating')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.comment')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.tableStatus')}</TableHead>
+                  <TableHead className="text-xs font-bold">{t('admin.date')}</TableHead>
+                  <TableHead className="text-end text-xs font-bold">{t('admin.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -183,18 +178,20 @@ export default function ReviewsClient() {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-16">
                       <Loader2 className="w-6 h-6 text-[#FF8C00] animate-spin mx-auto mb-2" />
-                      <p className="text-xs text-gray-400">Loading customer reviews...</p>
+                      <p className="text-xs text-gray-400">{t('admin.loadingReviews')}</p>
                     </TableCell>
                   </TableRow>
+                ) : isError ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-16 text-sm text-red-600">{t('admin.reviewsLoadError')}</TableCell></TableRow>
                 ) : items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-16">
                       <Sparkles className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-gray-700">No reviews found</p>
+                      <p className="text-sm font-semibold text-gray-700">{t('admin.noReviews')}</p>
                       <p className="text-xs text-gray-400 mt-1">
                         {statusFilter !== 'ALL'
-                          ? 'Try adjusting your search query or status filter.'
-                          : 'Customer product reviews will appear here once submitted.'}
+                          ? t('admin.adjustReviewFilters')
+                          : t('admin.reviewsAppearHere')}
                       </p>
                     </TableCell>
                   </TableRow>
@@ -253,7 +250,7 @@ export default function ReviewsClient() {
                               <p className="text-xs font-bold text-gray-900 truncate">{rev.title}</p>
                             )}
                             <p className="text-xs text-gray-600 truncate italic">
-                              &quot;{rev.body || 'No text comment provided'}&quot;
+                              &quot;{rev.body || t('admin.noReviewText')}&quot;
                             </p>
                           </div>
                         </TableCell>
@@ -267,14 +264,14 @@ export default function ReviewsClient() {
                         </TableCell>
 
                         {/* Actions */}
-                        <TableCell className="text-right">
+                        <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
                             {/* Inspect Modal Trigger */}
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => setInspectReview(rev)}
-                              title="Inspect Full Review"
+                              title={t('admin.inspectReview')}
                               className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100"
                             >
                               <Eye className="w-4 h-4" />
@@ -288,7 +285,7 @@ export default function ReviewsClient() {
                                 onClick={() =>
                                   statusMutation.mutate({ id: rev.id, status: 'APPROVED' })
                                 }
-                                title="Approve Review"
+                                title={t('admin.approveReview')}
                                 className="h-8 w-8 p-0 text-green-600 hover:bg-green-50"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
@@ -303,7 +300,7 @@ export default function ReviewsClient() {
                                 onClick={() =>
                                   statusMutation.mutate({ id: rev.id, status: 'REJECTED' })
                                 }
-                                title="Reject Review"
+                                title={t('admin.rejectReview')}
                                 className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
                               >
                                 <XCircle className="w-4 h-4" />
@@ -344,12 +341,12 @@ export default function ReviewsClient() {
             <DialogHeader className="space-y-1">
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-lg font-bold text-gray-900">
-                  Review #{inspectReview.id.slice(0, 8)}
+                  {t('admin.reviewLabel', { number: inspectReview.id.slice(0, 8) })}
                 </DialogTitle>
                 {getStatusBadge(inspectReview.status)}
               </div>
               <DialogDescription className="text-xs text-gray-500">
-                Product: <span className="font-semibold text-gray-800">{inspectReview.product.name}</span>
+                {t('admin.productLabel', { name: inspectReview.product.name })}
               </DialogDescription>
             </DialogHeader>
 
@@ -380,7 +377,7 @@ export default function ReviewsClient() {
                   <h4 className="text-sm font-bold text-gray-900">{inspectReview.title}</h4>
                 )}
                 <div className="p-3 rounded-xl bg-gray-50 text-xs text-gray-700 leading-relaxed italic border border-gray-100">
-                  &quot;{inspectReview.body || 'No text comment provided'}&quot;
+                  &quot;{inspectReview.body || t('admin.noReviewText')}&quot;
                 </div>
               </div>
 
@@ -395,7 +392,7 @@ export default function ReviewsClient() {
                     }}
                     className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4"
                   >
-                    Approve & Publish
+                    {t('admin.approvePublish')}
                   </Button>
                 )}
 
@@ -409,7 +406,7 @@ export default function ReviewsClient() {
                     }}
                     className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold"
                   >
-                    Reject
+                    {t('admin.reject')}
                   </Button>
                 )}
               </div>

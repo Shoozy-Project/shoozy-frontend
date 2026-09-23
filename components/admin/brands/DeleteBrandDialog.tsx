@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
-import { isAxiosError } from 'axios';
 
 import {
   AlertDialog,
@@ -16,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { brandsApi } from '@/lib/api/brands';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface DeleteBrandDialogProps {
   open: boolean;
@@ -30,22 +30,18 @@ const DeleteBrandDialog = ({
   brandId,
   brandName,
 }: DeleteBrandDialogProps) => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
     mutationFn: () => brandsApi.delete(brandId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast.success(`Brand "${brandName}" has been deleted.`);
+      toast.success(t('admin.brandDeleted', { name: brandName }));
       onOpenChange(false);
     },
-    onError: (err) => {
-      if (isAxiosError(err)) {
-        const msg = err.response?.data?.error?.message ?? 'Failed to delete brand.';
-        toast.error(msg);
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+    onError: () => {
+      toast.error(t('admin.brandDeleteError'));
       onOpenChange(false);
     },
   });
@@ -59,13 +55,11 @@ const DeleteBrandDialog = ({
               <Trash2 className="w-4 h-4 text-red-600" aria-hidden="true" />
             </div>
             <AlertDialogTitle className="text-base font-semibold">
-              Delete Partner Brand
+              {t('admin.brandDeleteTitle')}
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
-            Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">&quot;{brandName}&quot;</span>? This action
-            cannot be undone and will unlink the brand from products.
+            {t('admin.brandDeleteCopy', { name: brandName })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
@@ -73,7 +67,7 @@ const DeleteBrandDialog = ({
             disabled={deleteMutation.isPending}
             className="flex-1 sm:flex-none"
           >
-            Cancel
+            {t('common.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             id={`confirm-delete-brand-${brandId}`}
@@ -84,10 +78,10 @@ const DeleteBrandDialog = ({
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Deleting...
+                {t('common.deleting')}
               </>
             ) : (
-              'Delete Brand'
+              t('admin.brandDeleteTitle')
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

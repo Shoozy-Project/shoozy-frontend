@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import AddProductForm from '@/components/admin/AddProductForm';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Add New Product | Shoezy Admin',
-  description: 'Add a new premium shoe variant and options to the Shoezy catalog.',
-};
+export const generateMetadata = () => adminMetadata('admin.addProduct', 'meta.adminProductEditorDescription');
 
 export default async function AddProductPage({ searchParams }: PageProps<'/admin/products/new'>) {
   const { edit } = await searchParams;

@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 import {
   Plus,
@@ -40,6 +39,7 @@ import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import dynamic from 'next/dynamic';
 import { categoriesApi } from '@/lib/api/categories';
 import type { CategoryDto, CategoryListParams } from '@/types/category';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 const CategoryFormModal = dynamic(() => import('./CategoryFormModal'), { ssr: false });
 const DeleteCategoryDialog = dynamic(() => import('./DeleteCategoryDialog'), { ssr: false });
@@ -83,6 +83,7 @@ const SkeletonRow = () => (
 
 // ─── Main Component ──────────────────────────────────────────────
 const CategoriesClient = () => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   // ─── Local UI state ─────────────────────────────────────────
@@ -146,19 +147,15 @@ const CategoriesClient = () => {
     },
 
     onSuccess: (_, { isActive }) => {
-      toast.success(isActive ? 'Category activated.' : 'Category deactivated.');
+      toast.success(t(isActive ? 'admin.categoryActivated' : 'admin.categoryDeactivated'));
     },
 
-    onError: (err, _vars, context) => {
+    onError: (_err, _vars, context) => {
       // Roll back optimistic update on error
       if (context?.previousData) {
         queryClient.setQueryData(['categories', queryParams], context.previousData);
       }
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update status.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+      toast.error(t('admin.statusUpdateError'));
     },
 
     onSettled: () => {
@@ -213,10 +210,10 @@ const CategoriesClient = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black flex items-center gap-2">
             <Grid className="w-6 h-6 text-[#FF8C00]" aria-hidden="true" />
-            Product Categories
+            {t('admin.productCategories')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Organize products into categories. Changes apply immediately across product forms.
+            {t('admin.categoriesCopy')}
           </p>
         </div>
         <Button
@@ -225,7 +222,7 @@ const CategoriesClient = () => {
           className="bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2 shrink-0"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
-          Add Category
+          {t('admin.addCategory')}
         </Button>
       </div>
 
@@ -235,18 +232,18 @@ const CategoriesClient = () => {
         <CardHeader className="border-b border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
-              <CardTitle className="text-base">Categories List</CardTitle>
+              <CardTitle className="text-base">{t('admin.categoriesList')}</CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 {pagination
-                  ? `${pagination.total} total categories`
-                  : 'Manage your product categories'}
+                  ? t('admin.categoriesCount', { count: pagination.total })
+                  : t('admin.categoriesManage')}
               </CardDescription>
             </div>
 
             {/* Search */}
             <div className="relative w-full sm:w-64">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
                 aria-hidden="true"
               />
               <input
@@ -254,9 +251,9 @@ const CategoriesClient = () => {
                 type="text"
                 value={rawSearch}
                 onChange={handleSearchChange}
-                placeholder="Search categories..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
-                aria-label="Search categories"
+                placeholder={t('admin.searchCategories')}
+                className="w-full ps-9 pe-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
+                aria-label={t('admin.searchCategories')}
               />
             </div>
 
@@ -266,11 +263,11 @@ const CategoriesClient = () => {
               value={statusFilter}
               onChange={handleStatusFilterChange}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 cursor-pointer"
-              aria-label="Filter by status"
+              aria-label={t('admin.filterStatus')}
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('admin.allStatus')}</option>
+              <option value="active">{t('status.ACTIVE')}</option>
+              <option value="inactive">{t('status.INACTIVE')}</option>
             </select>
 
             {/* Clear filters */}
@@ -280,10 +277,10 @@ const CategoriesClient = () => {
                 size="sm"
                 onClick={handleClearFilters}
                 className="text-gray-500 hover:text-black flex items-center gap-1.5 shrink-0"
-                aria-label="Clear all filters"
+                aria-label={t('admin.clear')}
               >
                 <FilterX className="w-4 h-4" aria-hidden="true" />
-                Clear
+                {t('admin.clear')}
               </Button>
             )}
           </div>
@@ -295,12 +292,12 @@ const CategoriesClient = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/80">
-                  <TableHead className="w-[60px] pl-4">Image</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden sm:table-cell">Slug</TableHead>
-                  <TableHead className="hidden md:table-cell text-right pr-6">Products</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right pr-4">Actions</TableHead>
+                  <TableHead className="w-[60px] ps-4">{t('admin.image')}</TableHead>
+                  <TableHead>{t('admin.name')}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t('admin.slug')}</TableHead>
+                  <TableHead className="hidden md:table-cell text-end pe-6">{t('admin.products')}</TableHead>
+                  <TableHead>{t('admin.tableStatus')}</TableHead>
+                  <TableHead className="text-end pe-4">{t('admin.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -314,14 +311,14 @@ const CategoriesClient = () => {
                   <TableRow>
                     <TableCell colSpan={6} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
-                        <p className="text-sm font-medium">Failed to load categories.</p>
+                        <p className="text-sm font-medium">{t('admin.categoriesLoadError')}</p>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => refetch()}
                           className="mt-1"
                         >
-                          Try Again
+                          {t('admin.tryAgain')}
                         </Button>
                       </div>
                     </TableCell>
@@ -337,11 +334,11 @@ const CategoriesClient = () => {
                           <Grid className="w-6 h-6 text-gray-300" aria-hidden="true" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-500">No categories found</p>
+                          <p className="text-sm font-medium text-gray-500">{t('admin.noCategories')}</p>
                           <p className="text-xs text-gray-400 mt-1">
                             {hasActiveFilters
-                              ? 'Try adjusting your search or filter criteria.'
-                              : 'Get started by adding your first category.'}
+                              ? t('admin.adjustFilters')
+                              : t('admin.addFirstCategory')}
                           </p>
                         </div>
                         {!hasActiveFilters && (
@@ -350,8 +347,8 @@ const CategoriesClient = () => {
                             onClick={handleOpenAdd}
                             className="mt-1 bg-[#FF8C00] hover:bg-[#e67e00] text-white"
                           >
-                            <Plus className="w-4 h-4 mr-1.5" />
-                            Add Category
+                            <Plus className="w-4 h-4 me-1.5" />
+                            {t('admin.addCategory')}
                           </Button>
                         )}
                       </div>
@@ -367,7 +364,7 @@ const CategoriesClient = () => {
                       className="hover:bg-gray-50/70 transition-colors group"
                     >
                       {/* Thumbnail */}
-                      <TableCell className="pl-4 py-3">
+                      <TableCell className="ps-4 py-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
                           <CategoryThumbnail src={cat.imageUrl} name={cat.name} />
                         </div>
@@ -391,28 +388,28 @@ const CategoriesClient = () => {
                       </TableCell>
 
                       {/* Product count */}
-                      <TableCell className="hidden md:table-cell py-3 text-right pr-6">
+                      <TableCell className="hidden md:table-cell py-3 text-end pe-6">
                         <span className="text-sm font-semibold text-black">
                           {cat._count?.products ?? 0}
                         </span>
-                        <span className="text-xs text-gray-400 ml-1">items</span>
+                        <span className="text-xs text-gray-400 ms-1">{t('admin.items')}</span>
                       </TableCell>
 
                       {/* Status badge */}
                       <TableCell className="py-3">
                         {cat.isActive ? (
                           <Badge className="bg-green-50 text-green-700 border border-green-200 hover:bg-green-50 text-xs">
-                            Active
+                            {t('status.ACTIVE')}
                           </Badge>
                         ) : (
                           <Badge className="bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-100 text-xs">
-                            Inactive
+                            {t('status.INACTIVE')}
                           </Badge>
                         )}
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="py-3 pr-4">
+                      <TableCell className="py-3 pe-4">
                         <div className="flex items-center justify-end gap-1">
                           {/* Toggle status (Eye / EyeOff) */}
                           <Button
@@ -422,8 +419,8 @@ const CategoriesClient = () => {
                             onClick={() => handleToggleStatus(cat)}
                             disabled={toggleMutation.isPending && toggleMutation.variables?.id === cat.id}
                             className="h-8 w-8 p-0 hover:bg-amber-50"
-                            title={cat.isActive ? 'Deactivate category' : 'Activate category'}
-                            aria-label={cat.isActive ? `Deactivate ${cat.name}` : `Activate ${cat.name}`}
+                            title={t(cat.isActive ? 'admin.deactivateCategory' : 'admin.activateCategory')}
+                            aria-label={t(cat.isActive ? 'admin.deactivateCategory' : 'admin.activateCategory')}
                           >
                             {toggleMutation.isPending && toggleMutation.variables?.id === cat.id ? (
                               <Loader2 className="w-4 h-4 animate-spin text-gray-400" aria-hidden="true" />
@@ -441,8 +438,8 @@ const CategoriesClient = () => {
                             size="sm"
                             onClick={() => handleOpenEdit(cat)}
                             className="h-8 w-8 p-0 hover:bg-blue-50"
-                            title={`Edit ${cat.name}`}
-                            aria-label={`Edit ${cat.name}`}
+                            title={t('admin.editNamed', { name: cat.name })}
+                            aria-label={t('admin.editNamed', { name: cat.name })}
                           >
                             <Edit className="w-4 h-4 text-blue-600" aria-hidden="true" />
                           </Button>
@@ -454,8 +451,8 @@ const CategoriesClient = () => {
                             size="sm"
                             onClick={() => handleOpenDelete(cat)}
                             className="h-8 w-8 p-0 hover:bg-red-50"
-                            title={`Delete ${cat.name}`}
-                            aria-label={`Delete ${cat.name}`}
+                            title={t('admin.deleteNamed', { name: cat.name })}
+                            aria-label={t('admin.deleteNamed', { name: cat.name })}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" aria-hidden="true" />
                           </Button>
@@ -479,7 +476,7 @@ const CategoriesClient = () => {
                 setLimit(newSize);
                 setPage(1);
               }}
-              itemLabel="categories"
+              itemLabel={t('admin.categories')}
             />
           )}
         </CardContent>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface SocialAuthButtonsProps {
   action: 'login' | 'register';
@@ -9,6 +10,7 @@ interface SocialAuthButtonsProps {
 export default function SocialAuthButtons({ action }: SocialAuthButtonsProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [facebookLoading, setFacebookLoading] = useState(false);
+  const { t } = useTranslations();
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
@@ -18,7 +20,7 @@ export default function SocialAuthButtons({ action }: SocialAuthButtonsProps) {
       // 2. Initialize with NEXT_PUBLIC_GOOGLE_CLIENT_ID
       // 3. Get idToken from Google response
       // 4. Call authApi.googleAuth(idToken)
-      alert('Google OAuth integration requires the Google Identity Services SDK. Coming soon!');
+      alert(t('auth.oauthUnavailable', { provider: 'Google' }));
     } finally {
       setGoogleLoading(false);
     }
@@ -32,7 +34,7 @@ export default function SocialAuthButtons({ action }: SocialAuthButtonsProps) {
       // 2. Initialize with NEXT_PUBLIC_FACEBOOK_APP_ID
       // 3. Get accessToken from FB.login response
       // 4. Call authApi.facebookAuth(accessToken)
-      alert('Facebook OAuth integration requires the Facebook JS SDK. Coming soon!');
+      alert(t('auth.oauthUnavailable', { provider: 'Facebook' }));
     } finally {
       setFacebookLoading(false);
     }
@@ -72,7 +74,7 @@ export default function SocialAuthButtons({ action }: SocialAuthButtonsProps) {
           </svg>
         )}
         <span className="tracking-wide">
-          {action === 'login' ? 'Continue with Google' : 'Sign up with Google'}
+          {action === 'login' ? t('auth.continueGoogle') : t('auth.signupGoogle')}
         </span>
       </button>
 
@@ -96,7 +98,7 @@ export default function SocialAuthButtons({ action }: SocialAuthButtonsProps) {
           </svg>
         )}
         <span className="tracking-wide">
-          {action === 'login' ? 'Continue with Facebook' : 'Sign up with Facebook'}
+          {action === 'login' ? t('auth.continueFacebook') : t('auth.signupFacebook')}
         </span>
       </button>
     </div>

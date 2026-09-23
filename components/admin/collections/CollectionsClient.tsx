@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 import {
   Plus,
@@ -41,6 +40,7 @@ import { DataTablePagination } from '@/components/ui/data-table-pagination';
 import dynamic from 'next/dynamic';
 import { collectionsApi } from '@/lib/api/collections';
 import type { CollectionDto, CollectionListParams } from '@/types/collection';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 const CollectionFormModal = dynamic(() => import('./CollectionFormModal'), { ssr: false });
 const DeleteCollectionDialog = dynamic(() => import('./DeleteCollectionDialog'), { ssr: false });
@@ -76,6 +76,7 @@ const SkeletonRow = () => (
 );
 
 const CollectionsClient = () => {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   // ─── Local State ───────────────────────────────────────────
@@ -135,18 +136,14 @@ const CollectionsClient = () => {
     },
 
     onSuccess: (_, { isActive }) => {
-      toast.success(isActive ? 'Collection activated.' : 'Collection deactivated.');
+      toast.success(t(isActive ? 'admin.collectionActivated' : 'admin.collectionDeactivated'));
     },
 
-    onError: (err, _vars, context) => {
+    onError: (_err, _vars, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['collections', queryParams], context.previousData);
       }
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Failed to update status.');
-      } else {
-        toast.error('An unexpected error occurred.');
-      }
+      toast.error(t('admin.statusUpdateError'));
     },
 
     onSettled: () => {
@@ -201,10 +198,10 @@ const CollectionsClient = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black flex items-center gap-2">
             <Layers className="w-6 h-6 text-[#FF8C00]" aria-hidden="true" />
-            Product Collections
+            {t('admin.productCollections')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Organize products into curated collections.
+            {t('admin.collectionsCopy')}
           </p>
         </div>
         <Button
@@ -213,7 +210,7 @@ const CollectionsClient = () => {
           className="bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2 shrink-0"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
-          Add Collection
+          {t('admin.addCollection')}
         </Button>
       </div>
 
@@ -223,23 +220,23 @@ const CollectionsClient = () => {
         <CardHeader className="border-b border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
-              <CardTitle className="text-base">Collections List</CardTitle>
+              <CardTitle className="text-base">{t('admin.collectionsList')}</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                {pagination ? `${pagination.total} total product collections` : 'View and manage store product collections.'}
+                {pagination ? t('admin.collectionsCount', { count: pagination.total }) : t('admin.collectionsManage')}
               </CardDescription>
             </div>
 
             {/* Search */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
               <input
                 id="collection-search"
                 type="text"
                 value={rawSearch}
                 onChange={handleSearchChange}
-                placeholder="Search collections..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
-                aria-label="Search collections"
+                placeholder={t('admin.searchCollections')}
+                className="w-full ps-9 pe-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
+                aria-label={t('admin.searchCollections')}
               />
             </div>
 
@@ -249,11 +246,11 @@ const CollectionsClient = () => {
               value={statusFilter}
               onChange={handleStatusFilterChange}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 cursor-pointer"
-              aria-label="Filter by status"
+              aria-label={t('admin.filterStatus')}
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('admin.allStatus')}</option>
+              <option value="active">{t('status.ACTIVE')}</option>
+              <option value="inactive">{t('status.INACTIVE')}</option>
             </select>
 
             {/* Clear Filters */}
@@ -265,7 +262,7 @@ const CollectionsClient = () => {
                 className="text-gray-500 hover:text-black flex items-center gap-1.5 shrink-0"
               >
                 <FilterX className="w-4 h-4" aria-hidden="true" />
-                Clear
+                {t('admin.clear')}
               </Button>
             )}
           </div>
@@ -277,11 +274,11 @@ const CollectionsClient = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/80">
-                  <TableHead className="w-[120px]">Collection ID</TableHead>
-                  <TableHead>Collection Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right pr-4">Actions</TableHead>
+                  <TableHead className="w-[120px]">{t('admin.collectionId')}</TableHead>
+                  <TableHead>{t('admin.collectionName')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('admin.description')}</TableHead>
+                  <TableHead>{t('admin.tableStatus')}</TableHead>
+                  <TableHead className="text-end pe-4">{t('admin.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -295,9 +292,9 @@ const CollectionsClient = () => {
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
-                        <p className="text-sm font-medium">Failed to load collections.</p>
+                        <p className="text-sm font-medium">{t('admin.collectionsLoadError')}</p>
                         <Button variant="outline" size="sm" onClick={() => refetch()}>
-                          Try Again
+                          {t('admin.tryAgain')}
                         </Button>
                       </div>
                     </TableCell>
@@ -313,9 +310,9 @@ const CollectionsClient = () => {
                           <FolderTree className="w-6 h-6 text-gray-300" aria-hidden="true" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-500">No collections found</p>
+                          <p className="text-sm font-medium text-gray-500">{t('admin.noCollections')}</p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {hasActiveFilters ? 'Try adjusting search or filter criteria.' : 'Create your first curated collection.'}
+                            {t(hasActiveFilters ? 'admin.adjustFilters' : 'admin.addFirstCollection')}
                           </p>
                         </div>
                         {!hasActiveFilters && (
@@ -324,8 +321,8 @@ const CollectionsClient = () => {
                             onClick={handleOpenAdd}
                             className="mt-1 bg-[#FF8C00] hover:bg-[#e67e00] text-white"
                           >
-                            <Plus className="w-4 h-4 mr-1.5" />
-                            Add Collection
+                            <Plus className="w-4 h-4 me-1.5" />
+                            {t('admin.addCollection')}
                           </Button>
                         )}
                       </div>
@@ -375,17 +372,17 @@ const CollectionsClient = () => {
                       <TableCell>
                         {c.isActive ? (
                           <Badge className="bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 text-xs">
-                            Active
+                            {t('status.ACTIVE')}
                           </Badge>
                         ) : (
                           <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 border border-gray-200 text-xs">
-                            Inactive
+                            {t('status.INACTIVE')}
                           </Badge>
                         )}
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="text-right pr-4 py-3">
+                      <TableCell className="text-end pe-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {/* Toggle Status */}
                           <Button
@@ -395,7 +392,7 @@ const CollectionsClient = () => {
                             onClick={() => handleToggleStatus(c)}
                             disabled={toggleMutation.isPending && toggleMutation.variables?.id === c.id}
                             className="h-8 w-8 p-0 hover:bg-amber-50"
-                            title={c.isActive ? 'Deactivate collection' : 'Activate collection'}
+                            title={t(c.isActive ? 'admin.deactivateCollection' : 'admin.activateCollection')}
                           >
                             {toggleMutation.isPending && toggleMutation.variables?.id === c.id ? (
                               <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
@@ -413,7 +410,7 @@ const CollectionsClient = () => {
                             size="sm"
                             onClick={() => handleOpenEdit(c)}
                             className="h-8 w-8 p-0 hover:bg-blue-50"
-                            title={`Edit ${c.name}`}
+                            title={t('admin.editNamed', { name: c.name })}
                           >
                             <Edit className="w-4 h-4 text-blue-600" />
                           </Button>
@@ -425,7 +422,7 @@ const CollectionsClient = () => {
                             size="sm"
                             onClick={() => handleOpenDelete(c)}
                             className="h-8 w-8 p-0 hover:bg-red-50"
-                            title={`Delete ${c.name}`}
+                            title={t('admin.deleteNamed', { name: c.name })}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
@@ -449,7 +446,7 @@ const CollectionsClient = () => {
                 setLimit(newSize);
                 setPage(1);
               }}
-              itemLabel="collections"
+              itemLabel={t('admin.collections')}
             />
           )}
         </CardContent>

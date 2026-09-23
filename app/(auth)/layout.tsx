@@ -1,12 +1,14 @@
 import Image from 'next/image';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { getServerTranslations } from '@/lib/i18n-server';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+export default async function AuthLayout({ children }: AuthLayoutProps) {
+  const { t } = await getServerTranslations();
   return (
     <>
       <Header />
@@ -31,9 +33,9 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           {/* Subtle dark overlay at the bottom for depth */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           {/* Brand quote overlay */}
-          <div className="absolute bottom-10 left-8 right-8">
+          <div className="absolute bottom-10 inset-x-8">
             <p className="text-white font-serif text-xl italic leading-relaxed drop-shadow-lg">
-              &ldquo;Crafted for those who appreciate quality in every step.&rdquo;
+              &ldquo;{t('auth.quote')}&rdquo;
             </p>
           </div>
         </div>

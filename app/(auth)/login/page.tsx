@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import LoginForm from '@/components/auth/LoginForm';
+import { getServerTranslations } from '@/lib/i18n-server';
 
-export const metadata: Metadata = {
-  title: 'Sign In',
-  description: 'Sign in to your Shoezy account to access your orders, wishlist, and more.',
-};
+export async function generateMetadata(): Promise<Metadata> { const { t } = await getServerTranslations(); return { title: t('meta.loginTitle'), description: t('meta.loginDescription') }; }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
   const requested = (await searchParams).next;

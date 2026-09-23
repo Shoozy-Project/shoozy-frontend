@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { canOptimizeImageSource, isRenderableImageSource } from '@/lib/image-hosts';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CommerceImageProps {
   src?: string | null;
@@ -15,14 +16,15 @@ interface CommerceImageProps {
 }
 
 export function CommerceImage({ src, alt, className, sizes, priority }: CommerceImageProps) {
+  const { t } = useTranslations();
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const failed = Boolean(src && failedSource === src);
 
   if (!src || failed || !isRenderableImageSource(src)) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground" role="img" aria-label={`${alt} image unavailable`}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground" role="img" aria-label={t('catalog.imageUnavailableFor', { name: alt })}>
         <ImageOff className="size-7" aria-hidden="true" />
-        <span className="text-xs">Image unavailable</span>
+        <span className="text-xs">{t('catalog.imageUnavailable')}</span>
       </div>
     );
   }

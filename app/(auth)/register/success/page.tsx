@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Mail, CheckCircle } from 'lucide-react';
 import { authApi } from '@/lib/api/auth';
+import { useTranslations } from '@/lib/hooks/use-translations';
 
 const subscribeToLocation = () => () => undefined;
 const getEmailFromLocation = () => new URLSearchParams(window.location.search).get('email') ?? '';
@@ -14,6 +15,7 @@ export default function RegisterSuccessPage() {
   const [cooldown, setCooldown] = useState(0);
   const [resendError, setResendError] = useState<string | null>(null);
   const email = useSyncExternalStore(subscribeToLocation, getEmailFromLocation, () => '');
+  const { t } = useTranslations();
 
   const handleResend = async () => {
     if (!email || loading || cooldown > 0) return;
@@ -30,7 +32,7 @@ export default function RegisterSuccessPage() {
         if (t <= 0) clearInterval(interval);
       }, 1000);
     } catch {
-      setResendError('The verification email could not be resent. Please try again.');
+      setResendError(t('auth.resendFailed'));
     } finally {
       setLoading(false);
     }
@@ -48,31 +50,30 @@ export default function RegisterSuccessPage() {
         className="text-3xl font-serif font-bold text-[var(--text-primary)] mb-3"
         style={{ fontFamily: 'var(--font-serif)' }}
       >
-        Check Your Email
+        {t('auth.checkEmail')}
       </h1>
 
       <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-sm mb-8">
-        We&apos;ve sent a verification link to your email address. Click the link to activate your
-        Shoezy account and start shopping.
+        {t('auth.checkEmailCopy')}
       </p>
 
       {/* Email visual */}
       <div className="flex items-center gap-3 p-4 bg-[var(--surface-secondary)] border border-[var(--border-primary)] rounded-sm w-full max-w-sm mb-8">
         <Mail className="w-5 h-5 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
         <p className="text-sm text-[var(--text-secondary)]">
-          Check your inbox and spam folder for the verification email.
+          {t('auth.checkInbox')}
         </p>
       </div>
 
       {/* Resend */}
       {sent && (
         <p className="text-sm text-[#16a34a] font-medium mb-6">
-          ✓ Verification email sent! Check your inbox.
+          ✓ {t('auth.verificationSent')}
         </p>
       )}
       {resendError && <p className="text-sm text-red-600 font-medium mb-4">{resendError}</p>}
       <p className="text-sm text-[var(--text-muted)] mb-2">
-          Didn&apos;t receive it?{' '}
+          {t('auth.didNotReceive')}{' '}
           <button
             id="resend-verification-btn"
             type="button"
@@ -81,10 +82,10 @@ export default function RegisterSuccessPage() {
             className="font-semibold text-[var(--text-primary)] hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading
-              ? 'Sending...'
+              ? t('auth.sending')
               : cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : 'Resend verification email'}
+                ? t('auth.resendIn', { seconds: cooldown })
+                : t('auth.resendVerification')}
           </button>
         </p>
 
@@ -93,7 +94,7 @@ export default function RegisterSuccessPage() {
         href="/login"
         className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[#FF8C00] transition-colors"
       >
-        ← Back to Login
+        ← {t('auth.backLogin')}
       </Link>
     </div>
   );

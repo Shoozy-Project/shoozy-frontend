@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import RegisterForm from '@/components/auth/RegisterForm';
+import { getServerTranslations } from '@/lib/i18n-server';
 
-export const metadata: Metadata = {
-  title: 'Create Account',
-  description: 'Join Shoezy and discover premium footwear. Create your account today.',
-};
+export async function generateMetadata(): Promise<Metadata> { const { t } = await getServerTranslations(); return { title: t('meta.registerTitle'), description: t('meta.registerDescription') }; }
 
 export default function RegisterPage() {
   return <RegisterForm />;

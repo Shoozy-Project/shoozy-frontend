@@ -1,3 +1,5 @@
+import type { EntityTranslation, TranslationMap } from '@/types/localization';
+
 // ─── Category Types ────────────────────────────────────────────
 
 export interface CategoryDto {
@@ -13,6 +15,7 @@ export interface CategoryDto {
   updatedAt: string;
   productsCount?: number;
   _count?: { products?: number; productCategories?: number };
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export interface CategoryListParams {
@@ -33,6 +36,7 @@ export interface CreateCategoryPayload {
   sortOrder?: number;
   isActive?: boolean;
   parentId?: string | null;
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export type UpdateCategoryPayload = Partial<CreateCategoryPayload>;

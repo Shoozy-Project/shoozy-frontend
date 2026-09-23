@@ -1,10 +1,7 @@
-import type { Metadata } from 'next';
 import CategoriesClient from '@/components/admin/categories/CategoriesClient';
+import { adminMetadata } from '@/lib/admin-metadata';
 
-export const metadata: Metadata = {
-  title: 'Categories | Shoezy Admin',
-  description: 'Manage Shoezy product categories — add, edit, reorder, and organize your shoe catalog.',
-};
+export const generateMetadata = () => adminMetadata('admin.productCategories', 'meta.adminCategoriesDescription');
 
 export default function AdminCategoriesPage() {
   return <CategoriesClient />;

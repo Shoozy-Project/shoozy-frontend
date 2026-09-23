@@ -1,3 +1,5 @@
+import type { EntityTranslation, TranslationMap } from '@/types/localization';
+
 // ─── Collection Types ────────────────────────────────────────────
 
 export interface CollectionDto {
@@ -11,6 +13,7 @@ export interface CollectionDto {
   endsAt: string | null;
   createdAt: string;
   updatedAt: string;
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export interface CollectionProductDto {
@@ -49,6 +52,7 @@ export interface CreateCollectionPayload {
   startsAt?: string | null;
   endsAt?: string | null;
   products?: CollectionProductInput[];
+  translations?: TranslationMap<EntityTranslation>;
 }
 
 export type UpdateCollectionPayload = Partial<CreateCollectionPayload>;
