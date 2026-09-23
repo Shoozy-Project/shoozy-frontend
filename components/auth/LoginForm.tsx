@@ -12,9 +12,12 @@ import { useAuthStore } from '@/stores/auth-store';
 import PasswordInput from './PasswordInput';
 import SocialAuthButtons from './SocialAuthButtons';
 import { isAxiosError } from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
+import { adminCapabilityQueryOptions } from '@/lib/hooks/use-admin-capability';
 
 export default function LoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setAuth } = useAuthStore();
   const [serverError, setServerError] = useState<string | null>(null);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
@@ -23,7 +26,6 @@ export default function LoginForm() {
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -40,12 +42,22 @@ export default function LoginForm() {
       // Store in Zustand (memory only)
       setAuth(accessToken, user);
 
-      // Role-based redirect — normalise to uppercase for safety
-      const role = (typeof user.role === 'string' ? user.role : '').toUpperCase();
-      if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+      try {
+        await queryClient.fetchQuery(adminCapabilityQueryOptions(user.id));
         router.push('/admin');
-      } else {
-        router.push('/');
+      } catch (capabilityError) {
+        if (isAxiosError(capabilityError)) {
+          if (capabilityError.response?.status === 401) {
+            useAuthStore.getState().clearAuth();
+            setServerError('Your session could not be verified. Please sign in again.');
+            return;
+          }
+          if (capabilityError.response?.status === 403) {
+            router.push('/');
+            return;
+          }
+        }
+        setServerError('Signed in, but the admin access check is currently unavailable. Please try again.');
       }
     } catch (err) {
       if (isAxiosError(err)) {

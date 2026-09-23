@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,10 +10,8 @@ import { registerSchema, type RegisterInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import PasswordInput from './PasswordInput';
 import PasswordStrengthBar from './PasswordStrengthBar';
-import GenderToggle from './GenderToggle';
 import SocialAuthButtons from './SocialAuthButtons';
 import { isAxiosError } from 'axios';
-import { GOVERNORATES } from '@/lib/constants';
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -22,7 +20,6 @@ export default function RegisterForm() {
   const {
     register,
     handleSubmit,
-    control,
     watch,
     setError,
     formState: { errors, isSubmitting },
@@ -36,7 +33,7 @@ export default function RegisterForm() {
     setServerError(null);
 
     try {
-      const res = await authApi.register({
+      const response = await authApi.register({
         email: data.email,
         password: data.password,
         firstName: data.firstName,
@@ -44,14 +41,10 @@ export default function RegisterForm() {
         phone: data.phone || undefined,
       });
 
-      const responseData = res.data.data;
-
-      // Role-based redirect: admins go to dashboard, customers to success page
-      // Note: requires backend to include `role` in the register response.
-      if (responseData.role === 'ADMIN' || responseData.role === 'SUPER_ADMIN') {
-        router.push('/admin');
+      if (response.data.data.verificationRequired) {
+        router.push(`/register/success?email=${encodeURIComponent(data.email)}`);
       } else {
-        router.push('/register/success');
+        router.push('/login');
       }
     } catch (err) {
       if (isAxiosError(err)) {
@@ -59,10 +52,10 @@ export default function RegisterForm() {
         const details = err.response?.data?.error?.details ?? [];
 
         switch (code) {
-          case 'DUPLICATE_EMAIL':
+          case 'AUTH_EMAIL_ALREADY_EXISTS':
             setError('email', { message: 'This email is already registered.' });
             break;
-          case 'DUPLICATE_PHONE':
+          case 'AUTH_PHONE_ALREADY_EXISTS':
             setError('phone', { message: 'This phone number is already in use.' });
             break;
           default:
@@ -127,19 +120,6 @@ export default function RegisterForm() {
         noValidate
         className="flex flex-col gap-5"
       >
-        {/* Gender Toggle */}
-        <Controller
-          name="gender"
-          control={control}
-          render={({ field }) => (
-            <GenderToggle
-              value={field.value}
-              onChange={field.onChange}
-              error={errors.gender?.message}
-            />
-          )}
-        />
-
         {/* First Name + Last Name */}
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
@@ -266,42 +246,6 @@ export default function RegisterForm() {
           {errors.phone && (
             <p id="register-phone-error" role="alert" className="text-xs text-[#dc2626]">
               {errors.phone.message}
-            </p>
-          )}
-        </div>
-
-        {/* Governorate */}
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="register-governorate"
-            className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
-          >
-            Governorate
-          </label>
-          <select
-            id="register-governorate"
-            aria-describedby={errors.governorate ? 'register-governorate-error' : undefined}
-            aria-invalid={!!errors.governorate}
-            className={`
-              w-full px-0 py-3 text-sm bg-transparent border-b-2 text-[var(--text-primary)]
-              focus:outline-none transition-colors duration-200 cursor-pointer
-              ${errors.governorate
-                ? 'border-[#dc2626] focus:border-[#dc2626]'
-                : 'border-[var(--border-primary)] focus:border-[var(--text-primary)]'
-              }
-            `}
-            {...register('governorate')}
-          >
-            <option value="">Select your governorate</option>
-            {GOVERNORATES.map((g) => (
-              <option key={g.code} value={g.code}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          {errors.governorate && (
-            <p id="register-governorate-error" role="alert" className="text-xs text-[#dc2626]">
-              {errors.governorate.message}
             </p>
           )}
         </div>

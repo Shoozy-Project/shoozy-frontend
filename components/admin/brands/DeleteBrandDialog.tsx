@@ -64,7 +64,7 @@ const DeleteBrandDialog = ({
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
             Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">"{brandName}"</span>? This action
+            <span className="font-semibold text-black">&quot;{brandName}&quot;</span>? This action
             cannot be undone and will unlink the brand from products.
           </AlertDialogDescription>
         </AlertDialogHeader>

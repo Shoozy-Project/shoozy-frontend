@@ -5,18 +5,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 import { 
-  Package, Plus, Search, Eye, Edit, Trash2, Loader2, Sparkles, Filter, ExternalLink
+  Package, Plus, Search, Eye, Edit, Trash2, Loader2, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import dynamic from 'next/dynamic';
-import { productsApi, type ProductDto } from '@/lib/api/products';
+import { productsApi, type ProductListDto } from '@/lib/api/products';
 import { isAxiosError } from 'axios';
 import { DataTablePagination } from '@/components/ui/data-table-pagination';
+import type { PaginatedData } from '@/types/api';
 
 const DeleteProductDialog = dynamic(() => import('./DeleteProductDialog'), { ssr: false });
 const ProductPreviewModal = dynamic(() => import('./ProductPreviewModal'), { ssr: false });
@@ -30,21 +30,8 @@ export default function ProductsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Modal states
-  const [deleteTarget, setDeleteTarget] = useState<ProductDto | null>(null);
-  const [previewTarget, setPreviewTarget] = useState<ProductDto | null>(null);
-
-  // ─── Query 1: Top Statistics Aggregation ──────────────────────
-  const { data: statsData } = useQuery({
-    queryKey: ['product-stats'],
-    queryFn: () => productsApi.getStats().then((r) => r.data.data),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const stats = statsData ?? {
-    totalProducts: 0,
-    inStockProducts: 0,
-    lowOrOutOfStockProducts: 0,
-  };
+  const [deleteTarget, setDeleteTarget] = useState<ProductListDto | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<ProductListDto | null>(null);
 
   // ─── Query 2: Products Directory Table ────────────────────────
   const queryParams = {
@@ -67,17 +54,17 @@ export default function ProductsClient() {
   // ─── Mutation: Status Toggle (ACTIVE <-> DRAFT) ───────────────
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, nextStatus }: { id: string; nextStatus: 'ACTIVE' | 'DRAFT' }) =>
-      productsApi.updateProduct(id, { status: nextStatus }),
+      productsApi.updateStatus(id, nextStatus),
 
     onMutate: async ({ id, nextStatus }) => {
       await queryClient.cancelQueries({ queryKey: ['products', queryParams] });
       const previousData = queryClient.getQueryData(['products', queryParams]);
 
-      queryClient.setQueryData(['products', queryParams], (old: any) => {
+      queryClient.setQueryData<PaginatedData<ProductListDto>>(['products', queryParams], (old) => {
         if (!old) return old;
         return {
           ...old,
-          items: old.items.map((p: ProductDto) =>
+          items: old.items.map((p: ProductListDto) =>
             p.id === id ? { ...p, status: nextStatus } : p
           ),
         };
@@ -107,7 +94,6 @@ export default function ProductsClient() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['product-stats'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
@@ -133,34 +119,6 @@ export default function ProductsClient() {
         </Link>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
-              Total Products
-            </CardDescription>
-            <CardTitle className="text-2xl font-bold text-gray-900">{stats.totalProducts}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
-              In Stock Products (Stock &gt; 5)
-            </CardDescription>
-            <CardTitle className="text-2xl font-bold text-green-600">{stats.inStockProducts}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="uppercase tracking-wider text-[10px] font-semibold text-gray-500">
-              Low or Out of Stock (Stock &le; 5)
-            </CardDescription>
-            <CardTitle className="text-2xl font-bold text-red-600">{stats.lowOrOutOfStockProducts}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
       {/* Table Section */}
       <Card>
         <CardHeader className="border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -175,7 +133,7 @@ export default function ProductsClient() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, SKU, or slug..."
+                  placeholder="Search by name or slug..."
                 value={searchInput}
                 onChange={(e) => {
                   setSearchInput(e.target.value);
@@ -208,20 +166,18 @@ export default function ProductsClient() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[70px]">Image</TableHead>
-                  <TableHead>Shoe Name & Brand</TableHead>
+                  <TableHead>Shoe Name</TableHead>
                   <TableHead>SKU Prefix</TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead>Price (TND)</TableHead>
-                  <TableHead>Stock Level</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Updated</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
+                    <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                         <Loader2 className="w-6 h-6 animate-spin text-[#FF8C00]" />
                         <span className="text-sm">Loading catalog...</span>
@@ -232,7 +188,7 @@ export default function ProductsClient() {
 
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-red-500">
+                    <TableCell colSpan={6} className="h-32 text-center text-red-500">
                       Failed to load products directory. Please refresh.
                     </TableCell>
                   </TableRow>
@@ -240,7 +196,7 @@ export default function ProductsClient() {
 
                 {!isLoading && !isError && products.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
+                    <TableCell colSpan={6} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-1">
                         <Package className="w-8 h-8 text-gray-300" />
                         <p className="text-sm font-semibold text-gray-600">No products found</p>
@@ -253,7 +209,6 @@ export default function ProductsClient() {
                 )}
 
                 {!isLoading && !isError && products.map((p) => {
-                  const imgUrl = p.primaryImage?.url || p.media?.[0]?.url || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
                   const isDiscounted = p.compareAtPrice && Number(p.compareAtPrice) > Number(p.basePrice);
                   const discountPercent = isDiscounted
                     ? Math.round(((Number(p.compareAtPrice) - Number(p.basePrice)) / Number(p.compareAtPrice)) * 100)
@@ -261,31 +216,11 @@ export default function ProductsClient() {
 
                   return (
                     <TableRow key={p.id} className="hover:bg-gray-50/80">
-                      {/* Image Thumbnail */}
-                      <TableCell>
-                        <div className="w-11 h-11 rounded-lg border border-gray-200 overflow-hidden relative bg-gray-50 shrink-0">
-                          {/* eslint-disable-next-html-element-suppression */}
-                          <img
-                            src={imgUrl}
-                            alt={p.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400';
-                            }}
-                          />
-                        </div>
-                      </TableCell>
-
-                      {/* Name & Brand */}
+                      {/* Name */}
                       <TableCell>
                         <div>
                           <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {p.brand && (
-                              <span className="text-[11px] text-[#FF8C00] font-medium uppercase tracking-wider">
-                                {p.brand.name}
-                              </span>
-                            )}
                             {discountPercent && (
                               <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
                                 -{discountPercent}% OFF
@@ -300,11 +235,6 @@ export default function ProductsClient() {
                         {p.skuPrefix || 'N/A'}
                       </TableCell>
 
-                      {/* Category */}
-                      <TableCell className="text-xs text-gray-600">
-                        {p.primaryCategory?.name || 'Uncategorized'}
-                      </TableCell>
-
                       {/* Price */}
                       <TableCell>
                         <div>
@@ -313,21 +243,6 @@ export default function ProductsClient() {
                             <p className="text-[10px] text-gray-400 line-through">{p.compareAtPrice} TND</p>
                           )}
                         </div>
-                      </TableCell>
-
-                      {/* Stock Level */}
-                      <TableCell>
-                        <Badge
-                          className={
-                            p.totalStock > 5
-                              ? 'bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 text-[11px]'
-                              : p.totalStock > 0
-                                ? 'bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 text-[11px]'
-                                : 'bg-red-50 text-red-700 hover:bg-red-50 border border-red-200 text-[11px]'
-                          }
-                        >
-                          {p.totalStock > 5 ? `In Stock (${p.totalStock})` : p.totalStock > 0 ? `Low Stock (${p.totalStock})` : 'Out of Stock'}
-                        </Badge>
                       </TableCell>
 
                       {/* Catalog Status (Active / Draft) */}
@@ -341,6 +256,10 @@ export default function ProductsClient() {
                         >
                           {p.status}
                         </Badge>
+                      </TableCell>
+
+                      <TableCell className="text-xs text-gray-500">
+                        {new Date(p.updatedAt).toLocaleDateString()}
                       </TableCell>
 
                       {/* Actions */}

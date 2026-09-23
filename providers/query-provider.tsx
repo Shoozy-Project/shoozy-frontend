@@ -61,9 +61,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
       const { authApi } = await import('@/lib/api/auth');
       authApi
         .refresh()
-        .then((res: { data: { data: { accessToken: string; user: unknown } } }) => {
+        .then((res) => {
           const { accessToken, user } = res.data.data;
-          useAuthStore.getState().setAuth(accessToken, user as any);
+          useAuthStore.getState().setAuth(accessToken, user);
         })
         .catch(() => {
           // No valid session — user is not logged in.

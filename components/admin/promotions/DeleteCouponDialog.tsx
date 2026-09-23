@@ -34,7 +34,7 @@ export default function DeleteCouponDialog({
   const mutation = useMutation({
     mutationFn: () => promotionsApi.deleteCoupon(coupon!.id),
     onSuccess: () => {
-      toast.success(`Coupon '${coupon?.code}' deleted successfully`);
+      toast.success(`Discount '${coupon?.code ?? coupon?.name}' deleted successfully`);
       queryClient.invalidateQueries({ queryKey: ['admin-coupons'] });
       onClose();
     },
@@ -52,10 +52,10 @@ export default function DeleteCouponDialog({
       <AlertDialogContent className="bg-white border border-gray-100 shadow-2xl rounded-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-gray-900">
-            Delete Coupon <span className="font-mono text-[#FF8C00]">{coupon?.code}</span>?
+            Delete Discount <span className="font-mono text-[#FF8C00]">{coupon?.code ?? coupon?.name}</span>?
           </AlertDialogTitle>
           <AlertDialogDescription className="text-xs text-gray-500">
-            This action cannot be undone. Customers will no longer be able to redeem this coupon code at checkout.
+            This action cannot be undone. The discount will no longer be available at checkout.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">

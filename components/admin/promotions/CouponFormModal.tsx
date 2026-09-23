@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { promotionsApi, type CouponDto, type DiscountType } from '@/lib/api/promotions';
+import { formatMinorAmount, majorToMinorString } from '@/lib/format-money';
 
 interface CouponFormModalProps {
   isOpen: boolean;
@@ -33,66 +34,51 @@ export default function CouponFormModal({
   const queryClient = useQueryClient();
   const isEditing = !!couponToEdit;
 
-  const [code, setCode] = useState('');
-  const [type, setType] = useState<DiscountType>('PERCENTAGE');
-  const [valueInput, setValueInput] = useState('10');
-  const [minOrderInput, setMinOrderInput] = useState('0');
-  const [usageLimitInput, setUsageLimitInput] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [combinable, setCombinable] = useState(true);
-
-  useEffect(() => {
-    if (couponToEdit) {
-      setCode(couponToEdit.code);
-      setType(couponToEdit.type);
-      if (couponToEdit.type === 'FIXED_AMOUNT') {
-        setValueInput((couponToEdit.value / 1000).toString());
-      } else {
-        setValueInput(couponToEdit.value.toString());
-      }
-      setMinOrderInput(
-        couponToEdit.minOrderMinor
-          ? (couponToEdit.minOrderMinor / 1000).toString()
-          : '0'
-      );
-      setUsageLimitInput(couponToEdit.usageLimit?.toString() ?? '');
-      setStartDate(couponToEdit.startsAt ? couponToEdit.startsAt.slice(0, 10) : '');
-      setEndDate(couponToEdit.endsAt ? couponToEdit.endsAt.slice(0, 10) : '');
-      setIsActive(couponToEdit.isActive);
-      setCombinable(couponToEdit.combinable ?? true);
-    } else {
-      setCode('');
-      setType('PERCENTAGE');
-      setValueInput('10');
-      setMinOrderInput('0');
-      setUsageLimitInput('');
-      setStartDate(new Date().toISOString().slice(0, 10));
-      setEndDate('');
-      setIsActive(true);
-      setCombinable(true);
-    }
-  }, [couponToEdit, isOpen]);
+  const [name, setName] = useState(couponToEdit?.name ?? '');
+  const [code, setCode] = useState(couponToEdit?.code ?? '');
+  const [priority, setPriority] = useState(couponToEdit?.priority.toString() ?? '0');
+  const [type, setType] = useState<DiscountType>(couponToEdit?.type ?? 'PERCENTAGE');
+  const [valueInput, setValueInput] = useState(() => couponToEdit
+    ? couponToEdit.type === 'FIXED_AMOUNT'
+      ? formatMinorAmount(couponToEdit.value, 3)
+      : (Number(couponToEdit.value) / 100).toString()
+    : '10');
+  const [minOrderInput, setMinOrderInput] = useState(() => couponToEdit?.minOrderMinor
+    ? formatMinorAmount(couponToEdit.minOrderMinor, 3)
+    : '0');
+  const [usageLimitInput, setUsageLimitInput] = useState(couponToEdit?.usageLimit?.toString() ?? '');
+  const [startDate, setStartDate] = useState(couponToEdit?.startsAt.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(couponToEdit?.endsAt?.slice(0, 10) ?? '');
+  const [isActive, setIsActive] = useState(couponToEdit?.isActive ?? true);
+  const [combinable, setCombinable] = useState(couponToEdit?.combinable ?? true);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const numericVal = parseFloat(valueInput) || 0;
-      const finalValMinor = type === 'FIXED_AMOUNT' ? Math.round(numericVal * 1000) : numericVal;
-      const minOrderTnd = parseFloat(minOrderInput) || 0;
-      const minOrderMinor = minOrderTnd > 0 ? Math.round(minOrderTnd * 1000) : null;
+      const value = type === 'FIXED_AMOUNT'
+        ? majorToMinorString(valueInput, 3)
+        : type === 'PERCENTAGE' ? String(Math.round(numericVal * 100)) : '0';
+      const minOrderMinorValue = majorToMinorString(minOrderInput, 3);
+      const minOrderMinor = minOrderMinorValue === '0' ? null : minOrderMinorValue;
       const usageLimit = usageLimitInput.trim() ? parseInt(usageLimitInput, 10) : null;
 
       const payload = {
+        name: name.trim(),
         code: code.trim().toUpperCase(),
         type,
-        value: type === 'FREE_SHIPPING' ? 0 : finalValMinor,
-        minOrderRequirement: minOrderMinor,
+        scope: 'ORDER' as const,
+        priority: Number.parseInt(priority, 10) || 0,
+        value,
+        currency: type === 'FIXED_AMOUNT' ? 'TND' : null,
+        minOrderMinor,
+        maxDiscountMinor: null,
         usageLimit,
+        perCustomerLimit: null,
         startsAt: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
         endsAt: endDate ? new Date(endDate).toISOString() : null,
         isActive,
         combinable,
+        targets: [],
       };
 
       if (isEditing && couponToEdit) {
@@ -118,8 +104,8 @@ export default function CouponFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim()) {
-      toast.error('Coupon code is required');
+    if (!name.trim() || !code.trim()) {
+      toast.error('Discount name and coupon code are required');
       return;
     }
     mutation.mutate();
@@ -141,6 +127,16 @@ export default function CouponFormModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div className="grid grid-cols-[1fr_110px] gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Discount Name</Label>
+              <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Summer sale" maxLength={150} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Priority</Label>
+              <Input type="number" min="0" value={priority} onChange={(event) => setPriority(event.target.value)} />
+            </div>
+          </div>
           {/* Coupon Code Input */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">

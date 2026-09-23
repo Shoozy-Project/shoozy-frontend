@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Inter, Geist } from 'next/font/google';
+import { Playfair_Display, Geist } from 'next/font/google';
 import './globals.css';
 import SplashScreenWrapper from '@/components/SplashScreenWrapper';
 import { QueryProvider } from '@/providers/query-provider';

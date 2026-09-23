@@ -64,7 +64,7 @@ const DeleteCategoryDialog = ({
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
             Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">"{categoryName}"</span>? This action
+            <span className="font-semibold text-black">&quot;{categoryName}&quot;</span>? This action
             cannot be undone and may affect products linked to this category.
           </AlertDialogDescription>
         </AlertDialogHeader>

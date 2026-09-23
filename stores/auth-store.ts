@@ -51,6 +51,5 @@ export const useAuthStore = create<AuthStore>((set) => ({
 // ─── Selectors ──────────────────────────────────────────────────
 export const selectIsAuthenticated = (s: AuthStore) => !!s.accessToken;
 export const selectUser = (s: AuthStore) => s.user;
-export const selectIsAdmin = (s: AuthStore) => s.user?.role === 'ADMIN' || s.user?.role === 'SUPER_ADMIN';
 export const selectAccessToken = (s: AuthStore) => s.accessToken;
 export const selectIsLoading = (s: AuthStore) => s.isLoading;

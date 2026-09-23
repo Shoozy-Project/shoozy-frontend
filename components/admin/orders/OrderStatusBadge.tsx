@@ -72,7 +72,7 @@ export function PaymentStatusBadge({
     switch (status) {
       case 'PAID':
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      case 'UNPAID':
+      case 'PENDING':
         return 'bg-amber-50 text-amber-800 border-amber-200';
       case 'CANCELLED':
         return 'bg-gray-100 text-gray-600 border-gray-200';

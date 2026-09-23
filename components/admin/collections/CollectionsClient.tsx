@@ -17,10 +17,6 @@ import {
   Layers,
   FilterX,
   FolderTree,
-  Sparkles,
-  Calendar,
-  Flame,
-  Tag,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -57,40 +53,6 @@ const formatCollectionId = (id: string) => {
   return `COL-${shortHex}`;
 };
 
-// Render badge based on collection type
-const renderTypeBadge = (type: string) => {
-  switch (type.toLowerCase()) {
-    case 'seasonal':
-      return (
-        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1 hover:bg-blue-50">
-          <Calendar className="w-3 h-3" />
-          Seasonal
-        </Badge>
-      );
-    case 'thematic':
-      return (
-        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-xs gap-1 hover:bg-purple-50">
-          <Sparkles className="w-3 h-3" />
-          Thematic
-        </Badge>
-      );
-    case 'special drop':
-      return (
-        <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs gap-1 hover:bg-amber-50">
-          <Flame className="w-3 h-3 text-[#FF8C00]" />
-          Special Drop
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs gap-1 hover:bg-gray-100">
-          <Tag className="w-3 h-3" />
-          {type}
-        </Badge>
-      );
-  }
-};
-
 // ─── Skeleton Row ────────────────────────────────────────────────
 const SkeletonRow = () => (
   <TableRow>
@@ -101,9 +63,7 @@ const SkeletonRow = () => (
         <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
       </div>
     </TableCell>
-    <TableCell><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></TableCell>
     <TableCell><div className="h-4 w-44 bg-gray-100 rounded animate-pulse" /></TableCell>
-    <TableCell><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></TableCell>
     <TableCell><div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" /></TableCell>
     <TableCell>
       <div className="flex gap-2 justify-end">
@@ -244,7 +204,7 @@ const CollectionsClient = () => {
             Product Collections
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Group products into custom thematic or seasonal collections.
+            Organize products into curated collections.
           </p>
         </div>
         <Button
@@ -319,9 +279,7 @@ const CollectionsClient = () => {
                 <TableRow className="bg-gray-50/80">
                   <TableHead className="w-[120px]">Collection ID</TableHead>
                   <TableHead>Collection Name</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead className="text-right pr-6">Total Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right pr-4">Actions</TableHead>
                 </TableRow>
@@ -335,7 +293,7 @@ const CollectionsClient = () => {
                 {/* Error state */}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center">
+                    <TableCell colSpan={5} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
                         <p className="text-sm font-medium">Failed to load collections.</p>
                         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -349,7 +307,7 @@ const CollectionsClient = () => {
                 {/* Empty state */}
                 {!isLoading && !isError && collections.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-16 text-center">
+                    <TableCell colSpan={5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-gray-400">
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                           <FolderTree className="w-6 h-6 text-gray-300" aria-hidden="true" />
@@ -357,7 +315,7 @@ const CollectionsClient = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-500">No collections found</p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {hasActiveFilters ? 'Try adjusting search or filter criteria.' : 'Create your first thematic or seasonal collection.'}
+                            {hasActiveFilters ? 'Try adjusting search or filter criteria.' : 'Create your first curated collection.'}
                           </p>
                         </div>
                         {!hasActiveFilters && (
@@ -409,17 +367,9 @@ const CollectionsClient = () => {
                         </div>
                       </TableCell>
 
-                      {/* Type Badge */}
-                      <TableCell>{renderTypeBadge(c.type)}</TableCell>
-
                       {/* Description */}
                       <TableCell className="hidden md:table-cell text-gray-500 max-w-xs truncate text-xs">
                         {c.description ?? '—'}
-                      </TableCell>
-
-                      {/* Total Products */}
-                      <TableCell className="font-semibold text-black text-right pr-6 text-sm">
-                        {c._count?.products ?? 0} <span className="text-xs font-normal text-gray-400">items</span>
                       </TableCell>
 
                       {/* Status */}

@@ -13,9 +13,7 @@ interface MobileNavProps {
     firstName: string;
     lastName: string;
     email: string;
-    role: string;
   };
-  isSuperAdmin: boolean;
   currentPage: string;
   onLogout: () => void;
   loggingOut: boolean;
@@ -24,7 +22,6 @@ interface MobileNavProps {
 
 export default function MobileNav({
   user,
-  isSuperAdmin,
   currentPage,
   onLogout,
   loggingOut,
@@ -32,11 +29,6 @@ export default function MobileNav({
 }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  // Auto-close drawer on route change
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -50,13 +42,7 @@ export default function MobileNav({
     };
   }, [open]);
 
-  // Filter sidebar items for operational ADMINs
-  const visibleNavItems = navItems.filter((item) => {
-    if (user.role === 'ADMIN') {
-      return item.href !== '/admin/users' && item.href !== '/admin/settings';
-    }
-    return true;
-  });
+  const visibleNavItems = navItems;
 
   return (
     <>
@@ -143,13 +129,9 @@ export default function MobileNav({
                     <Image src="/logo.png" alt="Shoezy" fill sizes="80px" className="object-contain" />
                   </div>
                   <span
-                    className={`text-[9px] font-semibold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-sm border ${
-                      isSuperAdmin
-                        ? 'text-amber-700 bg-amber-50 border-amber-300'
-                        : 'text-[#FF8C00] bg-orange-50/50 border-[#FF8C00]/40'
-                    }`}
+                    className="text-[9px] font-semibold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-sm border text-[#FF8C00] bg-orange-50/50 border-[#FF8C00]/40"
                   >
-                    {isSuperAdmin ? 'SuperAdmin' : 'Admin'}
+                    Admin
                   </span>
                 </Link>
 

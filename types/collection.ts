@@ -1,12 +1,9 @@
 // ─── Collection Types ────────────────────────────────────────────
 
-export type CollectionType = 'Seasonal' | 'Thematic' | 'Special Drop' | 'Promotional';
-
 export interface CollectionDto {
   id: string;
   name: string;
   slug: string;
-  type: string;
   description: string | null;
   imageUrl: string | null;
   isActive: boolean;
@@ -14,8 +11,24 @@ export interface CollectionDto {
   endsAt: string | null;
   createdAt: string;
   updatedAt: string;
-  _count?: { products: number };
-  productIds?: string[];
+}
+
+export interface CollectionProductDto {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  deletedAt: string | null;
+  position: number;
+}
+
+export interface CollectionDetailDto extends CollectionDto {
+  products: CollectionProductDto[];
+}
+
+export interface CollectionProductInput {
+  productId: string;
+  position: number;
 }
 
 export interface CollectionListParams {
@@ -23,19 +36,19 @@ export interface CollectionListParams {
   limit?: number;
   search?: string;
   isActive?: boolean;
-  type?: string;
-  sortBy?: 'name' | 'slug' | 'createdAt' | 'updatedAt';
+  sortBy?: 'name' | 'slug' | 'startsAt' | 'endsAt' | 'createdAt' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }
 
 export interface CreateCollectionPayload {
   name: string;
   slug?: string;
-  type?: string;
   description?: string | null;
   imageUrl?: string | null;
   isActive?: boolean;
-  productIds?: string[];
+  startsAt?: string | null;
+  endsAt?: string | null;
+  products?: CollectionProductInput[];
 }
 
 export type UpdateCollectionPayload = Partial<CreateCollectionPayload>;

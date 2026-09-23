@@ -32,11 +32,11 @@ export const authApi = {
 
   /** POST /auth/verify-email */
   verifyEmail: (token: string) =>
-    apiClient.post<ApiSuccess<UserDto>>('/auth/verify-email', { token }),
+    apiClient.post<ApiSuccess<{ user: UserDto; verified: boolean }>>('/auth/verify-email', { token }),
 
   /** POST /auth/resend-verification */
   resendVerification: (email: string) =>
-    apiClient.post<ApiSuccess<{ message: string }>>('/auth/resend-verification', { email }),
+    apiClient.post<ApiSuccess<{ accepted: true }>>('/auth/resend-verification', { email }),
 
   /** POST /auth/forgot-password — always 202 */
   forgotPassword: (email: string) =>

@@ -6,9 +6,7 @@ import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
 import {
   Star,
-  Search,
   Eye,
-  Trash2,
   CheckCircle2,
   XCircle,
   Clock,
@@ -17,7 +15,6 @@ import {
   User,
   Package,
 } from 'lucide-react';
-import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,27 +28,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-
 import { reviewsApi, type ReviewDto, type ReviewStatus } from '@/lib/api/reviews';
-import { useDebounce } from 'use-debounce';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export default function ReviewsClient() {
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebounce(search, 350);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -59,18 +42,14 @@ export default function ReviewsClient() {
   // Modal inspection state
   const [inspectReview, setInspectReview] = useState<ReviewDto | null>(null);
 
-  // Delete dialog state
-  const [reviewToDelete, setReviewToDelete] = useState<ReviewDto | null>(null);
-
   // Fetch reviews using TanStack Query
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['admin-reviews', page, pageSize, debouncedSearch, statusFilter],
+    queryKey: ['admin-reviews', page, pageSize, statusFilter],
     queryFn: async () => {
       const res = await reviewsApi.listAdminReviews({
         page,
         limit: pageSize,
-        search: debouncedSearch,
-        status: statusFilter,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
       });
       return res.data.data;
     },
@@ -85,37 +64,16 @@ export default function ReviewsClient() {
 
   // Status update mutation (Quick Approve / Quick Reject)
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: ReviewStatus }) =>
-      reviewsApi.updateReviewStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: 'APPROVED' | 'REJECTED' }) =>
+      reviewsApi.moderate(id, status),
     onSuccess: (_, variables) => {
       toast.success(
-        variables.status === 'APPROVED'
-          ? 'Review approved & published!'
-          : variables.status === 'REJECTED'
-          ? 'Review rejected'
-          : 'Review status updated to pending'
+        variables.status === 'APPROVED' ? 'Review approved & published!' : 'Review rejected'
       );
       queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
     },
     onError: (err) => {
       let msg = 'Failed to update review status';
-      if (isAxiosError(err) && err.response?.data?.error?.message) {
-        msg = err.response.data.error.message;
-      }
-      toast.error(msg);
-    },
-  });
-
-  // Delete review mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => reviewsApi.deleteReview(id),
-    onSuccess: () => {
-      toast.success('Review deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin-reviews'] });
-      setReviewToDelete(null);
-    },
-    onError: (err) => {
-      let msg = 'Failed to delete review';
       if (isAxiosError(err) && err.response?.data?.error?.message) {
         msg = err.response.data.error.message;
       }
@@ -181,20 +139,6 @@ export default function ReviewsClient() {
               </CardDescription>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search by customer, product, or comment..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#FF8C00]"
-              />
-            </div>
           </div>
 
           {/* Status Filter Pills */}
@@ -248,7 +192,7 @@ export default function ReviewsClient() {
                       <Sparkles className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                       <p className="text-sm font-semibold text-gray-700">No reviews found</p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {debouncedSearch || statusFilter !== 'ALL'
+                        {statusFilter !== 'ALL'
                           ? 'Try adjusting your search query or status filter.'
                           : 'Customer product reviews will appear here once submitted.'}
                       </p>
@@ -257,8 +201,7 @@ export default function ReviewsClient() {
                 ) : (
                   items.map((rev) => {
                     const shortId = `#REV-${rev.id.slice(0, 4).toUpperCase()}`;
-                    const customerName = `${rev.user.firstName} ${rev.user.lastName}`;
-                    const productImage = rev.product.media?.[0]?.url;
+                    const customerName = `${rev.reviewer.firstName} ${rev.reviewer.lastName}`;
 
                     return (
                       <TableRow key={rev.id} className="hover:bg-gray-50/80 transition-colors">
@@ -275,9 +218,6 @@ export default function ReviewsClient() {
                             </div>
                             <div className="truncate">
                               <p className="text-xs font-bold text-gray-900 truncate">{customerName}</p>
-                              {rev.user.email && (
-                                <p className="text-[11px] text-gray-400 truncate">{rev.user.email}</p>
-                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -285,21 +225,7 @@ export default function ReviewsClient() {
                         {/* Product */}
                         <TableCell>
                           <div className="flex items-center gap-2 max-w-[180px]">
-                            {productImage ? (
-                              <div className="relative w-8 h-8 rounded border overflow-hidden shrink-0 bg-gray-100">
-                                <Image
-                                  src={productImage}
-                                  alt={rev.product.name}
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded border bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
-                                <Package className="w-4 h-4" />
-                              </div>
-                            )}
+                            <div className="w-8 h-8 rounded border bg-gray-100 flex items-center justify-center text-gray-400 shrink-0"><Package className="w-4 h-4" /></div>
                             <span className="text-xs font-semibold text-gray-800 truncate" title={rev.product.name}>
                               {rev.product.name}
                             </span>
@@ -327,7 +253,7 @@ export default function ReviewsClient() {
                               <p className="text-xs font-bold text-gray-900 truncate">{rev.title}</p>
                             )}
                             <p className="text-xs text-gray-600 truncate italic">
-                              "{rev.body || 'No text comment provided'}"
+                              &quot;{rev.body || 'No text comment provided'}&quot;
                             </p>
                           </div>
                         </TableCell>
@@ -384,16 +310,6 @@ export default function ReviewsClient() {
                               </Button>
                             )}
 
-                            {/* Delete */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setReviewToDelete(rev)}
-                              title="Delete Review"
-                              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -442,9 +358,8 @@ export default function ReviewsClient() {
               <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <div>
                   <p className="text-xs font-bold text-gray-900">
-                    {inspectReview.user.firstName} {inspectReview.user.lastName}
+                    {inspectReview.reviewer.firstName} {inspectReview.reviewer.lastName}
                   </p>
-                  <p className="text-[11px] text-gray-400">{inspectReview.user.email}</p>
                 </div>
 
                 <div className="flex items-center gap-0.5">
@@ -465,7 +380,7 @@ export default function ReviewsClient() {
                   <h4 className="text-sm font-bold text-gray-900">{inspectReview.title}</h4>
                 )}
                 <div className="p-3 rounded-xl bg-gray-50 text-xs text-gray-700 leading-relaxed italic border border-gray-100">
-                  "{inspectReview.body || 'No text comment provided'}"
+                  &quot;{inspectReview.body || 'No text comment provided'}&quot;
                 </div>
               </div>
 
@@ -503,43 +418,6 @@ export default function ReviewsClient() {
         </Dialog>
       )}
 
-      {/* Delete Confirmation Alert Dialog */}
-      {reviewToDelete && (
-        <AlertDialog open={!!reviewToDelete} onOpenChange={(open) => !open && setReviewToDelete(null)}>
-          <AlertDialogContent className="bg-white border border-gray-100 shadow-2xl rounded-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-gray-900">
-                Delete Customer Review?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs text-gray-500">
-                This action cannot be undone. This review will be permanently removed from the database and storefront rating totals.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel onClick={() => setReviewToDelete(null)} className="text-xs border-gray-200">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  deleteMutation.mutate(reviewToDelete.id);
-                }}
-                disabled={deleteMutation.isPending}
-                className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4"
-              >
-                {deleteMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete Review'
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }

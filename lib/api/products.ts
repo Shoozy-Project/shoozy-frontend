@@ -1,166 +1,111 @@
 import apiClient from './client';
 import type { ApiSuccess, PaginatedData } from '@/types/api';
 
+export interface ProductListDto {
+  id: string; brandId: string; sizeGuideId: string | null; name: string; slug: string;
+  skuPrefix: string | null; shortDescription: string | null; basePrice: string;
+  compareAtPrice: string | null; description: string | null; material: string | null;
+  gender: string | null; season: string | null; status: 'DRAFT' | 'ACTIVE';
+  seoTitle: string | null; seoDescription: string | null; publishedAt: string | null;
+  createdAt: string; updatedAt: string; deletedAt: string | null;
+}
+
 export interface ProductMediaDto {
-  id: string;
-  url: string;
-  altText: string | null;
-  position: number;
-  isPrimary: boolean;
-  variantId: string | null;
+  id: string; productId: string; variantId: string | null; type: 'IMAGE'; url: string;
+  altText: string | null; position: number; isPrimary: boolean; createdAt: string;
+}
+
+export interface ProductOptionValueDto {
+  id: string; optionId: string; value: string; displayValue: string | null;
+  colorHex: string | null; metadataJson: unknown; position: number;
+}
+
+export interface ProductOptionDto {
+  id: string; productId: string; name: string; position: number; values: ProductOptionValueDto[];
 }
 
 export interface ProductVariantDto {
-  id: string;
-  sku: string;
-  barcode: string | null;
-  title: string;
-  isActive: boolean;
-  stockQuantity: number;
-  price: string;
-  compareAtPrice: string | null;
+  id: string; productId: string; sku: string; barcode: string | null; title: string;
+  isActive: boolean; stockQuantity: number; weightGrams: number | null; priceMinor: string;
+  costMinor: string | null; compareAtPriceMinor: string | null; metadataJson: unknown;
+  optionValues: Array<{ id: string; value: string; displayValue: string | null; colorHex: string | null; position: number; option: { id: string; name: string; position: number } }>;
+  createdAt: string; updatedAt: string; deletedAt: string | null;
 }
 
-export interface ProductDto {
-  id: string;
-  brandId: string;
-  name: string;
-  slug: string;
-  skuPrefix: string | null;
-  shortDescription: string | null;
-  basePrice: string;
-  compareAtPrice: string | null;
-  description: string | null;
-  material: string | null;
-  gender: string | null;
-  status: 'DRAFT' | 'ACTIVE';
-  createdAt: string;
-  updatedAt: string;
-  brand: { id: string; name: string; slug: string; logoUrl?: string | null } | null;
-  primaryCategory: { id: string; name: string; slug: string } | null;
-  categories: Array<{ id: string; name: string; slug: string; isPrimary: boolean }>;
-  primaryImage: { id: string; url: string; altText: string | null } | null;
-  media: ProductMediaDto[];
-  variants: ProductVariantDto[];
-  totalStock: number;
+export interface ProductDetailDto extends ProductListDto {
+  brand: { id: string; name: string; slug: string; isActive: boolean };
+  sizeGuide: { id: string; name: string } | null;
+  categories: Array<{ id: string; name: string; slug: string; isActive: boolean; isPrimary: boolean }>;
+  options: ProductOptionDto[]; variants: ProductVariantDto[]; media: ProductMediaDto[];
 }
 
-export interface ProductStatsDto {
-  totalProducts: number;
-  inStockProducts: number;
-  lowOrOutOfStockProducts: number;
+export interface ProductFormContextDto {
+  brands: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string; parentId: string | null; isActive: boolean }>;
+  sizeGuides: Array<{ id: string; name: string; brandId: string | null }>;
 }
 
-export interface CreateProductPayload {
-  brandId: string;
-  sizeGuideId?: string | null;
-  name: string;
-  slug?: string;
-  skuPrefix?: string | null;
-  shortDescription?: string | null;
-  basePrice: string;
-  compareAtPrice?: string | null;
-  description?: string | null;
-  material?: string | null;
-  gender?: string | null;
-  status?: 'DRAFT' | 'ACTIVE';
-  categoryIds?: string[];
-  media?: Array<{ url: string; isPrimary?: boolean; position?: number }>;
-  options?: Array<{ name: string; position?: number; values: string[] }>;
-  variants?: Array<{
-    sku: string;
-    title: string;
-    stockQuantity?: number;
-    priceMinor: number | string;
-    barcode?: string | null;
-    isActive?: boolean;
-    optionValues?: Array<{ optionName: string; value: string }>;
-  }>;
+export interface ProductFields {
+  brandId: string; sizeGuideId?: string | null; name: string; slug?: string;
+  skuPrefix?: string | null; shortDescription?: string | null; basePrice: string;
+  compareAtPrice?: string | null; description?: string | null; material?: string | null;
+  gender?: string | null; season?: string | null; status?: 'DRAFT' | 'ACTIVE';
+  seoTitle?: string | null; seoDescription?: string | null;
 }
 
-export interface ReplaceCategoriesPayload {
-  categoryIds: string[];
-  primaryCategoryId: string | null;
+interface NewMediaInput {
+  fileIndex?: number; url?: string; variantClientKey?: string | null; variantId?: string | null;
+  position?: number; isPrimary?: boolean; altText?: string | null;
 }
 
-export interface CreateOptionPayload {
-  name: string;
-  position?: number;
+interface ProductOptionValueUpdateInput {
+  id?: string; clientKey?: string; value?: string; displayValue?: string | null;
+  colorHex?: string | null; metadataJson?: unknown; position?: number;
 }
 
-export interface CreateOptionValuePayload {
-  value: string;
-  displayValue?: string | null;
-  colorHex?: string | null;
-  position?: number;
+interface ProductOptionUpdateInput {
+  id?: string; clientKey?: string; name?: string; position?: number;
+  values?: { upsert: ProductOptionValueUpdateInput[]; deleteIds: string[] };
 }
 
-export interface CreateVariantPayload {
-  sku: string;
-  barcode?: string | null;
-  title: string;
-  isActive?: boolean;
-  stockQuantity?: number;
-  weightGrams?: number | null;
-  priceMinor: string;
-  costMinor?: string | null;
-  compareAtPriceMinor?: string | null;
-  optionValueIds: string[];
+interface ProductVariantUpdateInput {
+  id?: string; clientKey?: string; sku?: string; barcode?: string | null; title?: string;
+  isActive?: boolean; stockQuantity?: number; weightGrams?: number | null; priceMinor?: string;
+  costMinor?: string | null; compareAtPriceMinor?: string | null; metadataJson?: unknown;
+  optionValueIds?: string[]; optionValueClientKeys?: string[];
+}
+
+export interface ProductEditorCreateInput {
+  product: ProductFields & { status?: 'DRAFT' };
+  categories?: { categoryIds: string[]; primaryCategoryId: string | null };
+  options?: Array<{ clientKey: string; name: string; position?: number; values: Array<{ clientKey: string; value: string; displayValue?: string | null; colorHex?: string | null; position?: number }> }>;
+  variants?: Array<{ clientKey: string; sku: string; barcode?: string | null; title: string; isActive?: boolean; stockQuantity?: number; weightGrams?: number | null; priceMinor: string; costMinor?: string | null; compareAtPriceMinor?: string | null; optionValueClientKeys: string[] }>;
+  media?: NewMediaInput[];
+}
+
+export interface ProductEditorUpdateInput {
+  product?: Partial<ProductFields>;
+  categories?: { categoryIds: string[]; primaryCategoryId: string | null };
+  options?: { upsert: ProductOptionUpdateInput[]; deleteIds: string[] };
+  variants?: { upsert: ProductVariantUpdateInput[]; deleteIds: string[] };
+  media?: { existing: Array<{ id: string; variantId?: string | null; position?: number; isPrimary?: boolean; altText?: string | null }>; new: NewMediaInput[]; deleteIds: string[] };
+}
+
+function editorBody(payload: ProductEditorCreateInput | ProductEditorUpdateInput, files: File[]) {
+  if (files.length === 0) return payload;
+  const formData = new FormData();
+  formData.append('data', JSON.stringify(payload));
+  files.forEach((file) => formData.append('files[]', file));
+  return formData;
 }
 
 export const productsApi = {
-  /** GET /admin/products */
   list: (params: { page?: number; limit?: number; search?: string; status?: string; categoryId?: string; brandId?: string } = {}) =>
-    apiClient.get<ApiSuccess<PaginatedData<ProductDto>>>('/admin/products', { params }),
-
-  /** GET /admin/products/stats */
-  getStats: () =>
-    apiClient.get<ApiSuccess<ProductStatsDto>>('/admin/products/stats'),
-
-  /** GET /admin/products/:productId */
-  get: (productId: string) =>
-    apiClient.get<ApiSuccess<ProductDto>>(`/admin/products/${productId}`),
-
-  /** POST /admin/products */
-  createProduct: (data: CreateProductPayload) =>
-    apiClient.post<ApiSuccess<{ id: string; name: string; slug: string }>>('/admin/products', data),
-
-  /** PUT /admin/products/:productId/categories */
-  replaceProductCategories: (productId: string, data: ReplaceCategoriesPayload) =>
-    apiClient.put<ApiSuccess<unknown>>(`/admin/products/${productId}/categories`, data),
-
-  /** PUT /admin/products/:productId/media */
-  replaceProductMedia: (productId: string, media: Array<{ url: string; altText?: string | null; isPrimary?: boolean; position?: number; variantId?: string | null }>) =>
-    apiClient.put<ApiSuccess<unknown>>(`/admin/products/${productId}/media`, { media }),
-
-  /** POST /admin/products/:productId/options */
-  createProductOption: (productId: string, data: CreateOptionPayload) =>
-    apiClient.post<ApiSuccess<{ id: string; name: string }>>(`/admin/products/${productId}/options`, data),
-
-  /** POST /admin/products/:productId/options/:optionId/values */
-  createProductOptionValue: (productId: string, optionId: string, data: CreateOptionValuePayload) =>
-    apiClient.post<ApiSuccess<{ id: string; value: string }>>(`/admin/products/${productId}/options/${optionId}/values`, data),
-
-  /** POST /admin/products/:productId/variants */
-  createProductVariant: (productId: string, data: CreateVariantPayload) =>
-    apiClient.post<ApiSuccess<{ id: string; sku: string }>>(`/admin/products/${productId}/variants`, data),
-
-  /** PATCH /admin/products/:productId */
-  updateProduct: (productId: string, data: Partial<CreateProductPayload>) =>
-    apiClient.patch<ApiSuccess<unknown>>(`/admin/products/${productId}`, data),
-
-  /** DELETE /admin/products/:productId */
-  deleteProduct: (productId: string) =>
-    apiClient.delete(`/admin/products/${productId}`),
-
-  /** POST /admin/upload/image */
-  uploadImage: (file: File) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    return apiClient.post<ApiSuccess<{ url: string; filename: string }>>(
-      '/admin/upload/image',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    );
-  },
+    apiClient.get<ApiSuccess<PaginatedData<ProductListDto>>>('/admin/products', { params }),
+  get: (productId: string) => apiClient.get<ApiSuccess<ProductDetailDto>>(`/admin/products/${productId}`),
+  formContext: () => apiClient.get<ApiSuccess<ProductFormContextDto>>('/admin/products/form-context'),
+  create: (payload: ProductEditorCreateInput, files: File[] = []) => apiClient.post<ApiSuccess<ProductDetailDto>>('/admin/products', editorBody(payload, files)),
+  update: (productId: string, payload: ProductEditorUpdateInput, files: File[] = []) => apiClient.patch<ApiSuccess<ProductDetailDto>>(`/admin/products/${productId}`, editorBody(payload, files)),
+  updateStatus: (productId: string, status: 'DRAFT' | 'ACTIVE') => apiClient.patch<ApiSuccess<ProductListDto>>(`/admin/products/${productId}`, { status }),
+  deleteProduct: (productId: string) => apiClient.delete(`/admin/products/${productId}`),
 };

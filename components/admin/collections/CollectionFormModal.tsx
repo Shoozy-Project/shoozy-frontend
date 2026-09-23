@@ -7,11 +7,8 @@ import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Loader2,
-  Upload,
   Layers,
   X,
-  Link as LinkIcon,
-  Check,
   Package,
   Search,
 } from 'lucide-react';
@@ -33,11 +30,10 @@ import { Switch } from '@/components/ui/switch';
 
 import {
   collectionSchema,
-  COLLECTION_TYPES,
   type CollectionFormInput,
 } from '@/validations/collection';
 import { collectionsApi } from '@/lib/api/collections';
-import { productsApi, type ProductDto } from '@/lib/api/products';
+import { productsApi, type ProductListDto } from '@/lib/api/products';
 import type { CollectionDto } from '@/types/collection';
 
 interface CollectionFormModalProps {
@@ -45,8 +41,6 @@ interface CollectionFormModalProps {
   onOpenChange: (open: boolean) => void;
   editTarget?: CollectionDto | null;
 }
-
-type ImageTab = 'upload' | 'url';
 
 const generateSlug = (name: string) =>
   name
@@ -57,6 +51,35 @@ const generateSlug = (name: string) =>
     .replace(/-+/g, '-')
     .replace(/(^-|-$)/g, '');
 
+const toCollectionProducts = (productIds: string[]) =>
+  productIds.map((productId, position) => ({ productId, position }));
+
+const PRODUCT_SELECTOR_PAGE_SIZE = 100;
+
+const loadAllProducts = async (): Promise<ProductListDto[]> => {
+  const products: ProductListDto[] = [];
+  const seenProductIds = new Set<string>();
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const response = await productsApi.list({ page, limit: PRODUCT_SELECTOR_PAGE_SIZE });
+    const data = response.data.data;
+
+    data.items.forEach((product) => {
+      if (!seenProductIds.has(product.id)) {
+        seenProductIds.add(product.id);
+        products.push(product);
+      }
+    });
+
+    totalPages = data.pagination.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return products;
+};
+
 const CollectionFormModal = ({
   open,
   onOpenChange,
@@ -66,18 +89,28 @@ const CollectionFormModal = ({
   const isEdit = !!editTarget;
 
   // ─── Image & Search State ─────────────────────────────────
-  const [imageTab, setImageTab] = useState<ImageTab>('upload');
-  const [uploadedPreview, setUploadedPreview] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialProductIdsRef = useRef<string[]>([]);
+
+  const {
+    data: collectionDetail,
+    isLoading: isCollectionDetailLoading,
+    isError: isCollectionDetailError,
+  } = useQuery({
+    queryKey: ['collections', 'detail', editTarget?.id],
+    queryFn: () => collectionsApi.getById(editTarget!.id).then((response) => response.data.data),
+    enabled: open && !!editTarget,
+  });
 
   // ─── Fetch Products for Multi-select ───────────────────────
-  const { data: productsData, isLoading: isProductsLoading } = useQuery({
-    queryKey: ['products', 'list-all-active-selector'],
-    queryFn: () => productsApi.list({ limit: 1000 }).then((r) => r.data.data.items),
+  const {
+    data: productsData,
+    isLoading: isProductsLoading,
+    isError: isProductsError,
+  } = useQuery({
+    queryKey: ['products', 'list-all-collection-selector', PRODUCT_SELECTOR_PAGE_SIZE],
+    queryFn: loadAllProducts,
     enabled: open,
   });
   const availableProducts = useMemo(() => productsData ?? [], [productsData]);
@@ -86,18 +119,19 @@ const CollectionFormModal = ({
   const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
     if (!query) return availableProducts;
-    return availableProducts.filter((p: ProductDto) => {
+    return availableProducts.filter((p: ProductListDto) => {
       const matchName = p.name?.toLowerCase().includes(query) ?? false;
       const matchSlug = p.slug?.toLowerCase().includes(query) ?? false;
       const matchSku = p.skuPrefix?.toLowerCase().includes(query) ?? false;
-      const matchCategory = p.primaryCategory?.name?.toLowerCase().includes(query) ?? false;
-      return matchName || matchSlug || matchSku || matchCategory;
+      return matchName || matchSlug || matchSku;
     });
   }, [availableProducts, productSearch]);
 
   const selectedProducts = useMemo(() => {
-    const idSet = new Set(selectedProductIds);
-    return availableProducts.filter((p) => idSet.has(p.id));
+    const productsById = new Map(availableProducts.map((product) => [product.id, product]));
+    return selectedProductIds
+      .map((productId) => productsById.get(productId))
+      .filter((product): product is ProductListDto => Boolean(product));
   }, [availableProducts, selectedProductIds]);
 
   const handleSelectAllFiltered = () => {
@@ -121,7 +155,6 @@ const CollectionFormModal = ({
     defaultValues: {
       name: '',
       slug: '',
-      type: 'Seasonal',
       description: '',
       imageUrl: '',
       isActive: true,
@@ -134,30 +167,34 @@ const CollectionFormModal = ({
       reset({
         name: editTarget.name,
         slug: editTarget.slug,
-        type: (editTarget.type as any) ?? 'Seasonal',
         description: editTarget.description ?? '',
         imageUrl: editTarget.imageUrl ?? '',
         isActive: editTarget.isActive,
       });
-      setUploadedPreview(editTarget.imageUrl ?? null);
-      setUploadedFile(null);
-      setImageTab(editTarget.imageUrl ? 'url' : 'upload');
-      setSelectedProductIds(editTarget.productIds ?? []);
+      initialProductIdsRef.current = [];
+      setSelectedProductIds([]);
+      setProductSearch('');
     } else if (open && !editTarget) {
       reset({
         name: '',
         slug: '',
-        type: 'Seasonal',
         description: '',
         imageUrl: '',
         isActive: true,
       });
-      setUploadedPreview(null);
-      setUploadedFile(null);
-      setImageTab('upload');
+      initialProductIdsRef.current = [];
       setSelectedProductIds([]);
+      setProductSearch('');
     }
   }, [open, editTarget, reset]);
+
+  useEffect(() => {
+    if (!open || !editTarget || !collectionDetail || collectionDetail.id !== editTarget.id) return;
+
+    const productIds = collectionDetail.products.map((product) => product.id);
+    initialProductIdsRef.current = productIds;
+    setSelectedProductIds(productIds);
+  }, [open, editTarget, collectionDetail]);
 
   // ─── Auto-generate Slug (create mode only) ──────────────────
   const nameValue = watch('name');
@@ -170,42 +207,7 @@ const CollectionFormModal = ({
   const isActiveValue = watch('isActive');
   const imageUrlValue = watch('imageUrl');
 
-  const previewSrc = uploadedPreview ?? (imageUrlValue || null);
-
   // ─── Handle File Selection ─────────────────────────────────
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadedFile(file);
-    setUploadedPreview(URL.createObjectURL(file));
-    setValue('imageUrl', '');
-  };
-
-  const clearImage = () => {
-    setUploadedFile(null);
-    setUploadedPreview(null);
-    setValue('imageUrl', '');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const uploadFile = async (): Promise<string | null> => {
-    if (!uploadedFile) return imageUrlValue || null;
-    setIsUploading(true);
-    try {
-      const res = await collectionsApi.uploadImage(uploadedFile);
-      return res.data.data.url;
-    } catch (err) {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Image upload failed.');
-      } else {
-        toast.error('Image upload failed.');
-      }
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   // ─── Product Selection Toggle ──────────────────────────────
   const toggleProductSelection = (productId: string) => {
     setSelectedProductIds((prev) =>
@@ -217,18 +219,15 @@ const CollectionFormModal = ({
 
   // ─── Create Mutation ────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: async (data: CollectionFormInput) => {
-      const finalImageUrl = await uploadFile();
-      return collectionsApi.create({
+    mutationFn: (data: CollectionFormInput) =>
+      collectionsApi.create({
         name: data.name,
         slug: data.slug,
-        type: data.type,
         description: data.description || null,
-        imageUrl: finalImageUrl || null,
+        imageUrl: data.imageUrl || null,
         isActive: data.isActive,
-        productIds: selectedProductIds,
-      });
-    },
+        products: toCollectionProducts(selectedProductIds),
+      }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
       toast.success(`Collection "${res.data.data.name}" created successfully!`);
@@ -246,15 +245,18 @@ const CollectionFormModal = ({
   // ─── Update Mutation ────────────────────────────────────────
   const updateMutation = useMutation({
     mutationFn: async (data: CollectionFormInput) => {
-      const finalImageUrl = await uploadFile();
+      const initialProductIds = initialProductIdsRef.current;
+      const productsChanged =
+        selectedProductIds.length !== initialProductIds.length ||
+        selectedProductIds.some((productId, position) => productId !== initialProductIds[position]);
+
       return collectionsApi.update(editTarget!.id, {
         name: data.name,
         slug: data.slug,
-        type: data.type,
         description: data.description || null,
-        imageUrl: finalImageUrl !== undefined ? finalImageUrl : (data.imageUrl || null),
+        imageUrl: data.imageUrl || null,
         isActive: data.isActive,
-        productIds: selectedProductIds,
+        ...(productsChanged && { products: toCollectionProducts(selectedProductIds) }),
       });
     },
     onSuccess: (res) => {
@@ -271,7 +273,8 @@ const CollectionFormModal = ({
     },
   });
 
-  const isPending = createMutation.isPending || updateMutation.isPending || isUploading;
+  const isMembershipLoading = isEdit && isCollectionDetailLoading;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (data: CollectionFormInput) => {
     if (isEdit) {
@@ -297,7 +300,7 @@ const CollectionFormModal = ({
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
                 {isEdit
                   ? 'Update collection details and assigned products.'
-                  : 'Group products into custom thematic or seasonal collections.'}
+                  : 'Group products into a curated collection.'}
               </DialogDescription>
             </div>
           </div>
@@ -320,40 +323,18 @@ const CollectionFormModal = ({
               {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
 
-            {/* Slug & Type Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Slug */}
-              <div className="space-y-1.5">
-                <Label htmlFor="col-slug" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Slug <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="col-slug"
-                  placeholder="e.g. summer-vibes-2026"
-                  className="font-mono text-sm bg-gray-50 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                  {...register('slug')}
-                />
-                {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
-              </div>
-
-              {/* Type */}
-              <div className="space-y-1.5">
-                <Label htmlFor="col-type" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Collection Type <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  id="col-type"
-                  className="w-full px-3 py-2 border border-input rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0 cursor-pointer"
-                  {...register('type')}
-                >
-                  {COLLECTION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                {errors.type && <p className="text-xs text-red-500">{errors.type.message}</p>}
-              </div>
+            {/* Slug */}
+            <div className="space-y-1.5">
+              <Label htmlFor="col-slug" className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Slug <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="col-slug"
+                placeholder="e.g. summer-vibes-2026"
+                className="font-mono text-sm bg-gray-50 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
+                {...register('slug')}
+              />
+              {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
             </div>
 
             {/* Description */}
@@ -377,82 +358,27 @@ const CollectionFormModal = ({
                 Banner / Cover Image <span className="text-gray-400 font-normal">(optional)</span>
               </Label>
 
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium w-fit">
-                <button
-                  type="button"
-                  onClick={() => setImageTab('upload')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                    imageTab === 'upload' ? 'bg-[#FF8C00] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Upload className="w-3 h-3" />
-                  Upload File
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImageTab('url')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors border-l border-gray-200 ${
-                    imageTab === 'url' ? 'bg-[#FF8C00] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <LinkIcon className="w-3 h-3" />
-                  Enter URL
-                </button>
+              <div className="space-y-2">
+                <Input
+                  id="col-image-url"
+                  type="url"
+                  placeholder="https://example.com/cover.jpg"
+                  className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
+                  {...register('imageUrl')}
+                />
+                {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
+                {imageUrlValue && (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <Image
+                      src={imageUrlValue}
+                      alt="Collection cover preview"
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                )}
               </div>
-
-              {imageTab === 'upload' && (
-                <div className="space-y-2">
-                  {previewSrc ? (
-                    <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                      <Image
-                        src={previewSrc}
-                        alt="Collection cover preview"
-                        fill
-                        unoptimized
-                        className="object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={clearImage}
-                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white"
-                        aria-label="Remove image"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label
-                      htmlFor="col-image-upload"
-                      className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#FF8C00]/50 hover:bg-[#FFF3E0]/30 transition-colors"
-                    >
-                      <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                      <p className="text-xs font-medium text-gray-600">Click to upload cover image</p>
-                      <p className="text-[11px] text-gray-400">PNG, JPG, WEBP — max 5MB</p>
-                    </label>
-                  )}
-                  <input
-                    id="col-image-upload"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-              )}
-
-              {imageTab === 'url' && (
-                <div className="space-y-2">
-                  <Input
-                    id="col-image-url"
-                    type="url"
-                    placeholder="https://example.com/cover.jpg"
-                    className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                    {...register('imageUrl')}
-                  />
-                  {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
-                </div>
-              )}
             </div>
 
             {/* Dual-Pane Searchable Product Selector */}
@@ -489,7 +415,7 @@ const CollectionFormModal = ({
                 <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
-                  placeholder="Search products by name, SKU prefix, or category..."
+                  placeholder="Search products by name or SKU prefix..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="pl-8 text-xs h-8 focus-visible:ring-[#FF8C00]"
@@ -539,15 +465,24 @@ const CollectionFormModal = ({
               )}
 
               {/* Available Products List */}
+              {isCollectionDetailError && (
+                <p className="text-xs text-red-500">
+                  Collection membership could not be loaded. Close this dialog and try again before saving.
+                </p>
+              )}
               <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 bg-white shadow-2xs">
-                {isProductsLoading ? (
+                {isMembershipLoading || isProductsLoading ? (
                   <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin text-[#FF8C00]" />
-                    <span>Loading products catalog...</span>
+                    <span>{isMembershipLoading ? 'Loading collection membership...' : 'Loading products catalog...'}</span>
+                  </div>
+                ) : isProductsError ? (
+                  <div className="py-8 text-center text-xs text-red-500">
+                    Products could not be loaded. Close this dialog and try again.
                   </div>
                 ) : filteredProducts.length === 0 ? (
                   <div className="py-8 text-center text-xs text-gray-400">
-                    {productSearch.trim() ? 'No products match your search query.' : 'No active products available.'}
+                    {productSearch.trim() ? 'No products match your search query.' : 'No products available.'}
                   </div>
                 ) : (
                   filteredProducts.map((p) => {
@@ -568,17 +503,12 @@ const CollectionFormModal = ({
                             className="rounded border-gray-300 text-[#FF8C00] focus:ring-[#FF8C00] cursor-pointer"
                           />
                           <div className="w-8 h-8 rounded bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative">
-                            {p.primaryImage?.url ? (
-                              <Image src={p.primaryImage.url} alt={p.name} fill unoptimized className="object-cover" />
-                            ) : (
-                              <Package className="w-4 h-4 text-gray-300" />
-                            )}
+                            <Package className="w-4 h-4 text-gray-300" />
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-black truncate">{p.name}</p>
                             <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
                               {p.skuPrefix && <span className="font-mono bg-gray-100 px-1 rounded">{p.skuPrefix}</span>}
-                              {p.primaryCategory?.name && <span>{p.primaryCategory.name}</span>}
                             </div>
                           </div>
                         </div>
@@ -627,13 +557,13 @@ const CollectionFormModal = ({
             <Button
               type="submit"
               form="collection-form"
-              disabled={isPending}
+              disabled={isPending || isMembershipLoading || isCollectionDetailError || isProductsError}
               className="flex-1 sm:flex-none bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center gap-2"
             >
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isUploading ? 'Uploading cover...' : isEdit ? 'Saving...' : 'Creating...'}
+                  {isEdit ? 'Saving...' : 'Creating...'}
                 </>
               ) : isEdit ? (
                 'Save Changes'

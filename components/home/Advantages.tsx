@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Package, RefreshCcw, Phone } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';

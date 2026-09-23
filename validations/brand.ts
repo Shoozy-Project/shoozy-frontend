@@ -10,13 +10,6 @@ export const brandSchema = z.object({
     .min(1, 'Slug is required')
     .max(180, 'Slug must be at most 180 characters')
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens only'),
-  website: z
-    .string()
-    .url('Must be a valid website URL (e.g. https://nike.com)')
-    .max(500)
-    .nullable()
-    .optional()
-    .or(z.literal('')),
   description: z.string().max(2000, 'Description too long').nullable().optional(),
   logoUrl: z
     .string()

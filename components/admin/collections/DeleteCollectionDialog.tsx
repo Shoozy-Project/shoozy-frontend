@@ -64,7 +64,7 @@ const DeleteCollectionDialog = ({
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
             Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">"{collectionName}"</span>? This action
+            <span className="font-semibold text-black">&quot;{collectionName}&quot;</span>? This action
             cannot be undone and will remove product groupings for this collection.
           </AlertDialogDescription>
         </AlertDialogHeader>

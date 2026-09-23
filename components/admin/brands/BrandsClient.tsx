@@ -15,7 +15,6 @@ import {
   EyeOff,
   Loader2,
   Award,
-  ExternalLink,
   FilterX,
   Building2,
 } from 'lucide-react';
@@ -54,19 +53,6 @@ const formatBrandId = (id: string) => {
   return `BRD-${shortHex}`;
 };
 
-// Ensure URL has protocol for clickable href
-const formatWebsiteHref = (url: string) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `https://${url}`;
-};
-
-// Clean display string for website link (e.g., nike.com)
-const formatWebsiteLabel = (url: string) => {
-  if (!url) return '';
-  return url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-};
-
 // ─── Skeleton Row ────────────────────────────────────────────────
 const SkeletonRow = () => (
   <TableRow>
@@ -77,9 +63,7 @@ const SkeletonRow = () => (
         <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
       </div>
     </TableCell>
-    <TableCell><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></TableCell>
     <TableCell><div className="h-4 w-40 bg-gray-100 rounded animate-pulse" /></TableCell>
-    <TableCell><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></TableCell>
     <TableCell><div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" /></TableCell>
     <TableCell>
       <div className="flex gap-2 justify-end">
@@ -220,7 +204,7 @@ const BrandsClient = () => {
             Brands Directory
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage partner manufacturers, logos, websites, and total linked catalog items.
+            Manage partner manufacturers, logos, descriptions, and availability.
           </p>
         </div>
         <Button
@@ -253,7 +237,7 @@ const BrandsClient = () => {
                 type="text"
                 value={rawSearch}
                 onChange={handleSearchChange}
-                placeholder="Search brands or website..."
+                placeholder="Search brands..."
                 className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C00] focus:ring-offset-0"
                 aria-label="Search brands"
               />
@@ -295,9 +279,7 @@ const BrandsClient = () => {
                 <TableRow className="bg-gray-50/80">
                   <TableHead className="w-[120px]">Brand ID</TableHead>
                   <TableHead>Brand Name</TableHead>
-                  <TableHead>Website</TableHead>
                   <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead className="text-right pr-6">Total Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right pr-4">Actions</TableHead>
                 </TableRow>
@@ -311,7 +293,7 @@ const BrandsClient = () => {
                 {/* Error state */}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center">
+                    <TableCell colSpan={5} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
                         <p className="text-sm font-medium">Failed to load brands directory.</p>
                         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -325,7 +307,7 @@ const BrandsClient = () => {
                 {/* Empty state */}
                 {!isLoading && !isError && brands.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-16 text-center">
+                    <TableCell colSpan={5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-gray-400">
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                           <Building2 className="w-6 h-6 text-gray-300" aria-hidden="true" />
@@ -382,31 +364,9 @@ const BrandsClient = () => {
                         </div>
                       </TableCell>
 
-                      {/* Website */}
-                      <TableCell>
-                        {b.website ? (
-                          <a
-                            href={formatWebsiteHref(b.website)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline font-mono text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            {formatWebsiteLabel(b.website)}
-                            <ExternalLink className="w-3 h-3 opacity-60" aria-hidden="true" />
-                          </a>
-                        ) : (
-                          <span className="text-gray-300 text-xs font-mono">—</span>
-                        )}
-                      </TableCell>
-
                       {/* Description */}
                       <TableCell className="hidden md:table-cell text-gray-500 max-w-xs truncate text-xs">
                         {b.description ?? '—'}
-                      </TableCell>
-
-                      {/* Total Products */}
-                      <TableCell className="font-semibold text-black text-right pr-6 text-sm">
-                        {b._count?.products ?? 0} <span className="text-xs font-normal text-gray-400">items</span>
                       </TableCell>
 
                       {/* Status */}

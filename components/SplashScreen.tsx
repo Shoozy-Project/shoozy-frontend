@@ -16,6 +16,8 @@ export default function SplashScreen({ forceShow = false }: SplashScreenProps) {
     // Only show on hard page load (first visit per session)
     const shown = sessionStorage.getItem('shoezy_splash_shown');
     if (!shown) {
+      // This mount-only client initialization mirrors sessionStorage state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFirstVisit(true);
       sessionStorage.setItem('shoezy_splash_shown', '1');
       // Auto-dismiss after 1.8s (only for first-visit mode)

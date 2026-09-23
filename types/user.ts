@@ -1,46 +1,59 @@
-// ─── Admin Users Types ───────────────────────────────────────────
+export type CustomerStatus = 'ACTIVE' | 'INACTIVE';
 
-export type UserRoleType = 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN';
-export type UserStatusType = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-
-export interface UserDto {
+export interface CustomerDto {
   id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
   email: string;
   phone: string | null;
-  role: UserRoleType;
-  status: UserStatusType;
-  governorate: string;
+  firstName: string;
+  lastName: string;
+  status: CustomerStatus;
+  provider: 'EMAIL' | 'GOOGLE' | 'FACEBOOK';
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
-  _count?: {
-    orders: number;
-  };
 }
 
-export interface UserListParams {
+export interface CustomerDetailDto extends CustomerDto {
+  addresses: Array<{
+    id: string;
+    label: string | null;
+    recipientName: string;
+    phone: string;
+    countryCode: string;
+    state: string;
+    city: string;
+    area: string | null;
+    postalCode: string | null;
+    line1: string;
+    line2: string | null;
+    isDefault: boolean;
+  }>;
+  summary: {
+    totalOrders: number;
+    deliveredOrders: number;
+    cancelledOrders: number;
+    netPaidMinor: string;
+  };
+  recentOrders: Array<{
+    id: string;
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    totalMinor: string;
+    paidMinor: string;
+    refundedMinor: string;
+    currency: string;
+    createdAt: string;
+  }>;
+}
+
+export interface CustomerListParams {
   page?: number;
   limit?: number;
   search?: string;
-  role?: UserRoleType;
-  status?: UserStatusType;
-  governorate?: string;
-  sortBy?: 'firstName' | 'lastName' | 'email' | 'createdAt';
+  status?: CustomerStatus;
+  sortBy?: 'createdAt' | 'firstName' | 'email';
   sortOrder?: 'asc' | 'desc';
-}
-
-export interface UpdateUserPayload {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string | null;
-  role?: UserRoleType;
-  status?: UserStatusType;
-  governorate?: string;
-}
-
-export interface ToggleUserStatusPayload {
-  status: UserStatusType;
 }

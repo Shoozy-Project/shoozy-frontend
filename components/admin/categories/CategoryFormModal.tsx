@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -8,10 +8,7 @@ import { toast } from 'sonner';
 import {
   Loader2,
   Link as LinkIcon,
-  Upload,
   Tag,
-  X,
-  ImageOff,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import Image from 'next/image';
@@ -39,8 +36,6 @@ interface CategoryFormModalProps {
   editTarget?: CategoryDto | null;
 }
 
-type ImageTab = 'url' | 'upload';
-
 const generateSlug = (name: string) =>
   name
     .toLowerCase()
@@ -55,11 +50,6 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   const isEdit = !!editTarget;
 
   // ─── Image upload state ──────────────────────────────────────
-  const [imageTab, setImageTab] = useState<ImageTab>('upload');
-  const [uploadedPreview, setUploadedPreview] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -93,9 +83,6 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         isActive: editTarget.isActive,
         parentId: editTarget.parentId ?? null,
       });
-      setUploadedPreview(editTarget.imageUrl ?? null);
-      setUploadedFile(null);
-      setImageTab(editTarget.imageUrl ? 'url' : 'upload');
     } else if (open && !editTarget) {
       reset({
         name: '',
@@ -106,9 +93,6 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         isActive: true,
         parentId: null,
       });
-      setUploadedPreview(null);
-      setUploadedFile(null);
-      setImageTab('upload');
     }
   }, [open, editTarget, reset]);
 
@@ -124,59 +108,20 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   const imageUrlValue = watch('imageUrl');
 
   // ─── Resolved preview — file takes precedence ────────────────
-  const previewSrc = uploadedPreview ?? (imageUrlValue || null);
-
   // ─── Handle local file selection ─────────────────────────────
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadedFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setUploadedPreview(objectUrl);
-    // Clear URL field when a file is selected
-    setValue('imageUrl', '');
-  };
-
-  const clearImage = () => {
-    setUploadedFile(null);
-    setUploadedPreview(null);
-    setValue('imageUrl', '');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   // ─── Upload file to backend, returns URL ─────────────────────
-  const uploadFileAndGetUrl = async (): Promise<string | null> => {
-    if (!uploadedFile) return imageUrlValue || null;
-    setIsUploading(true);
-    try {
-      const res = await categoriesApi.uploadImage(uploadedFile);
-      return res.data.data.url;
-    } catch (err) {
-      if (isAxiosError(err)) {
-        toast.error(err.response?.data?.error?.message ?? 'Image upload failed.');
-      } else {
-        toast.error('Image upload failed.');
-      }
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   // ─── Create mutation ─────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: async (data: CategoryFormInput) => {
-      const finalImageUrl = await uploadFileAndGetUrl();
-      return categoriesApi.create({
+    mutationFn: (data: CategoryFormInput) =>
+      categoriesApi.create({
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        imageUrl: finalImageUrl || null,
+        imageUrl: data.imageUrl || null,
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive,
         parentId: data.parentId || null,
-      });
-    },
+      }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success(`Category "${res.data.data.name}" created successfully!`);
@@ -198,18 +143,16 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
 
   // ─── Update mutation ─────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: async (data: CategoryFormInput) => {
-      const finalImageUrl = await uploadFileAndGetUrl();
-      return categoriesApi.update(editTarget!.id, {
+    mutationFn: (data: CategoryFormInput) =>
+      categoriesApi.update(editTarget!.id, {
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        imageUrl: finalImageUrl !== undefined ? finalImageUrl : (data.imageUrl || null),
+        imageUrl: data.imageUrl || null,
         sortOrder: data.sortOrder ?? 0,
         isActive: data.isActive,
         parentId: data.parentId || null,
-      });
-    },
+      }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success(`Category "${res.data.data.name}" updated successfully!`);
@@ -229,7 +172,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
     },
   });
 
-  const isPending = createMutation.isPending || updateMutation.isPending || isUploading;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (data: CategoryFormInput) => {
     if (isEdit) {
@@ -313,115 +256,32 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                 Category Image <span className="text-gray-400 font-normal">(optional)</span>
               </Label>
 
-              {/* Tab switcher */}
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium w-fit">
-                <button
-                  type="button"
-                  onClick={() => setImageTab('upload')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                    imageTab === 'upload'
-                      ? 'bg-[#FF8C00] text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Upload className="w-3 h-3" aria-hidden="true" />
-                  Upload File
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImageTab('url')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors border-l border-gray-200 ${
-                    imageTab === 'url'
-                      ? 'bg-[#FF8C00] text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <LinkIcon className="w-3 h-3" aria-hidden="true" />
-                  Enter URL
-                </button>
-              </div>
-
-              {/* Upload from device */}
-              {imageTab === 'upload' && (
-                <div className="space-y-2">
-                  {/* Preview */}
-                  {previewSrc ? (
-                    <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                      <Image
-                        src={previewSrc}
-                        alt="Category preview"
-                        fill
-                        className="object-cover"
-                        unoptimized={previewSrc.startsWith('blob:')}
-                      />
-                      <button
-                        type="button"
-                        onClick={clearImage}
-                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
-                        aria-label="Remove image"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label
-                      htmlFor="cat-file-upload"
-                      className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#FF8C00]/50 hover:bg-[#FFF3E0]/30 transition-colors"
-                    >
-                      <div className="p-3 rounded-full bg-gray-100 mb-2">
-                        <Upload className="w-5 h-5 text-gray-400" aria-hidden="true" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-600">Click to upload image</p>
-                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP — max 5MB</p>
-                    </label>
-                  )}
-                  <input
-                    id="cat-file-upload"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    aria-label="Upload category image"
+              <div className="space-y-2">
+                <div className="relative flex items-center gap-2">
+                  <div className="absolute left-3 text-gray-400">
+                    <LinkIcon className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                  <Input
+                    id="cat-image-url"
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    className="pl-9 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
+                    {...register('imageUrl')}
                   />
-                  {uploadedFile && (
-                    <p className="text-xs text-gray-500 truncate">
-                      Selected: {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(0)} KB)
-                    </p>
-                  )}
                 </div>
-              )}
-
-              {/* URL input */}
-              {imageTab === 'url' && (
-                <div className="space-y-2">
-                  <div className="relative flex items-center gap-2">
-                    <div className="absolute left-3 text-gray-400">
-                      <LinkIcon className="w-4 h-4" aria-hidden="true" />
-                    </div>
-                    <Input
-                      id="cat-image-url"
-                      type="url"
-                      placeholder="https://example.com/image.jpg"
-                      className="pl-9 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                      {...register('imageUrl')}
+                {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
+                {imageUrlValue && (
+                  <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <Image
+                      src={imageUrlValue}
+                      alt="URL preview"
+                      fill
+                      className="object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   </div>
-                  {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
-                  {/* URL preview */}
-                  {imageUrlValue && (
-                    <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                      <Image
-                        src={imageUrlValue}
-                        alt="URL preview"
-                        fill
-                        className="object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Active Status */}
@@ -464,7 +324,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  {isUploading ? 'Uploading image...' : isEdit ? 'Saving...' : 'Creating...'}
+                  {isEdit ? 'Saving...' : 'Creating...'}
                 </>
               ) : isEdit ? (
                 'Save Changes'

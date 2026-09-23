@@ -3,24 +3,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, ExternalLink, Sparkles, Star, Tag, CheckCircle2, AlertTriangle, 
-  ShoppingBag, ShieldCheck, Truck, ArrowRight, Loader2, Image as ImageIcon
-} from 'lucide-react';
+import { ExternalLink, AlertTriangle, ShoppingBag, ShieldCheck, Truck, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { productsApi, type ProductDto } from '@/lib/api/products';
+import { productsApi, type ProductListDto } from '@/lib/api/products';
 
 interface ProductPreviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product: ProductDto | null;
+  product: ProductListDto;
 }
 
 export default function ProductPreviewModal({
@@ -28,43 +23,37 @@ export default function ProductPreviewModal({
   onOpenChange,
   product,
 }: ProductPreviewModalProps) {
-  if (!product) return null;
-
   // Fetch complete product details dynamically via React Query
-  const { data: fullProductData, isLoading } = useQuery({
+  const { data: fullProductData, isLoading, isError } = useQuery({
     queryKey: ['product-detail', product.id],
     queryFn: () => productsApi.get(product.id).then((res) => res.data.data),
     enabled: open && !!product.id,
     staleTime: 60 * 1000,
   });
 
-  const p = fullProductData || product;
+  const p = fullProductData;
 
   // Image Gallery state
-  const mediaList = p.media && p.media.length > 0
-    ? p.media
-    : p.primaryImage
-      ? [p.primaryImage]
-      : [{ id: 'fallback', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800', isPrimary: true, altText: null, position: 0, variantId: null }];
+  const mediaList = p?.media ?? [];
 
-  const [selectedImage, setSelectedImage] = useState<string>(mediaList[0]?.url || '');
-  const activeImage = selectedImage || mediaList[0]?.url || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800';
+  const [selectedImage, setSelectedImage] = useState<string>('');
+  const activeImage = selectedImage || mediaList[0]?.url || '';
 
   // Variant selections
-  const variants = p.variants || [];
+  const variants = p?.variants || [];
   const [selectedSize, setSelectedSize] = useState<string>('42');
   const [selectedColor, setSelectedColor] = useState<string>('Black');
 
   // Calculate pricing & discount
-  const basePriceNum = Number(p.basePrice) || 0;
-  const comparePriceNum = p.compareAtPrice ? Number(p.compareAtPrice) : 0;
+  const basePriceNum = Number(p?.basePrice) || 0;
+  const comparePriceNum = p?.compareAtPrice ? Number(p.compareAtPrice) : 0;
   const hasDiscount = comparePriceNum > basePriceNum;
   const discountPercent = hasDiscount
     ? Math.round(((comparePriceNum - basePriceNum) / comparePriceNum) * 100)
     : 0;
 
   // Stock assessment
-  const totalStock = p.totalStock ?? variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+  const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
   const stockBadgeColor = totalStock > 5 
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : totalStock > 0 
@@ -78,7 +67,7 @@ export default function ProductPreviewModal({
       : 'Out of Stock';
 
   // Category breadcrumb
-  const categoryName = p.primaryCategory?.name || p.categories?.[0]?.name || 'Footwear';
+  const categoryName = p?.categories.find((category) => category.isPrimary)?.name || p?.categories[0]?.name || 'Footwear';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,7 +82,7 @@ export default function ProductPreviewModal({
             </span>
           </div>
           <a
-            href={`/product/${p.slug}`}
+            href={`/product/${product.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#FF8C00] hover:underline flex items-center gap-1 font-medium transition-all"
@@ -102,10 +91,16 @@ export default function ProductPreviewModal({
           </a>
         </div>
 
-        {isLoading ? (
+        {isLoading || !p ? (
           <div className="h-[480px] flex flex-col items-center justify-center gap-3 text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin text-[#FF8C00]" />
-            <p className="text-xs font-medium">Loading high-fidelity storefront preview...</p>
+            {isError ? (
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            ) : (
+              <Loader2 className="w-8 h-8 animate-spin text-[#FF8C00]" />
+            )}
+            <p className="text-xs font-medium">
+              {isError ? 'Unable to load the product preview.' : 'Loading high-fidelity storefront preview...'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 p-6 md:p-8 gap-8 max-h-[85vh] overflow-y-auto">

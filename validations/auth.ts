@@ -13,10 +13,6 @@ export const loginSchema = z.object({
 // ─── Register ──────────────────────────────────────────────────
 export const registerSchema = z
   .object({
-    gender: z.enum(['male', 'female'], {
-      required_error: 'Please select your gender',
-      invalid_type_error: 'Please select your gender',
-    }),
     firstName: z
       .string()
       .min(1, 'First name is required')
@@ -36,7 +32,6 @@ export const registerSchema = z
       .optional()
       .or(z.literal(''))
       .transform((v) => (v === '' ? undefined : v)),
-    governorate: z.string().min(1, 'Please select your governorate'),
     password: z
       .string()
       .min(12, 'Password must be at least 12 characters')

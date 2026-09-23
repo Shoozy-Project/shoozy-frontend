@@ -6,10 +6,11 @@ export const metadata: Metadata = {
   description: 'Add a new premium shoe variant and options to the Shoezy catalog.',
 };
 
-export default function AddProductPage() {
+export default async function AddProductPage({ searchParams }: PageProps<'/admin/products/new'>) {
+  const { edit } = await searchParams;
   return (
     <div className="max-w-7xl mx-auto py-2">
-      <AddProductForm />
+      <AddProductForm productId={typeof edit === 'string' ? edit : undefined} />
     </div>
   );
 }

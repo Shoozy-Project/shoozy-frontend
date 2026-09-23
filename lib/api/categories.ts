@@ -38,19 +38,5 @@ export const categoriesApi = {
       params: { isActive: true, limit: 100, sortBy: 'name', sortOrder: 'asc' },
     }),
 
-  /**
-   * POST /admin/upload/image
-   * Upload an image file from the user's device.
-   * Returns { url: string } — the public URL to store in imageUrl field.
-   */
-  uploadImage: (file: File) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    return apiClient.post<ApiSuccess<{ url: string; filename: string; size: number; mimetype: string }>>(
-      '/admin/upload/image',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
-  },
 };
 

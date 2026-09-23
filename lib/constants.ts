@@ -28,4 +28,5 @@ export const GOVERNORATES: { code: string; name: string }[] = [
 
 // API base URL
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5000/api/v1';
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://shoozybackend-production-bede.up.railway.app/api/v1';

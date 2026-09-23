@@ -45,9 +45,6 @@ import type { CategoryDto, CategoryListParams } from '@/types/category';
 const CategoryFormModal = dynamic(() => import('./CategoryFormModal'), { ssr: false });
 const DeleteCategoryDialog = dynamic(() => import('./DeleteCategoryDialog'), { ssr: false });
 
-// ─── Constants ──────────────────────────────────────────────────
-const PAGE_LIMIT_OPTIONS = [10, 20, 50];
-
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 // ─── Category Thumbnail Component ───────────────────────────────

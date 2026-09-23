@@ -38,17 +38,4 @@ export const brandsApi = {
       params: { isActive: true, limit: 100, sortBy: 'name', sortOrder: 'asc' },
     }),
 
-  /**
-   * POST /admin/upload/image
-   * Upload brand logo file from device. Returns public URL.
-   */
-  uploadLogo: (file: File) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    return apiClient.post<ApiSuccess<{ url: string; filename: string; size: number; mimetype: string }>>(
-      '/admin/upload/image',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
-  },
 };

@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { promotionsApi, type CouponDto } from '@/lib/api/promotions';
+import { formatMinorMoney } from '@/lib/format-money';
 import dynamic from 'next/dynamic';
 
 const CouponFormModal = dynamic(() => import('./CouponFormModal'), { ssr: false });
@@ -42,7 +43,7 @@ export default function CouponsTab() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['admin-coupons'],
     queryFn: async () => {
-      const res = await promotionsApi.listCoupons();
+      const res = await promotionsApi.listCoupons({ limit: 100 });
       return res.data.data;
     },
   });
@@ -51,7 +52,7 @@ export default function CouponsTab() {
     console.error('Error fetching admin coupons:', error);
   }
 
-  const coupons = Array.isArray(data) ? data : [];
+  const coupons = data?.items ?? [];
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
@@ -65,7 +66,7 @@ export default function CouponsTab() {
 
   const filteredCoupons = coupons.filter(
     (c) =>
-      c.code.toLowerCase().includes(search.toLowerCase()) ||
+      (c.code ?? '').toLowerCase().includes(search.toLowerCase()) ||
       c.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -86,13 +87,13 @@ export default function CouponsTab() {
 
   const formatValue = (c: CouponDto) => {
     if (c.type === 'FREE_SHIPPING') return 'Free Shipping';
-    if (c.type === 'FIXED_AMOUNT') return `${(c.value / 1000).toFixed(3)} TND`;
-    return `${c.value}% OFF`;
+    if (c.type === 'FIXED_AMOUNT') return formatMinorMoney(c.value, c.currency ?? 'TND');
+    return `${(Number(c.value) / 100).toFixed(2)}% OFF`;
   };
 
   const formatMinOrder = (c: CouponDto) => {
-    if (!c.minOrderMinor || c.minOrderMinor === 0) return 'None';
-    return `${(c.minOrderMinor / 1000).toFixed(3)} TND`;
+    if (!c.minOrderMinor || c.minOrderMinor === '0') return 'None';
+    return formatMinorMoney(c.minOrderMinor, 'TND');
   };
 
   return (
@@ -167,7 +168,7 @@ export default function CouponsTab() {
                     <TableCell colSpan={9} className="text-center py-12">
                       <Sparkles className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                       <p className="text-sm font-semibold text-gray-700">No coupons found</p>
-                      <p className="text-xs text-gray-400 mt-1">Create your first promo code using the "+ Add Code" button.</p>
+                      <p className="text-xs text-gray-400 mt-1">Create your first promo code using the &quot;+ Add Code&quot; button.</p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -181,14 +182,15 @@ export default function CouponsTab() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-gray-900 text-sm bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                              {c.code}
+                              {c.code ?? 'Automatic'}
                             </span>
                             <button
-                              onClick={() => handleCopyCode(c.code)}
+                              onClick={() => c.code && handleCopyCode(c.code)}
+                              disabled={!c.code}
                               title="Copy Code"
                               className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
                             >
-                              {copiedCode === c.code ? (
+                              {c.code && copiedCode === c.code ? (
                                 <Check className="w-3.5 h-3.5 text-green-600" />
                               ) : (
                                 <Copy className="w-3.5 h-3.5" />
@@ -211,7 +213,7 @@ export default function CouponsTab() {
                           {formatMinOrder(c)}
                         </TableCell>
                         <TableCell className="text-xs font-mono text-gray-600">
-                          {c.usageCount} {c.usageLimit ? `/ ${c.usageLimit}` : 'times'}
+                          {c.redemptionCount} {c.usageLimit ? `/ ${c.usageLimit}` : 'times'}
                         </TableCell>
                         <TableCell>
                           <Badge className={`text-[10px] font-semibold px-2 py-0.5 ${status.color}`}>

@@ -6,6 +6,7 @@ export const productOptionSchema = z.object({
 });
 
 export const productVariantSchema = z.object({
+  id: z.string().uuid().optional(),
   sku: z.string().min(1, 'SKU is required'),
   title: z.string().min(1, 'Title is required'),
   stockQuantity: z.number().int().min(0, 'Stock quantity cannot be negative'),
@@ -16,6 +17,7 @@ export const productVariantSchema = z.object({
   barcode: z.string().optional(),
   isActive: z.boolean().default(true),
   colorImage: z.string().optional().nullable(),
+  selectedOptionValueKeys: z.record(z.string(), z.string()).default({}),
   optionValues: z
     .array(
       z.object({
@@ -54,14 +56,29 @@ export const addProductSchema = z.object({
   gender: z.enum(['MALE', 'FEMALE', 'UNISEX'], {
     required_error: 'Please select a target gender',
   }),
-  promoBadge: z.enum(['NONE', 'FEATURED', 'HOT_DEAL', 'LIMITED_EDITION', 'CUSTOM']).default('NONE'),
-  customBadgeText: z.string().max(40, 'Custom badge text is too long').optional().nullable(),
-  isFeatured: z.boolean().default(false),
   status: z.enum(['DRAFT', 'ACTIVE']).default('DRAFT'),
   categories: z.array(z.string()).min(1, 'Please select at least one category'),
   options: z.array(productOptionSchema).default([]),
   variants: z.array(productVariantSchema).default([]),
   images: z.array(productImageSchema).default([]),
+}).superRefine((data, context) => {
+  data.variants.forEach((variant, variantIndex) => {
+    const selections = variant.selectedOptionValueKeys;
+    const hasOneValidValuePerOption =
+      Object.keys(selections).length === data.options.length &&
+      data.options.every((option, optionIndex) => {
+        const selectedValueKey = selections[`option-${optionIndex}`];
+        return option.values.some((_, valueIndex) => selectedValueKey === `value-${optionIndex}-${valueIndex}`);
+      });
+
+    if (!hasOneValidValuePerOption) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['variants', variantIndex, 'selectedOptionValueKeys'],
+        message: 'Each variant must select one value for every product option',
+      });
+    }
+  });
 });
 
 export type AddProductInput = z.infer<typeof addProductSchema>;

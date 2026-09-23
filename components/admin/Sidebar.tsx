@@ -50,14 +50,14 @@ export const navGroups: NavGroup[] = [
   {
     groupLabel: 'MARKETING',
     items: [
-      { label: 'Promotions', href: '/admin/promotions', icon: Tag },
+      { label: 'Discounts / Coupons', href: '/admin/discounts', icon: Tag },
       { label: 'Reviews', href: '/admin/reviews', icon: Star },
     ],
   },
   {
     groupLabel: 'SYSTEM',
     items: [
-      { label: 'Users', href: '/admin/users', icon: Users },
+      { label: 'Customers', href: '/admin/customers', icon: Users },
       { label: 'Settings', href: '/admin/settings', icon: Settings },
     ],
   },
@@ -71,9 +71,7 @@ interface SidebarProps {
     firstName: string;
     lastName: string;
     email: string;
-    role: string;
   };
-  isSuperAdmin: boolean;
   onLogout: () => void;
   loggingOut: boolean;
   onPrefetch?: (href: string) => void;
@@ -81,7 +79,6 @@ interface SidebarProps {
 
 export default function Sidebar({
   user,
-  isSuperAdmin,
   onLogout,
   loggingOut,
   onPrefetch,
@@ -104,27 +101,17 @@ export default function Sidebar({
           </div>
         </Link>
         <span
-          className={`inline-flex items-center gap-1 text-[9px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-full border shadow-xs ${
-            isSuperAdmin
-              ? 'text-amber-800 bg-amber-50 border-amber-200'
-              : 'text-[#FF8C00] bg-orange-50 border-[#FF8C00]/30'
-          }`}
+          className="inline-flex items-center gap-1 text-[9px] font-extrabold tracking-widest uppercase px-2 py-0.5 rounded-full border shadow-xs text-[#FF8C00] bg-orange-50 border-[#FF8C00]/30"
         >
           <Sparkles className="w-2.5 h-2.5 text-[#FF8C00]" />
-          {isSuperAdmin ? 'SUPER' : 'ADMIN'}
+          ADMIN
         </span>
       </div>
 
       {/* ── Navigation List with Group Headers ── */}
       <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 custom-scrollbar" aria-label="Sidebar navigation">
         {navGroups.map((group) => {
-          // Filter out restricted items for operational ADMINs
-          const visibleItems = group.items.filter((item) => {
-            if (user.role === 'ADMIN') {
-              return item.href !== '/admin/users' && item.href !== '/admin/settings';
-            }
-            return true;
-          });
+          const visibleItems = group.items;
 
           if (visibleItems.length === 0) return null;
 
@@ -180,7 +167,7 @@ export default function Sidebar({
             </p>
             <p className="text-[10px] font-medium text-gray-400 truncate flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-[#FF8C00]" />
-              {isSuperAdmin ? 'Super Administrator' : 'Administrator'}
+              Administrator
             </p>
           </div>
         </div>

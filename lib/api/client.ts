@@ -1,12 +1,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5000/api/v1';
+import { API_BASE_URL } from '@/lib/constants';
 
 // ─── Axios Instance ────────────────────────────────────────────
 export const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
   withCredentials: true, // sends refresh cookie on every request
-  headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
 });
 
@@ -80,7 +78,7 @@ apiClient.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${API_BASE}/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true },
         );

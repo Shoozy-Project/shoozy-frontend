@@ -66,7 +66,7 @@ const DeleteProductDialog = ({
           </div>
           <AlertDialogDescription className="text-sm text-gray-600 leading-relaxed">
             Are you sure you want to delete{' '}
-            <span className="font-semibold text-black">"{productName}"</span>?
+            <span className="font-semibold text-black">&quot;{productName}&quot;</span>?
             This will unpublish the product, remove its variant mappings, and move it to archived state.
           </AlertDialogDescription>
         </AlertDialogHeader>

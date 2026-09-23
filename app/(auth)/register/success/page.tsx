@@ -1,23 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Mail, CheckCircle } from 'lucide-react';
 import { authApi } from '@/lib/api/auth';
+
+const subscribeToLocation = () => () => undefined;
+const getEmailFromLocation = () => new URLSearchParams(window.location.search).get('email') ?? '';
 
 export default function RegisterSuccessPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const email = useSyncExternalStore(subscribeToLocation, getEmailFromLocation, () => '');
 
-  // Note: email may not be available in session storage on a real app.
-  // In a real flow, pass via URL param or store temporarily.
   const handleResend = async () => {
-    if (loading || cooldown > 0) return;
+    if (!email || loading || cooldown > 0) return;
     setLoading(true);
+    setResendError(null);
     try {
-      // Attempt resend — without email we can't do much here in MVP.
-      // In production: pass email via URL query param ?email=...
+      await authApi.resendVerification(email);
       setSent(true);
       let t = 60;
       setCooldown(t);
@@ -26,6 +29,8 @@ export default function RegisterSuccessPage() {
         setCooldown(t);
         if (t <= 0) clearInterval(interval);
       }, 1000);
+    } catch {
+      setResendError('The verification email could not be resent. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -60,18 +65,19 @@ export default function RegisterSuccessPage() {
       </div>
 
       {/* Resend */}
-      {sent ? (
+      {sent && (
         <p className="text-sm text-[#16a34a] font-medium mb-6">
           ✓ Verification email sent! Check your inbox.
         </p>
-      ) : (
-        <p className="text-sm text-[#6b7280] mb-2">
+      )}
+      {resendError && <p className="text-sm text-red-600 font-medium mb-4">{resendError}</p>}
+      <p className="text-sm text-[#6b7280] mb-2">
           Didn&apos;t receive it?{' '}
           <button
             id="resend-verification-btn"
             type="button"
             onClick={handleResend}
-            disabled={loading || cooldown > 0}
+            disabled={!email || loading || cooldown > 0}
             className="font-semibold text-black hover:text-[#FF8C00] transition-colors underline-offset-2 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading
@@ -81,7 +87,6 @@ export default function RegisterSuccessPage() {
                 : 'Resend verification email'}
           </button>
         </p>
-      )}
 
       {/* Back to Login */}
       <Link

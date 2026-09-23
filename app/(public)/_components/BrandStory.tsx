@@ -10,7 +10,7 @@ export default function BrandStory() {
               className="font-serif text-3xl md:text-5xl tracking-widest text-foreground/10 uppercase"
               style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
             >
-              L'ARTISANAT
+              L&apos;ARTISANAT
             </h2>
           </div>
 

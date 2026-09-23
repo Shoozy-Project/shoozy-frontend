@@ -1,18 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
   value: string;
-  change: string;
-  positive: boolean;
   delay?: number;
 }
 
-function StatCard({ icon, label, value, change, positive, delay = 0 }: StatCardProps) {
+function StatCard({ icon, label, value, delay = 0 }: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -25,16 +22,6 @@ function StatCard({ icon, label, value, change, positive, delay = 0 }: StatCardP
         <div className="p-3 rounded-lg bg-[#fff3e0] text-[#FF8C00]">
           {icon}
         </div>
-        <span
-          className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-            positive
-              ? 'bg-green-500/10 text-green-700'
-              : 'bg-red-500/10 text-red-700'
-          }`}
-        >
-          {positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {change}
-        </span>
       </div>
 
       {/* Value */}
@@ -51,8 +38,6 @@ interface DashboardStatsProps {
     icon: React.ReactNode;
     label: string;
     value: string;
-    change: string;
-    positive: boolean;
   }[];
 }
 

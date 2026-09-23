@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { 
-  Package, Save, ArrowLeft, AlertCircle, Info, Image as ImageIcon,
-  CheckCircle2, Loader2, PlusCircle, Trash2, Bold, Italic, List as ListIcon, Code, Eye,
-  Star, Sparkles, Tag, Upload, Link as LinkIcon, MoveUp, MoveDown, Palette
+  Save, ArrowLeft, AlertCircle, Info, Image as ImageIcon,
+  Loader2, PlusCircle, Trash2, Bold, Italic, List as ListIcon, Code, Eye,
+  Star, Upload, Link as LinkIcon, MoveUp, MoveDown, Palette
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -19,19 +19,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { addProductSchema, type AddProductInput } from '@/validations/product';
 import { productsApi } from '@/lib/api/products';
-import { categoriesApi } from '@/lib/api/categories';
-import { brandsApi } from '@/lib/api/brands';
 import { isAxiosError } from 'axios';
+import { majorToMinorString } from '@/lib/format-money';
+
+type ProductFormVariant = AddProductInput['variants'][number];
+
+const optionKey = (optionIndex: number) => `option-${optionIndex}`;
+const valueKey = (optionIndex: number, valueIndex: number) => `value-${optionIndex}-${valueIndex}`;
+const variantKey = (variantIndex: number) => `variant-${variantIndex}`;
+
+const hasSameOptionSelections = (left: Record<string, string>, right: Record<string, string>) => {
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
+};
 
 interface GalleryItem {
   id: string;
   url: string;
+  file?: File;
+  existingId?: string;
+  variantId?: string | null;
   isPrimary: boolean;
   colorName?: string | null;
   position: number;
 }
 
-export default function AddProductForm() {
+export default function AddProductForm({ productId }: { productId?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -44,20 +57,20 @@ export default function AddProductForm() {
   const [pastedUrl, setPastedUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // ─── Live active categories & brands via React Query ────────
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories', 'active'],
-    queryFn: () => categoriesApi.listActive().then((r) => r.data.data.items),
+  const formContextQuery = useQuery({
+    queryKey: ['product-form-context'],
+    queryFn: () => productsApi.formContext().then((r) => r.data.data),
     staleTime: 5 * 60 * 1000,
   });
-  const liveCategories = categoriesData ?? [];
-
-  const { data: brandsData } = useQuery({
-    queryKey: ['brands', 'active'],
-    queryFn: () => brandsApi.listActive().then((r) => r.data.data.items),
-    staleTime: 5 * 60 * 1000,
+  const formContext = formContextQuery.data;
+  const liveCategories = formContext?.categories.filter((category) => category.isActive) ?? [];
+  const liveBrands = formContext?.brands ?? [];
+  const productDetailQuery = useQuery({
+    queryKey: ['product-detail', productId],
+    queryFn: () => productsApi.get(productId!).then((r) => r.data.data),
+    enabled: !!productId,
   });
-  const liveBrands = brandsData ?? [];
+  const productDetail = productDetailQuery.data;
 
   // Form initialization
   const {
@@ -65,16 +78,14 @@ export default function AddProductForm() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors }
-  } = useForm<any>({
-    resolver: zodResolver(addProductSchema) as any,
+  } = useForm<AddProductInput>({
+    resolver: zodResolver(addProductSchema) as Resolver<AddProductInput>,
     defaultValues: {
       status: 'DRAFT',
       gender: 'UNISEX',
       basePrice: 0,
-      promoBadge: 'NONE',
-      customBadgeText: '',
-      isFeatured: false,
       options: [],
       variants: [],
       categories: [],
@@ -83,11 +94,14 @@ export default function AddProductForm() {
   });
 
   const productName = watch('name');
+  const selectedBrandId = watch('brandId');
   const basePrice = watch('basePrice') || 0;
   const skuPrefix = watch('skuPrefix') || '';
   const description = watch('description') || '';
-  const promoBadge = watch('promoBadge');
   const variants = watch('variants') || [];
+  const liveSizeGuides = formContext?.sizeGuides.filter(
+    (sizeGuide) => !sizeGuide.brandId || sizeGuide.brandId === selectedBrandId
+  ) ?? [];
 
   // Track if admin manually overrode the SKU prefix
   const [isSkuPrefixTouched, setIsSkuPrefixTouched] = useState(false);
@@ -157,6 +171,7 @@ export default function AddProductForm() {
 
   // Auto-generate slug and SKU Prefix from name
   useEffect(() => {
+    if (productId) return;
     if (productName) {
       const generatedSlug = productName
         .toLowerCase()
@@ -169,13 +184,68 @@ export default function AddProductForm() {
         setValue('skuPrefix', suggestedPrefix);
       }
     }
-  }, [productName, isSkuPrefixTouched, setValue]);
+  }, [productId, productName, isSkuPrefixTouched, setValue]);
 
   // Manage option inputs (e.g. Size, Color)
   const [optionInputs, setOptionInputs] = useState<{ name: string; rawValues: string }[]>([
     { name: 'Size', rawValues: '40, 41, 42' },
     { name: 'Color', rawValues: 'Black, White' }
   ]);
+
+  useEffect(() => {
+    if (!productDetail) return;
+    setOptionInputs(productDetail.options.map((option) => ({
+      name: option.name,
+      rawValues: option.values.map((value) => value.value).join(', '),
+    })));
+    reset({
+      name: productDetail.name,
+      slug: productDetail.slug,
+      brandId: productDetail.brandId,
+      sizeGuideId: productDetail.sizeGuideId,
+      skuPrefix: productDetail.skuPrefix,
+      shortDescription: productDetail.shortDescription,
+      description: productDetail.description,
+      basePrice: Number(productDetail.basePrice),
+      compareAtPrice: productDetail.compareAtPrice ? Number(productDetail.compareAtPrice) : null,
+      material: productDetail.material,
+      gender: productDetail.gender === 'MALE' || productDetail.gender === 'FEMALE'
+        ? productDetail.gender
+        : 'UNISEX',
+      status: productDetail.status,
+      categories: productDetail.categories.map((category) => category.id),
+      options: productDetail.options.map((option) => ({ name: option.name, values: option.values.map((value) => value.value) })),
+      variants: productDetail.variants.map((variant) => ({
+        id: variant.id,
+        sku: variant.sku,
+        title: variant.title,
+        stockQuantity: variant.stockQuantity,
+        price: Number(variant.priceMinor) / 1000,
+        barcode: variant.barcode ?? '',
+        isActive: variant.isActive,
+        colorImage: null,
+        selectedOptionValueKeys: Object.fromEntries(
+          variant.optionValues.flatMap((optionValue) => {
+            const optionIndex = productDetail.options.findIndex((option) => option.id === optionValue.option.id);
+            const valueIndex = productDetail.options[optionIndex]?.values.findIndex((value) => value.id === optionValue.id) ?? -1;
+            return optionIndex >= 0 && valueIndex >= 0
+              ? [[optionKey(optionIndex), valueKey(optionIndex, valueIndex)] as const]
+              : [];
+          }),
+        ),
+      })),
+      images: [],
+    });
+    setGallery(productDetail.media.map((media) => ({
+      id: media.id,
+      existingId: media.id,
+      variantId: media.variantId,
+      url: media.url,
+      isPrimary: media.isPrimary,
+      position: media.position,
+    })));
+    setIsSkuPrefixTouched(true);
+  }, [productDetail, reset]);
 
   const addOptionField = () => {
     setOptionInputs([...optionInputs, { name: '', rawValues: '' }]);
@@ -194,23 +264,33 @@ export default function AddProductForm() {
   };
 
   // Cartesian product helper for variants matrix
-  const cartesianProduct = (arrays: string[][]) => {
+  const cartesianProduct = <T,>(arrays: T[][]): T[][] => {
     return arrays.reduce((acc, curr) => {
       return acc.flatMap(d => curr.map(e => [...d, e]));
-    }, [[]] as string[][]);
+    }, [[]] as T[][]);
   };
 
   // Extract color values list for variant-image mapping
-  const colorOption = optionInputs.find(o => o.name.trim().toLowerCase() === 'color' || o.name.trim().toLowerCase() === 'couleur');
-  const colorValues = colorOption ? colorOption.rawValues.split(',').map(c => c.trim()).filter(Boolean) : [];
+  const validOptionInputs = optionInputs.filter((option) => option.name.trim() !== '' && option.rawValues.trim() !== '');
+  const colorOptionIndex = validOptionInputs.findIndex((option) => {
+    const name = option.name.trim().toLowerCase();
+    return name === 'color' || name === 'couleur';
+  });
+  const colorValues = colorOptionIndex >= 0
+    ? validOptionInputs[colorOptionIndex].rawValues
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name, valueIndex) => ({ name, clientKey: valueKey(colorOptionIndex, valueIndex) }))
+    : [];
 
-  const handleColorImageAssign = (colorName: string, url: string) => {
-    const updatedAssignments = { ...colorImageAssignments, [colorName]: url };
+  const handleColorImageAssign = (colorValueClientKey: string, url: string) => {
+    const updatedAssignments = { ...colorImageAssignments, [colorValueClientKey]: url };
     setColorImageAssignments(updatedAssignments);
 
     const currentVariants = watch('variants') || [];
-    const updatedVariants = currentVariants.map((v: any) => {
-      if (v.title.toLowerCase().includes(colorName.toLowerCase())) {
+    const updatedVariants = currentVariants.map((v: ProductFormVariant) => {
+      if (v.selectedOptionValueKeys[optionKey(colorOptionIndex)] === colorValueClientKey) {
         return { ...v, colorImage: url || null };
       }
       return v;
@@ -232,7 +312,7 @@ export default function AddProductForm() {
     const effectivePrefix = skuPrefix || deriveSuggestedSkuPrefix(productName);
 
     if (parsedOptions.length === 0) {
-      const currentDefault = variants.find((v: any) => v.title.endsWith('- Default'));
+      const currentDefault = variants.find((variant) => Object.keys(variant.selectedOptionValueKeys).length === 0);
       setValue('variants', [{
         sku: `${effectivePrefix}-DEFAULT`,
         title: `${productName || 'Product'} - Default`,
@@ -241,25 +321,38 @@ export default function AddProductForm() {
         barcode: currentDefault ? currentDefault.barcode : '',
         isActive: currentDefault ? currentDefault.isActive : true,
         colorImage: null,
+        selectedOptionValueKeys: {},
       }]);
       setPrevBasePrice(basePrice);
       return;
     }
 
-    const valueArrays = parsedOptions.map(opt => opt.values);
+    const valueArrays = parsedOptions.map((option, optionIndex) =>
+      option.values.map((value, valueIndex) => ({
+        value,
+        optionClientKey: optionKey(optionIndex),
+        optionValueClientKey: valueKey(optionIndex, valueIndex),
+      }))
+    );
     const combinations = cartesianProduct(valueArrays);
 
     const generatedVariants = combinations.map(combination => {
-      const titleSuffix = combination.join(' / ');
-      const skuSuffix = combination.map(val => getCompactOptionCode(val)).join('-');
+      const selectedOptionValueKeys = Object.fromEntries(
+        combination.map((selection) => [selection.optionClientKey, selection.optionValueClientKey])
+      );
+      const titleSuffix = combination.map((selection) => selection.value).join(' / ');
+      const skuSuffix = combination.map((selection) => getCompactOptionCode(selection.value)).join('-');
       const variantSku = `${effectivePrefix}-${skuSuffix}`;
       const title = `${productName || 'Product'} - ${titleSuffix}`;
 
-      const existing = variants.find((v: any) => v.title === title || v.sku === variantSku);
+      const existing = variants.find((variant) =>
+        hasSameOptionSelections(variant.selectedOptionValueKeys, selectedOptionValueKeys)
+      );
       
       if (existing) {
         const inheritedPrice = existing.price === prevBasePrice ? basePrice : existing.price;
         return {
+          ...existing,
           sku: existing.sku || variantSku,
           title: existing.title,
           stockQuantity: existing.stockQuantity,
@@ -267,6 +360,7 @@ export default function AddProductForm() {
           barcode: existing.barcode,
           isActive: existing.isActive,
           colorImage: existing.colorImage || null,
+          selectedOptionValueKeys,
         };
       }
 
@@ -278,49 +372,39 @@ export default function AddProductForm() {
         barcode: '',
         isActive: true,
         colorImage: null,
+        selectedOptionValueKeys,
       };
     });
 
     setValue('variants', generatedVariants);
     setPrevBasePrice(basePrice);
+    // Variant rows are the effect output; adding them as a dependency would regenerate indefinitely.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [optionInputs, productName, basePrice, skuPrefix, setValue]);
 
-  const handleVariantFieldChange = (index: number, field: string, value: any) => {
+  const handleVariantFieldChange = (index: number, field: keyof ProductFormVariant, value: unknown) => {
     const updated = [...variants];
     updated[index] = {
       ...updated[index],
       [field]: field === 'stockQuantity' || field === 'price' ? Number(value) : value
-    };
+    } as ProductFormVariant;
     setValue('variants', updated);
   };
 
   // ─── Multi-Image Upload & Gallery Handlers ──────────────────────
-  const handleFileUpload = async (files: FileList | null) => {
+  const handleFileUpload = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setIsUploading(true);
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const res = await productsApi.uploadImage(file);
-        const imageUrl = res.data.data.url;
-
-        setGallery(prev => {
-          const newItem: GalleryItem = {
-            id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            url: imageUrl,
-            isPrimary: prev.length === 0, // first uploaded image is primary by default
-            position: prev.length,
-          };
-          return [...prev, newItem];
-        });
-      }
-      toast.success('Image(s) uploaded successfully!');
-    } catch {
-      toast.error('Failed to upload image file.');
-    } finally {
-      setIsUploading(false);
-    }
+    const selected = Array.from(files).slice(0, Math.max(0, 12 - gallery.length));
+    setGallery((previous) => [...previous, ...selected.map((file, index) => ({
+      id: `file-${Date.now()}-${index}`,
+      file,
+      url: URL.createObjectURL(file),
+      isPrimary: previous.length === 0 && index === 0,
+      position: previous.length + index,
+    }))]);
+    setIsUploading(false);
+    toast.success(`${selected.length} image file${selected.length === 1 ? '' : 's'} ready to upload with the product.`);
   };
 
   const handleAddPastedUrl = () => {
@@ -431,11 +515,12 @@ export default function AddProductForm() {
     return <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: parsed }} />;
   };
 
-  // ─── Mutation for Product Creation & Cache Invalidation ────────
-  const createProductMutation = useMutation({
+  // ─── Aggregate Product Save ───────────────────────────────────
+  const saveProductMutation = useMutation({
     mutationFn: async (data: AddProductInput) => {
-      // Single Atomic Payload for Batched Backend Creation
-      const productPayload = {
+      const fileGallery = gallery.filter((image) => image.file);
+      const files = fileGallery.map((image) => image.file!);
+      const product = {
         name: data.name,
         slug: data.slug,
         brandId: data.brandId,
@@ -443,51 +528,116 @@ export default function AddProductForm() {
         skuPrefix: data.skuPrefix || null,
         shortDescription: data.shortDescription || null,
         basePrice: data.basePrice.toFixed(2),
-        compareAtPrice: data.compareAtPrice ? data.compareAtPrice.toFixed(2) : null,
+        compareAtPrice: data.compareAtPrice != null ? data.compareAtPrice.toFixed(2) : null,
         description: data.description || null,
         material: data.material || null,
         gender: data.gender,
-        status: data.status || 'DRAFT',
-        categoryIds: data.categories,
-        media: gallery.map((img, idx) => ({
-          url: img.url,
-          isPrimary: img.isPrimary,
-          position: idx,
-        })),
-        options: data.options.map((opt, i) => ({
-          name: opt.name,
-          position: i,
-          values: opt.values,
-        })),
-        variants: data.variants.map((v: any) => ({
-          sku: v.sku,
-          title: v.title,
-          stockQuantity: v.stockQuantity ?? 10,
-          priceMinor: Math.round((v.price || 0) * 1000),
-          barcode: v.barcode || null,
-          isActive: v.isActive ?? true,
-          optionValues: data.options.flatMap((opt: any) => {
-            const matchedVal = opt.values.find((valStr: string) => v.title.includes(valStr));
-            return matchedVal ? [{ optionName: opt.name, value: matchedVal }] : [];
-          }),
-        })),
+        status: productId ? data.status : 'DRAFT' as const,
       };
+      const categories = {
+        categoryIds: data.categories,
+        primaryCategoryId: data.categories[0] ?? null,
+      };
+      const options = data.options.map((opt, optionIndex) => ({
+          clientKey: optionKey(optionIndex),
+          name: opt.name,
+          position: optionIndex,
+          values: opt.values.map((value, valueIndex) => ({
+            clientKey: valueKey(optionIndex, valueIndex),
+            value,
+            displayValue: value,
+            position: valueIndex,
+          })),
+        }));
+      const variantsPayload = data.variants.map((variant, variantIndex) => ({
+          clientKey: variantKey(variantIndex),
+          id: variant.id,
+          sku: variant.sku,
+          title: variant.title,
+          stockQuantity: variant.stockQuantity ?? 0,
+          priceMinor: majorToMinorString(String(variant.price || 0), 3),
+          barcode: variant.barcode || null,
+          isActive: variant.isActive ?? true,
+          optionValueClientKeys: Object.values(variant.selectedOptionValueKeys),
+        }));
+      const newMedia = gallery.filter((image) => !image.existingId).map((image, index) => {
+        const matchedVariantIndex = data.variants.findIndex((variant) => variant.colorImage === image.url);
+        return {
+          ...(image.file ? { fileIndex: fileGallery.findIndex((entry) => entry.id === image.id) } : { url: image.url }),
+          ...(matchedVariantIndex >= 0 ? { variantClientKey: variantKey(matchedVariantIndex) } : {}),
+          isPrimary: image.isPrimary,
+          position: index,
+          altText: data.name,
+        };
+      });
 
-      const res = await productsApi.createProduct(productPayload);
-      return res.data.data;
+      if (!productId) {
+        const response = await productsApi.create({
+          product: { ...product, status: 'DRAFT' },
+          categories,
+          options,
+          variants: variantsPayload,
+          media: newMedia,
+        }, files);
+        return response.data.data;
+      }
+
+      const existingOptions = productDetail?.options ?? [];
+      const retainedOptionIds = new Set<string>();
+      const optionUpserts = options.map((option, optionIndex) => {
+        const indexedOption = existingOptions[optionIndex];
+        const existing = existingOptions.find((candidate) => !retainedOptionIds.has(candidate.id) && candidate.name.toLowerCase() === option.name.toLowerCase())
+          ?? (indexedOption && !retainedOptionIds.has(indexedOption.id) ? indexedOption : undefined)
+          ?? existingOptions.find((candidate) => !retainedOptionIds.has(candidate.id));
+        if (existing) retainedOptionIds.add(existing.id);
+        const retainedValueIds = new Set<string>();
+        const valueUpserts = option.values.map((value, valueIndex) => {
+          const indexedValue = existing?.values[valueIndex];
+          const existingValue = existing?.values.find((candidate) => !retainedValueIds.has(candidate.id) && candidate.value === value.value)
+            ?? (indexedValue && !retainedValueIds.has(indexedValue.id) ? indexedValue : undefined)
+            ?? existing?.values.find((candidate) => !retainedValueIds.has(candidate.id));
+          if (existingValue) retainedValueIds.add(existingValue.id);
+          return { ...(existingValue ? { id: existingValue.id } : {}), clientKey: value.clientKey, value: value.value, displayValue: value.displayValue, position: value.position };
+        });
+        return {
+          ...(existing ? { id: existing.id } : { clientKey: option.clientKey }),
+          name: option.name,
+          position: option.position,
+          values: {
+            upsert: valueUpserts,
+            deleteIds: (existing?.values ?? []).filter((value) => !retainedValueIds.has(value.id)).map((value) => value.id),
+          },
+        };
+      });
+      const optionDeleteIds = existingOptions.filter((option) => !retainedOptionIds.has(option.id)).map((option) => option.id);
+      const deleteMediaIds = (productDetail?.media ?? []).filter((media) => !gallery.some((image) => image.existingId === media.id)).map((media) => media.id);
+      const response = await productsApi.update(productId, {
+        product,
+        categories,
+        options: { upsert: optionUpserts, deleteIds: optionDeleteIds },
+        variants: {
+          upsert: variantsPayload,
+          deleteIds: (productDetail?.variants ?? []).filter((variant) => !data.variants.some((current) => current.id === variant.id)).map((variant) => variant.id),
+        },
+        media: {
+          existing: gallery.filter((image) => image.existingId).map((image, index) => ({ id: image.existingId!, variantId: image.variantId ?? null, isPrimary: image.isPrimary, position: index, altText: data.name })),
+          new: newMedia,
+          deleteIds: deleteMediaIds,
+        },
+      }, files);
+      return response.data.data;
     },
     onSuccess: () => {
       // Targeted Query Invalidation
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['product-stats'] });
-
-      toast.success('Product created successfully!');
+      queryClient.invalidateQueries({ queryKey: ['product-detail', productId] });
+      toast.success(productId ? 'Product updated successfully!' : 'Product created as a draft.');
       // Immediate Optimistic Navigation Feedback
       router.push('/admin/products');
     },
     onError: (err) => {
       if (isAxiosError(err)) {
-        const errorMsg = err.response?.data?.error?.message || 'Error occurred during product creation.';
+        const errorMsg = err.response?.data?.error?.message || 'The product could not be saved.';
         setServerError(errorMsg);
         toast.error(errorMsg);
       } else {
@@ -497,10 +647,22 @@ export default function AddProductForm() {
     },
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: AddProductInput) => {
     setServerError(null);
-    createProductMutation.mutate(data);
+    saveProductMutation.mutate(data);
   };
+
+  if (formContextQuery.isPending || (productId && productDetailQuery.isPending)) {
+    return <div className="py-24 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#FF8C00]" /></div>;
+  }
+  if (formContextQuery.isError || (productId && productDetailQuery.isError)) {
+    return (
+      <div className="p-8 rounded-xl border bg-white text-center">
+        <p className="text-sm text-red-600">The product editor data could not be loaded.</p>
+        <Button type="button" variant="outline" className="mt-4" onClick={() => { formContextQuery.refetch(); if (productId) productDetailQuery.refetch(); }}>Try again</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -673,8 +835,8 @@ export default function AddProductForm() {
                   <div className="absolute left-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
                   <input 
                     type="number" 
-                    step="0.001"
-                    placeholder="129.990"
+                    step="0.01"
+                    placeholder="129.99"
                     className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     {...register('basePrice', { valueAsNumber: true })}
                   />
@@ -688,8 +850,8 @@ export default function AddProductForm() {
                   <div className="absolute left-3.5 text-gray-400 text-sm font-semibold pointer-events-none select-none">د.ت</div>
                   <input 
                     type="number" 
-                    step="0.001"
-                    placeholder="150.000"
+                    step="0.01"
+                    placeholder="150.00"
                     className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     {...register('compareAtPrice', { valueAsNumber: true })}
                   />
@@ -698,70 +860,7 @@ export default function AddProductForm() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Promotional Highlights & Badges */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#FF8C00]" /> Promotional Highlights & Badges
-              </CardTitle>
-              <CardDescription>Highlight product promotions, featured badges, and custom tags.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Promotional Badge</label>
-                  <select
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
-                    {...register('promoBadge')}
-                  >
-                    <option value="NONE">None</option>
-                    <option value="FEATURED">⭐ Featured</option>
-                    <option value="HOT_DEAL">🔥 Hot Deal</option>
-                    <option value="LIMITED_EDITION">💎 Limited Edition</option>
-                    <option value="CUSTOM">✏️ Custom Badge</option>
-                  </select>
-                </div>
-
-                {promoBadge === 'CUSTOM' && (
-                  <div className="space-y-2 animate-fade-in">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Custom Badge Text</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Handmade, Waterproof"
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF8C00]"
-                      {...register('customBadgeText')}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 bg-amber-50/60 border border-amber-200/60 rounded-lg">
-                <div className="flex items-center gap-2.5">
-                  <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
-                  <div>
-                    <p className="text-xs font-semibold text-gray-900">Featured Storefront Product</p>
-                    <p className="text-[11px] text-gray-500">Pin this product to the main homepage featured grid.</p>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  id="isFeatured"
-                  {...register('isFeatured')}
-                  className="w-4 h-4 text-[#FF8C00] border-gray-300 rounded focus:ring-[#FF8C00] cursor-pointer"
-                />
-              </div>
-
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 flex items-start gap-2">
-                <Info className="w-4 h-4 text-[#FF8C00] shrink-0 mt-0.5" />
-                <p>
-                  Note: Badges like <span className="font-semibold text-black">New Arrival</span> and{' '}
-                  <span className="font-semibold text-black">Sale / Discount %</span> are dynamically calculated based on creation date and comparison pricing.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 4: Multi-Image Upload & Preview Gallery */}
+          {/* Multi-Image Upload & Preview Gallery */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -973,14 +1072,14 @@ export default function AddProductForm() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {colorValues.map((colorName) => {
-                      const assignedUrl = colorImageAssignments[colorName] || '';
+                    {colorValues.map(({ name: colorName, clientKey: colorValueClientKey }) => {
+                      const assignedUrl = colorImageAssignments[colorValueClientKey] || '';
                       const primaryCover = gallery.find((g) => g.isPrimary)?.url || gallery[0]?.url;
                       const activeDisplayUrl = assignedUrl || primaryCover;
 
                       return (
                         <div
-                          key={colorName}
+                          key={colorValueClientKey}
                           className="p-3 bg-white rounded-lg border border-gray-200 space-y-2 shadow-2xs"
                         >
                           <div className="flex items-center justify-between">
@@ -1008,7 +1107,7 @@ export default function AddProductForm() {
 
                             <select
                               value={assignedUrl}
-                              onChange={(e) => handleColorImageAssign(colorName, e.target.value)}
+                              onChange={(e) => handleColorImageAssign(colorValueClientKey, e.target.value)}
                               className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:border-[#FF8C00] bg-white cursor-pointer"
                             >
                               <option value="">(Fallback: Primary Cover Image)</option>
@@ -1039,10 +1138,12 @@ export default function AddProductForm() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {variants.map((v: any, index: number) => {
+                    {variants.map((v, index: number) => {
                       const primaryCover = gallery.find((g) => g.isPrimary)?.url || gallery[0]?.url;
                       const activeImage = v.colorImage || primaryCover;
-                      const matchedColor = colorValues.find((c) => v.title.toLowerCase().includes(c.toLowerCase()));
+                      const matchedColor = colorValues.find(
+                        (color) => v.selectedOptionValueKeys[optionKey(colorOptionIndex)] === color.clientKey
+                      )?.name;
 
                       return (
                         <TableRow key={index} className="hover:bg-gray-50">
@@ -1109,6 +1210,12 @@ export default function AddProductForm() {
                 </Table>
               </div>
 
+              {errors.variants && (
+                <p className="px-4 py-2 text-xs text-red-500 border-t border-red-100 bg-red-50/50">
+                  Each variant must select one valid value for every product option.
+                </p>
+              )}
+
               <div className="p-3 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-[#FF8C00] shrink-0" />
                 <span>
@@ -1131,23 +1238,25 @@ export default function AddProductForm() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Publish Status</label>
                 <select 
+                  disabled={!productId}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
                   {...register('status')}
                 >
                   <option value="DRAFT">Draft (Save & Edit Later)</option>
-                  <option value="ACTIVE">Active (Publish Immediately)</option>
+                  {productId && <option value="ACTIVE">Active (Publish Immediately)</option>}
                 </select>
+                {!productId && <p className="text-[11px] text-gray-400">New products are created as drafts and can be published after validation.</p>}
               </div>
             </CardContent>
             <CardFooter className="bg-gray-50/50 flex flex-col gap-2 pt-4">
               <Button 
                 type="submit" 
-                disabled={createProductMutation.isPending}
+                disabled={saveProductMutation.isPending}
                 className="w-full bg-[#FF8C00] hover:bg-[#e67e00] text-white flex items-center justify-center gap-2 py-5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {createProductMutation.isPending ? (
+                {saveProductMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Registering Product...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving Product...
                   </>
                 ) : (
                   <>
@@ -1179,6 +1288,19 @@ export default function AddProductForm() {
                   ))}
                 </select>
                 {errors.brandId?.message && <p className="text-xs text-red-500 mt-1">{String(errors.brandId.message)}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Size Guide</label>
+                <select
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#FF8C00] cursor-pointer"
+                  {...register('sizeGuideId')}
+                >
+                  <option value="">No size guide</option>
+                  {liveSizeGuides.map((sizeGuide) => (
+                    <option key={sizeGuide.id} value={sizeGuide.id}>{sizeGuide.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Categories check grid — live from API via React Query */}

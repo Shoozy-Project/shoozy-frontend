@@ -1,4 +1,3 @@
-import AnnouncementBar from '@/components/layout/AnnouncementBar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -8,7 +7,7 @@ interface PublicLayoutProps {
 
 /**
  * Layout for all public-facing customer pages.
- * Wraps content with the AnnouncementBar, shared Header, and Footer.
+ * Wraps content with the shared Header and Footer.
  * Auth pages and Admin pages have their own separate layouts.
  */
 export default function PublicLayout({ children }: PublicLayoutProps) {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ChevronRight, Bell, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronRight, Bell, ExternalLink, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/api/auth';
@@ -11,7 +11,9 @@ import { productsApi } from '@/lib/api/products';
 import { categoriesApi } from '@/lib/api/categories';
 import { brandsApi } from '@/lib/api/brands';
 import { collectionsApi } from '@/lib/api/collections';
-import { adminUsersApi } from '@/lib/api/users';
+import { adminCustomersApi } from '@/lib/api/users';
+import { useAdminCapability } from '@/lib/hooks/use-admin-capability';
+import { isAxiosError } from 'axios';
 
 import Sidebar, { navItems } from '@/components/admin/Sidebar';
 import MobileNav from '@/components/admin/MobileNav';
@@ -29,6 +31,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isLoading = useAuthStore((s) => s.isLoading);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [loggingOut, setLoggingOut] = useState(false);
+  const capability = useAdminCapability(isInitialized && !isLoading && !!user, user?.id);
+  const capabilityStatus = isAxiosError(capability.error) ? capability.error.response?.status : undefined;
 
   const handlePrefetch = (href: string) => {
     if (href === '/admin/products') {
@@ -51,35 +55,31 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         queryKey: ['collections', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }],
         queryFn: () => collectionsApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data),
       });
-    } else if (href === '/admin/users') {
+    } else if (href === '/admin/customers') {
       queryClient.prefetchQuery({
-        queryKey: ['users', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }],
-        queryFn: () => adminUsersApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data),
+        queryKey: ['customers', { page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }],
+        queryFn: () => adminCustomersApi.list({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' }).then((r) => r.data.data),
       });
     }
   };
 
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const isAdminOrSuper = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-
-  // Guard 1: redirect non-admin users to login
   useEffect(() => {
     if (!isInitialized || isLoading) return;
-    if (!user || !isAdminOrSuper) {
+    if (!user) {
       router.replace('/login');
     }
-  }, [isInitialized, isLoading, user, isAdminOrSuper, router]);
+  }, [isInitialized, isLoading, user, router]);
 
-  // Guard 2: intercept operational ADMIN users attempting to access /admin/users or /admin/settings
   useEffect(() => {
-    if (!isInitialized || isLoading || !user) return;
-    if (
-      user.role === 'ADMIN' &&
-      (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings'))
-    ) {
-      router.replace('/admin');
+    if (!capability.isError) return;
+    const status = isAxiosError(capability.error) ? capability.error.response?.status : undefined;
+    if (status === 401) {
+      clearAuth();
+      router.replace('/login');
+    } else if (status === 403) {
+      router.replace('/');
     }
-  }, [isInitialized, isLoading, user, pathname, router]);
+  }, [capability.isError, capability.error, clearAuth, router]);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -95,8 +95,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   // Don't render until auth is fully resolved
-  if (!isInitialized || isLoading || !user || !isAdminOrSuper) {
+  if (!isInitialized || isLoading || !user || capability.isPending) {
     return null;
+  }
+  if (capability.isError) {
+    if (capabilityStatus === 401 || capabilityStatus === 403) return null;
+    return (
+      <div className="min-h-screen grid place-items-center bg-[#fcfcfc] p-6">
+        <div className="max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-gray-900">Admin access check unavailable</h1>
+          <p className="mt-2 text-sm text-gray-500">Your session is still signed in, but the server could not verify admin access.</p>
+          <button type="button" onClick={() => capability.refetch()} className="mt-5 rounded-lg bg-[#FF8C00] px-4 py-2 text-sm font-semibold text-white hover:bg-[#e67e00]">Try again</button>
+        </div>
+      </div>
+    );
   }
 
   const currentPage =
@@ -109,7 +121,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* ── Desktop Left Sidebar ───────────────────────────────────── */}
       <Sidebar
         user={user}
-        isSuperAdmin={isSuperAdmin}
         onLogout={handleLogout}
         loggingOut={loggingOut}
         onPrefetch={handlePrefetch}
@@ -118,7 +129,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* ── Mobile Top Header & Navigation Drawer ─────────────────── */}
       <MobileNav
         user={user}
-        isSuperAdmin={isSuperAdmin}
         currentPage={currentPage}
         onLogout={handleLogout}
         loggingOut={loggingOut}
@@ -165,7 +175,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             <div className="h-5 w-px bg-gray-200" />
 
-            {/* Super Admin / Admin User Pill */}
+            {/* Admin User Pill */}
             <div className="flex items-center gap-2.5 p-1.5 pl-3 rounded-full bg-gray-50/80 border border-gray-100 shadow-2xs">
               <div className="text-right leading-none">
                 <p className="text-xs font-bold text-gray-900">
@@ -173,7 +183,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </p>
                 <p className="text-[10px] font-semibold text-[#FF8C00] mt-0.5 flex items-center justify-end gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
-                  {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
+                  ADMIN
                 </p>
               </div>
 

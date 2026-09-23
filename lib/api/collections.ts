@@ -1,6 +1,7 @@
 import apiClient from './client';
 import type { ApiSuccess, PaginatedData } from '@/types/api';
 import type {
+  CollectionDetailDto,
   CollectionDto,
   CollectionListParams,
   CreateCollectionPayload,
@@ -14,7 +15,7 @@ export const collectionsApi = {
 
   /** GET /admin/collections/:id */
   getById: (id: string) =>
-    apiClient.get<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`),
+    apiClient.get<ApiSuccess<CollectionDetailDto>>(`/admin/collections/${id}`),
 
   /** POST /admin/collections */
   create: (data: CreateCollectionPayload) =>
@@ -32,17 +33,4 @@ export const collectionsApi = {
   toggleStatus: (id: string, isActive: boolean) =>
     apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, { isActive }),
 
-  /**
-   * POST /admin/upload/image
-   * Upload collection cover file from device. Returns public URL.
-   */
-  uploadImage: (file: File) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    return apiClient.post<ApiSuccess<{ url: string; filename: string; size: number; mimetype: string }>>(
-      '/admin/upload/image',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
-  },
 };
