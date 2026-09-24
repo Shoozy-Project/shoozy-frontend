@@ -71,6 +71,7 @@ export interface CatalogProductDto {
   brand: CatalogEntityDto;
   categories: Array<CatalogEntityDto & { isPrimary: boolean }>;
   primaryMedia: CatalogMediaDto | null;
+  secondaryMedia?: CatalogMediaDto | null;
 }
 
 export interface CatalogOptionValueDto {

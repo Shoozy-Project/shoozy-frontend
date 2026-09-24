@@ -8,3 +8,23 @@ export function usePublicProducts() {
     staleTime: 60 * 1000,
   });
 }
+
+export function useCarouselProducts(gender: string | null) {
+  return useQuery({
+    queryKey: ['catalog', 'carousel-products', gender],
+    queryFn: async () => {
+      const params: any = { page: 1, limit: 8, sort: 'newest' };
+      if (gender) params.gender = gender;
+      return (await catalogApi.products(params)).data.data.items;
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCollections() {
+  return useQuery({
+    queryKey: ['catalog', 'collections'],
+    queryFn: async () => (await catalogApi.collections({ page: 1, limit: 12 })).data.data.items,
+    staleTime: 60 * 1000,
+  });
+}
