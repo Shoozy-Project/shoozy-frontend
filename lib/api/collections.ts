@@ -8,6 +8,26 @@ import type {
   UpdateCollectionPayload,
 } from '@/types/collection';
 
+/**
+ * Serialise a collection payload into either a plain object (JSON) or a
+ * FormData (multipart/form-data) when an image File is attached.
+ *
+ * The backend's Multer middleware on POST /admin/collections and
+ * PATCH /admin/collections/:id reads the JSON fields from a "data" part
+ * and the binary from an "image" part — matching the product editor pattern.
+ */
+function buildBody(
+  data: CreateCollectionPayload | UpdateCollectionPayload,
+  imageFile?: File | null,
+): CreateCollectionPayload | UpdateCollectionPayload | FormData {
+  if (!imageFile) return data;
+
+  const formData = new FormData();
+  formData.append('data', JSON.stringify(data));
+  formData.append('image', imageFile);
+  return formData;
+}
+
 export const collectionsApi = {
   /** GET /admin/collections — paginated list with search/filter */
   list: (params: CollectionListParams = {}) =>
@@ -17,13 +37,19 @@ export const collectionsApi = {
   getById: (id: string) =>
     apiClient.get<ApiSuccess<CollectionDetailDto>>(`/admin/collections/${id}`),
 
-  /** POST /admin/collections */
-  create: (data: CreateCollectionPayload) =>
-    apiClient.post<ApiSuccess<CollectionDto>>('/admin/collections', data),
+  /**
+   * POST /admin/collections
+   * Pass `imageFile` to send the cover image as multipart/form-data.
+   */
+  create: (data: CreateCollectionPayload, imageFile?: File | null) =>
+    apiClient.post<ApiSuccess<CollectionDto>>('/admin/collections', buildBody(data, imageFile)),
 
-  /** PATCH /admin/collections/:id */
-  update: (id: string, data: UpdateCollectionPayload) =>
-    apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, data),
+  /**
+   * PATCH /admin/collections/:id
+   * Pass `imageFile` to replace the cover image via multipart/form-data.
+   */
+  update: (id: string, data: UpdateCollectionPayload, imageFile?: File | null) =>
+    apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, buildBody(data, imageFile)),
 
   /** DELETE /admin/collections/:id → 204 No Content */
   delete: (id: string) =>
@@ -32,5 +58,5 @@ export const collectionsApi = {
   /** PATCH /admin/collections/:id — toggle isActive status */
   toggleStatus: (id: string, isActive: boolean) =>
     apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, { isActive }),
-
 };
+

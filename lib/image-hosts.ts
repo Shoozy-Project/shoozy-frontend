@@ -20,6 +20,11 @@ export const OPTIMIZED_IMAGE_PATTERNS = [
     hostname: 'shoozybackend-production-bede.up.railway.app',
     pathname: '/**',
   },
+  {
+    protocol: 'https' as const,
+    hostname: 'images.unsplash.com',
+    pathname: '/**',
+  },
 ] as const;
 
 export function isLocalImageSource(src: string) {

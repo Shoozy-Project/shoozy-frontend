@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -163,6 +163,7 @@ export default function ProductsClient() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>{t('admin.shoeName')}</TableHead>
                   <TableHead>{t('admin.skuPrefix')}</TableHead>
                   <TableHead>{t('admin.priceTnd')}</TableHead>
@@ -174,7 +175,7 @@ export default function ProductsClient() {
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center">
+                    <TableCell colSpan={7} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
                         <Loader2 className="w-6 h-6 animate-spin text-[#FF8C00]" />
                         <span className="text-sm">{t('admin.loadingCatalog')}</span>
@@ -185,7 +186,7 @@ export default function ProductsClient() {
 
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-red-500">
+                    <TableCell colSpan={7} className="h-32 text-center text-red-500">
                       {t('admin.productsLoadError')}
                     </TableCell>
                   </TableRow>
@@ -193,7 +194,7 @@ export default function ProductsClient() {
 
                 {!isLoading && !isError && products.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center">
+                    <TableCell colSpan={7} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center gap-1">
                         <Package className="w-8 h-8 text-gray-300" />
                         <p className="text-sm font-semibold text-gray-600">{t('admin.noProducts')}</p>
@@ -205,7 +206,7 @@ export default function ProductsClient() {
                   </TableRow>
                 )}
 
-                {!isLoading && !isError && products.map((p) => {
+                {!isLoading && !isError && products.map((p, idx) => {
                   const isDiscounted = p.compareAtPrice && Number(p.compareAtPrice) > Number(p.basePrice);
                   const discountPercent = isDiscounted
                     ? Math.round(((Number(p.compareAtPrice) - Number(p.basePrice)) / Number(p.compareAtPrice)) * 100)
@@ -213,6 +214,11 @@ export default function ProductsClient() {
 
                   return (
                     <TableRow key={p.id} className="hover:bg-gray-50/80">
+                      {/* Row Index */}
+                      <TableCell className="text-center font-medium text-gray-500 text-xs">
+                        {(page - 1) * limit + idx + 1}
+                      </TableCell>
+
                       {/* Name */}
                       <TableCell>
                         <div>

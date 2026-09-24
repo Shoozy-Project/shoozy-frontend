@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
-import { CommerceImage } from '@/components/commerce/CommerceImage';
+import { ImageDropzone } from '@/components/ui/image-dropzone';
 
 import {
   Dialog,
@@ -53,6 +53,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   const isEdit = !!editTarget;
 
   // ─── Image upload state ──────────────────────────────────────
+  const imageFileRef = useRef<File | null>(null);
 
   const {
     register,
@@ -90,6 +91,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         isActive: editTarget.isActive,
         parentId: editTarget.parentId ?? null,
       });
+      imageFileRef.current = null;
     } else if (open && !editTarget) {
       reset({
         name: '',
@@ -102,6 +104,7 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         isActive: true,
         parentId: null,
       });
+      imageFileRef.current = null;
     }
   }, [open, editTarget, reset]);
 
@@ -124,22 +127,27 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
     return creating ? undefined : { en };
   };
 
-  // ─── Resolved preview — file takes precedence ────────────────
-  // ─── Handle local file selection ─────────────────────────────
-  // ─── Upload file to backend, returns URL ─────────────────────
+  const handleImageSelect = useCallback((file: File | null, previewUrl: string | null) => {
+    imageFileRef.current = file;
+    setValue('imageUrl', previewUrl ?? '', { shouldValidate: false, shouldDirty: true });
+  }, [setValue]);
+
   // ─── Create mutation ─────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: (data: CategoryFormInput) =>
-      categoriesApi.create({
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        imageUrl: data.imageUrl || null,
-        sortOrder: data.sortOrder ?? 0,
-        isActive: data.isActive,
-        parentId: data.parentId || null,
-        translations: translations(data, true),
-      }),
+      categoriesApi.create(
+        {
+          name: data.name,
+          slug: data.slug,
+          description: data.description || null,
+          imageUrl: imageFileRef.current ? undefined : (data.imageUrl || null),
+          sortOrder: data.sortOrder ?? 0,
+          isActive: data.isActive,
+          parentId: data.parentId || null,
+          translations: translations(data, true),
+        },
+        imageFileRef.current ?? undefined
+      ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success(t('admin.categoryCreated', { name: res.data.data.name }));
@@ -162,16 +170,20 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
   // ─── Update mutation ─────────────────────────────────────────
   const updateMutation = useMutation({
     mutationFn: (data: CategoryFormInput) =>
-      categoriesApi.update(editTarget!.id, {
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        imageUrl: data.imageUrl || null,
-        sortOrder: data.sortOrder ?? 0,
-        isActive: data.isActive,
-        parentId: data.parentId || null,
-        translations: translations(data, false),
-      }),
+      categoriesApi.update(
+        editTarget!.id,
+        {
+          name: data.name,
+          slug: data.slug,
+          description: data.description || null,
+          imageUrl: imageFileRef.current ? undefined : (data.imageUrl || null),
+          sortOrder: data.sortOrder ?? 0,
+          isActive: data.isActive,
+          parentId: data.parentId || null,
+          translations: translations(data, false),
+        },
+        imageFileRef.current ?? undefined
+      ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success(t('admin.categoryUpdated', { name: res.data.data.name }));
@@ -273,31 +285,12 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
                 {t('admin.categoryImage')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
 
-              <div className="space-y-2">
-                <div className="relative flex items-center gap-2">
-                  <div className="absolute start-3 text-gray-400">
-                    <LinkIcon className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                  <Input
-                    id="cat-image-url"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    className="ps-9 focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                    {...register('imageUrl')}
-                  />
-                </div>
-                {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
-                {imageUrlValue && (
-                  <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <CommerceImage
-                      src={imageUrlValue}
-                      alt={t('admin.imagePreview')}
-                      sizes="640px"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-              </div>
+              <ImageDropzone
+                value={imageUrlValue || null}
+                onSelect={handleImageSelect}
+                disabled={isPending}
+              />
+              {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
             </div>
 
             {/* Active Status */}

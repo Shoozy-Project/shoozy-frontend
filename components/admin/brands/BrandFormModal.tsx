@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import {
   Loader2,
   Award,
 } from 'lucide-react';
-import { CommerceImage } from '@/components/commerce/CommerceImage';
+import { ImageDropzone } from '@/components/ui/image-dropzone';
 
 import {
   Dialog,
@@ -51,6 +51,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   const isEdit = !!editTarget;
 
   // ─── Logo & Product Selector State ─────────────────────────
+  const imageFileRef = useRef<File | null>(null);
 
   // ─── Fetch Products for Multi-select Selector ──────────────
 
@@ -88,6 +89,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         logoUrl: editTarget.logoUrl ?? '',
         isActive: editTarget.isActive,
       });
+      imageFileRef.current = null;
     } else if (open && !editTarget) {
       reset({
         name: '',
@@ -98,6 +100,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         logoUrl: '',
         isActive: true,
       });
+      imageFileRef.current = null;
     }
   }, [open, editTarget, reset]);
 
@@ -121,6 +124,11 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   };
 
   // ─── Handle File Selection ─────────────────────────────────
+  const handleImageSelect = useCallback((file: File | null, previewUrl: string | null) => {
+    imageFileRef.current = file;
+    setValue('logoUrl', previewUrl ?? '', { shouldValidate: false, shouldDirty: true });
+  }, [setValue]);
+
   // ─── Create Mutation ────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: (data: BrandFormInput) =>
@@ -128,10 +136,10 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        logoUrl: data.logoUrl || null,
+        logoUrl: imageFileRef.current ? undefined : (data.logoUrl || null),
         isActive: data.isActive,
         translations: translations(data, true),
-      }),
+      }, imageFileRef.current ?? undefined),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success(t('admin.brandCreated', { name: res.data.data.name }));
@@ -147,10 +155,10 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        logoUrl: data.logoUrl || null,
+        logoUrl: imageFileRef.current ? undefined : (data.logoUrl || null),
         isActive: data.isActive,
         translations: translations(data, false),
-      }),
+      }, imageFileRef.current ?? undefined),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success(t('admin.brandUpdated', { name: res.data.data.name }));
@@ -234,31 +242,17 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
               {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
             </div>
 
-            {/* Brand Logo URL */}
+            {/* Brand Logo */}
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                 {t('admin.brandLogo')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
-              <div className="space-y-2">
-                <Input
-                  id="brand-logo-url"
-                  type="url"
-                  placeholder="https://example.com/logo.png"
-                  className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                  {...register('logoUrl')}
-                />
-                {errors.logoUrl && <p className="text-xs text-red-500">{errors.logoUrl.message}</p>}
-                {logoUrlValue && (
-                  <div className="relative w-full h-32 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <CommerceImage
-                      src={logoUrlValue}
-                      alt={t('admin.logoPreview')}
-                      sizes="640px"
-                      className="object-contain p-2"
-                    />
-                  </div>
-                )}
-              </div>
+              <ImageDropzone
+                value={logoUrlValue || null}
+                onSelect={handleImageSelect}
+                disabled={isPending}
+              />
+              {errors.logoUrl && <p className="text-xs text-red-500">{errors.logoUrl.message}</p>}
             </div>
 
             {/* Active Status */}

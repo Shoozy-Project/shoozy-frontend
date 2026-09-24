@@ -56,6 +56,7 @@ export default function SplashScreen({ forceShow = false }: SplashScreenProps) {
               height={120}
               priority
               className="object-contain"
+              style={{ height: 'auto' }}
             />
             {/* Subtle loading dots */}
             <div className="flex gap-1.5">

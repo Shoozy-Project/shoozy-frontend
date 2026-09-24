@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import {
   Package,
   Search,
 } from 'lucide-react';
-import { CommerceImage } from '@/components/commerce/CommerceImage';
+import { ImageDropzone } from '@/components/ui/image-dropzone';
 
 import {
   Dialog,
@@ -90,11 +90,11 @@ const CollectionFormModal = ({
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
 
-  // ─── Image & Search State ─────────────────────────────────
+  // â”€â”€â”€ Image & Search State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const initialProductIdsRef = useRef<string[]>([]);
-
+  const imageFileRef = useRef<File | null>(null);
   const {
     data: collectionDetail,
     isLoading: isCollectionDetailLoading,
@@ -105,7 +105,7 @@ const CollectionFormModal = ({
     enabled: open && !!editTarget,
   });
 
-  // ─── Fetch Products for Multi-select ───────────────────────
+  // â”€â”€â”€ Fetch Products for Multi-select â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const {
     data: productsData,
     isLoading: isProductsLoading,
@@ -117,7 +117,7 @@ const CollectionFormModal = ({
   });
   const availableProducts = useMemo(() => productsData ?? [], [productsData]);
 
-  // ─── Search & Selection Memoization ─────────────────────────
+  // â”€â”€â”€ Search & Selection Memoization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
     if (!query) return availableProducts;
@@ -165,7 +165,7 @@ const CollectionFormModal = ({
     },
   });
 
-  // ─── Populate Form on Edit ──────────────────────────────────
+  // â”€â”€â”€ Populate Form on Edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /* eslint-disable react-hooks/set-state-in-effect -- Opening a remote-backed editor intentionally hydrates its selection state. */
   useEffect(() => {
     if (open && editTarget) {
@@ -179,6 +179,7 @@ const CollectionFormModal = ({
         isActive: editTarget.isActive,
       });
       initialProductIdsRef.current = [];
+      imageFileRef.current = null;
       setSelectedProductIds([]);
       setProductSearch('');
     } else if (open && !editTarget) {
@@ -192,6 +193,7 @@ const CollectionFormModal = ({
         isActive: true,
       });
       initialProductIdsRef.current = [];
+      imageFileRef.current = null;
       setSelectedProductIds([]);
       setProductSearch('');
     }
@@ -206,7 +208,7 @@ const CollectionFormModal = ({
   }, [open, editTarget, collectionDetail]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // ─── Auto-generate Slug (create mode only) ──────────────────
+  // â”€â”€â”€ Auto-generate Slug (create mode only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const nameValue = useWatch({ control, name: 'name' });
   useEffect(() => {
     if (!isEdit) {
@@ -225,8 +227,14 @@ const CollectionFormModal = ({
     return creating ? undefined : { en };
   };
 
-  // ─── Handle File Selection ─────────────────────────────────
-  // ─── Product Selection Toggle ──────────────────────────────
+  // â”€â”€â”€ Image select handler (deferred â€” file is attached at submit time) â”€â”€â”€â”€â”€â”€
+  const handleImageSelect = useCallback((file: File | null, previewUrl: string | null) => {
+    imageFileRef.current = file;
+    // Update the form field so validation & preview stay in sync
+    setValue('imageUrl', previewUrl ?? '', { shouldValidate: false, shouldDirty: true });
+  }, [setValue]);
+
+  // â”€â”€â”€ Product Selection Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const toggleProductSelection = (productId: string) => {
     setSelectedProductIds((prev) =>
       prev.includes(productId)
@@ -235,18 +243,21 @@ const CollectionFormModal = ({
     );
   };
 
-  // ─── Create Mutation ────────────────────────────────────────
+  // â”€â”€â”€ Create Mutation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const createMutation = useMutation({
     mutationFn: (data: CollectionFormInput) =>
-      collectionsApi.create({
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        imageUrl: data.imageUrl || null,
-        isActive: data.isActive,
-        products: toCollectionProducts(selectedProductIds),
-        translations: translations(data, true),
-      }),
+      collectionsApi.create(
+        {
+          name: data.name,
+          slug: data.slug,
+          description: data.description || null,
+          imageUrl: imageFileRef.current ? undefined : (data.imageUrl || null),
+          isActive: data.isActive,
+          products: toCollectionProducts(selectedProductIds),
+          translations: translations(data, true),
+        },
+        imageFileRef.current ?? undefined,
+      ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
       toast.success(t('admin.collectionCreated', { name: res.data.data.name }));
@@ -255,7 +266,7 @@ const CollectionFormModal = ({
     onError: () => toast.error(t('admin.collectionCreateError')),
   });
 
-  // ─── Update Mutation ────────────────────────────────────────
+  // â”€â”€â”€ Update Mutation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const updateMutation = useMutation({
     mutationFn: async (data: CollectionFormInput) => {
       const initialProductIds = initialProductIdsRef.current;
@@ -263,15 +274,19 @@ const CollectionFormModal = ({
         selectedProductIds.length !== initialProductIds.length ||
         selectedProductIds.some((productId, position) => productId !== initialProductIds[position]);
 
-      return collectionsApi.update(editTarget!.id, {
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        imageUrl: data.imageUrl || null,
-        isActive: data.isActive,
-        translations: translations(data, false),
-        ...(productsChanged && { products: toCollectionProducts(selectedProductIds) }),
-      });
+      return collectionsApi.update(
+        editTarget!.id,
+        {
+          name: data.name,
+          slug: data.slug,
+          description: data.description || null,
+          imageUrl: imageFileRef.current ? undefined : (data.imageUrl || null),
+          isActive: data.isActive,
+          translations: translations(data, false),
+          ...(productsChanged && { products: toCollectionProducts(selectedProductIds) }),
+        },
+        imageFileRef.current ?? undefined,
+      );
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
@@ -327,7 +342,7 @@ const CollectionFormModal = ({
                 </div>
                 <div className="space-y-1.5" dir="rtl">
                   <Label htmlFor="col-name-ar">{t('admin.arabicName')}</Label>
-                  <Input id="col-name-ar" lang="ar" placeholder="مثال: أجواء الصيف 2026" {...register('nameAr')} />
+                  <Input id="col-name-ar" lang="ar" placeholder="Ù…Ø«Ø§Ù„: Ø£Ø¬ÙˆØ§Ø¡ Ø§Ù„ØµÙŠÙ 2026" {...register('nameAr')} />
                   {errors.nameAr && <p className="text-xs text-red-500">{errors.nameAr.message}</p>}
                 </div>
                 <div className="space-y-1.5" dir="ltr">
@@ -337,7 +352,7 @@ const CollectionFormModal = ({
                 </div>
                 <div className="space-y-1.5" dir="rtl">
                   <Label htmlFor="col-description-ar">{t('admin.arabicDescription')}</Label>
-                  <textarea id="col-description-ar" lang="ar" rows={3} placeholder="تشكيلة أحذية مختارة للصيف..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('descriptionAr')} />
+                  <textarea id="col-description-ar" lang="ar" rows={3} placeholder="ØªØ´ÙƒÙŠÙ„Ø© Ø£Ø­Ø°ÙŠØ© Ù…Ø®ØªØ§Ø±Ø© Ù„Ù„ØµÙŠÙ..." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('descriptionAr')} />
                   {errors.descriptionAr && <p className="text-xs text-red-500">{errors.descriptionAr.message}</p>}
                 </div>
               </div>
@@ -364,26 +379,12 @@ const CollectionFormModal = ({
                 {t('admin.bannerImage')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
 
-              <div className="space-y-2">
-                <Input
-                  id="col-image-url"
-                  type="url"
-                  placeholder="https://example.com/cover.jpg"
-                  className="focus-visible:ring-[#FF8C00] focus-visible:ring-offset-0"
-                  {...register('imageUrl')}
-                />
-                {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
-                {imageUrlValue && (
-                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                    <CommerceImage
-                      src={imageUrlValue}
-                      alt={t('admin.collectionPreview')}
-                      sizes="640px"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-              </div>
+              <ImageDropzone
+                value={imageUrlValue || null}
+                onSelect={handleImageSelect}
+                disabled={isPending}
+              />
+              {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
             </div>
 
             {/* Dual-Pane Searchable Product Selector */}

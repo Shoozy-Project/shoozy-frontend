@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import Link from 'next/link';
-import useEmblaCarousel from 'embla-carousel-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay } from 'swiper/modules';
+import 'swiper/css';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 import { useCollections } from '@/lib/hooks/use-promotions';
@@ -10,24 +12,24 @@ import { useCollections } from '@/lib/hooks/use-promotions';
 export default function CollectionsCarousel() {
   const { data: collections, isLoading } = useCollections();
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: 'start',
-    containScroll: 'trimSnaps',
-    dragFree: true,
-  });
+  const swiperRef = useRef<any>(null);
 
-  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+  const scrollPrev = useCallback(() => {
+    if (swiperRef.current?.swiper) swiperRef.current.swiper.slidePrev();
+  }, []);
+  const scrollNext = useCallback(() => {
+    if (swiperRef.current?.swiper) swiperRef.current.swiper.slideNext();
+  }, []);
 
   // Filter only active collections
   const activeCollections = collections?.filter((c) => c.isActive) || [];
 
   return (
     <section className="bg-background py-16 md:py-24 overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-none">
         
         {/* Header & Navigation Controls */}
-        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.25em] text-neutral-500 font-medium">
               Curated Archives
@@ -67,18 +69,38 @@ export default function CollectionsCarousel() {
         </div>
 
         {/* Carousel Architecture */}
-        <div className="overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0" ref={emblaRef}>
-          <div className="flex gap-4 sm:gap-6">
+        {/* Carousel Architecture */}
+        <div className="w-full">
+          <style>{`
+            .collections-swiper .swiper-wrapper {
+              transition-timing-function: linear !important;
+            }
+          `}</style>
+          
+          <Swiper
+            ref={swiperRef}
+            modules={[Autoplay]}
+            spaceBetween={24}
+            slidesPerView="auto"
+            loop={true}
+            speed={8000}
+            autoplay={{
+              delay: 0,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true,
+            }}
+            className="collections-swiper overflow-visible"
+          >
             {isLoading ? (
               /* Skeletons */
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex-[0_0_80%] sm:flex-[0_0_42%] lg:flex-[0_0_30%] min-w-0">
+                <SwiperSlide key={i} className="!w-[85vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto">
                   <div className="aspect-[3/4] bg-neutral-100 dark:bg-neutral-900 animate-pulse" />
-                </div>
+                </SwiperSlide>
               ))
             ) : activeCollections.length > 0 ? (
               activeCollections.map((collection) => (
-                <div key={collection.id} className="flex-[0_0_80%] sm:flex-[0_0_42%] lg:flex-[0_0_30%] min-w-0 group cursor-pointer relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
+                <SwiperSlide key={collection.id} className="!w-[85vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto group cursor-pointer relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
                   <Link href={`/collections/${collection.slug}`} className="block absolute inset-0 w-full h-full">
                     {/* Collection Image */}
                     {collection.imageUrl ? (
@@ -117,14 +139,14 @@ export default function CollectionsCarousel() {
                       </div>
                     </div>
                   </Link>
-                </div>
+                </SwiperSlide>
               ))
             ) : (
               <div className="w-full py-12 text-center text-neutral-500">
                 No active collections available.
               </div>
             )}
-          </div>
+          </Swiper>
         </div>
 
         {/* Bottom Global CTA */}

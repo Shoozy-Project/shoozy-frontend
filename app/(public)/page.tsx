@@ -5,6 +5,7 @@ import CollectionsCarousel from '@/components/storefront/home/CollectionsCarouse
 import BrandStory from '@/components/home/BrandStory';
 import EleganceBanner from '@/components/home/EleganceBanner';
 import Advantages from '@/components/home/Advantages';
+import BrandsTicker from '@/components/storefront/home/BrandsTicker';
 
 export default function Homepage() {
   return (
@@ -16,6 +17,7 @@ export default function Homepage() {
       <BrandStory />
       <CollectionsCarousel />
       <EleganceBanner />
+      <BrandsTicker />
       <Advantages />
     </div>
   );

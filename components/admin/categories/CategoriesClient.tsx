@@ -53,7 +53,10 @@ const CategoryThumbnail = ({ src, name }: { src: string | null; name: string }) 
 
 const SkeletonRow = () => (
   <TableRow>
-    <TableCell>
+    <TableCell className="w-12 text-center ps-4">
+      <div className="h-3.5 w-5 bg-gray-200 rounded animate-pulse mx-auto" />
+    </TableCell>
+    <TableCell className="w-[60px]">
       <div className="w-10 h-10 rounded-lg bg-gray-200 animate-pulse" />
     </TableCell>
     <TableCell>
@@ -62,16 +65,16 @@ const SkeletonRow = () => (
         <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
       </div>
     </TableCell>
-    <TableCell>
+    <TableCell className="hidden sm:table-cell">
       <div className="h-3.5 w-24 bg-gray-200 rounded animate-pulse font-mono" />
     </TableCell>
-    <TableCell>
-      <div className="h-3.5 w-12 bg-gray-200 rounded animate-pulse" />
+    <TableCell className="hidden md:table-cell text-end pe-6">
+      <div className="h-3.5 w-12 bg-gray-200 rounded animate-pulse ms-auto" />
     </TableCell>
     <TableCell>
       <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
     </TableCell>
-    <TableCell>
+    <TableCell className="text-end pe-4">
       <div className="flex gap-2 justify-end">
         <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
         <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
@@ -292,7 +295,8 @@ const CategoriesClient = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/80">
-                  <TableHead className="w-[60px] ps-4">{t('admin.image')}</TableHead>
+                  <TableHead className="w-12 text-center ps-4">#</TableHead>
+                  <TableHead className="w-[60px]">{t('admin.image')}</TableHead>
                   <TableHead>{t('admin.name')}</TableHead>
                   <TableHead className="hidden sm:table-cell">{t('admin.slug')}</TableHead>
                   <TableHead className="hidden md:table-cell text-end pe-6">{t('admin.products')}</TableHead>
@@ -309,7 +313,7 @@ const CategoriesClient = () => {
                 {/* Error state */}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center">
+                    <TableCell colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
                         <p className="text-sm font-medium">{t('admin.categoriesLoadError')}</p>
                         <Button
@@ -328,7 +332,7 @@ const CategoriesClient = () => {
                 {/* Empty state */}
                 {!isLoading && !isError && categories.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center">
+                    <TableCell colSpan={7} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-gray-400">
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                           <Grid className="w-6 h-6 text-gray-300" aria-hidden="true" />
@@ -358,14 +362,19 @@ const CategoriesClient = () => {
 
                 {/* Data rows */}
                 {!isLoading &&
-                  categories.map((cat) => (
+                  categories.map((cat, idx) => (
                     <TableRow
                       key={cat.id}
                       className="hover:bg-gray-50/70 transition-colors group"
                     >
+                      {/* Row Index */}
+                      <TableCell className="w-12 text-center font-medium text-gray-500 text-xs ps-4">
+                        {(page - 1) * limit + idx + 1}
+                      </TableCell>
+
                       {/* Thumbnail */}
-                      <TableCell className="ps-4 py-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
+                      <TableCell className="py-3">
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
                           <CategoryThumbnail src={cat.imageUrl} name={cat.name} />
                         </div>
                       </TableCell>

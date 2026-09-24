@@ -1,21 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
-import { catalogApi } from '@/lib/api/catalog';
+import { catalogApi, fetchCatalogProducts, fetchCatalogCollections } from '@/lib/api/catalog';
+import type { CatalogBrandDto } from '@/types/commerce';
 
 export function usePublicProducts() {
   return useQuery({
     queryKey: ['catalog', 'home-products'],
-    queryFn: async () => (await catalogApi.products({ page: 1, limit: 3, sort: 'newest' })).data.data.items,
+    queryFn: async () => {
+      const result = await fetchCatalogProducts({ page: 1, limit: 3, sort: 'newest' });
+      return result.data.items;
+    },
     staleTime: 60 * 1000,
   });
 }
 
-export function useCarouselProducts(gender: string | null) {
+export function useCarouselProducts(categorySlug: string | null) {
   return useQuery({
-    queryKey: ['catalog', 'carousel-products', gender],
+    queryKey: ['catalog', 'carousel-products', categorySlug],
     queryFn: async () => {
       const params: any = { page: 1, limit: 8, sort: 'newest' };
-      if (gender) params.gender = gender;
-      return (await catalogApi.products(params)).data.data.items;
+      if (categorySlug) params.category = categorySlug;
+      const result = await fetchCatalogProducts(params);
+      return result.data.items;
     },
     staleTime: 60 * 1000,
   });
@@ -24,7 +29,21 @@ export function useCarouselProducts(gender: string | null) {
 export function useCollections() {
   return useQuery({
     queryKey: ['catalog', 'collections'],
-    queryFn: async () => (await catalogApi.collections({ page: 1, limit: 12 })).data.data.items,
+    queryFn: async () => {
+      const result = await fetchCatalogCollections({ page: 1, limit: 12 });
+      return result.data.items;
+    },
     staleTime: 60 * 1000,
+  });
+}
+
+export function useBrands() {
+  return useQuery<CatalogBrandDto[]>({
+    queryKey: ['catalog', 'public-brands'],
+    queryFn: async () => {
+      const res = await catalogApi.brands({ page: 1, limit: 50 });
+      return res.data.data.items;
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }
