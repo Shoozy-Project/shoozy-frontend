@@ -40,7 +40,7 @@ export function ThemeToggle({
   const SelectedIcon = options.find((option) => option.value === selectedTheme)?.icon ?? Monitor;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

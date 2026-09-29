@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from '@/lib/hooks/use-translations';
 import { useCollections } from '@/lib/hooks/use-promotions';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination, Navigation } from 'swiper/modules';
+import { Autoplay, Pagination } from 'swiper/modules';
 
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -63,12 +63,19 @@ export default function HeroCarousel() {
     <div className="w-full bg-background -mt-[130px] md:-mt-[150px]">
       <section className="relative w-full h-[90vh] md:h-screen min-h-[700px] overflow-hidden group">
         <Swiper
-          modules={[Autoplay, Pagination, Navigation]}
+          modules={[Autoplay, Pagination]}
           autoplay={{ delay: 5000, disableOnInteraction: false }}
-          pagination={{ clickable: true }}
-          navigation
+          pagination={{
+            clickable: true,
+            el: '.swiper-custom-pagination',
+            renderBullet: (index, className) => {
+              return `<span class="${className} transition-all duration-500 rounded-full cursor-pointer"></span>`;
+            },
+            bulletClass: 'w-8 h-[2px] bg-white/40 block',
+            bulletActiveClass: '!w-12 !bg-white'
+          }}
           loop
-          className="w-full h-full [&_.swiper-pagination-bullet]:bg-white [&_.swiper-pagination-bullet-active]:bg-white [&_.swiper-button-next]:text-white [&_.swiper-button-prev]:text-white [&_.swiper-button-next]:opacity-0 [&_.swiper-button-prev]:opacity-0 group-hover:[&_.swiper-button-next]:opacity-100 group-hover:[&_.swiper-button-prev]:opacity-100 [&_.swiper-button-next]:transition-opacity [&_.swiper-button-prev]:transition-opacity"
+          className="w-full h-full"
         >
           {activeCollections.map((collection, index) => (
             <SwiperSlide key={collection.id} className="relative w-full h-full">
@@ -106,6 +113,9 @@ export default function HeroCarousel() {
             </SwiperSlide>
           ))}
         </Swiper>
+
+        {/* Custom Pagination Indicator */}
+        <div className="swiper-custom-pagination absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20" />
       </section>
     </div>
   );

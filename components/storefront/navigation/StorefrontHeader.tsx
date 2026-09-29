@@ -22,9 +22,13 @@ import {
   Sparkles,
   User,
   X,
+  LogOut,
+  Settings,
+  Package,
+  UserCheck,
 } from 'lucide-react';
 import { useCurrentCart } from '@/lib/hooks/use-commerce';
-import { selectIsAuthenticated, useAuthStore } from '@/stores/auth-store';
+import { selectIsAuthenticated, selectUser, useAuthStore } from '@/stores/auth-store';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -34,21 +38,29 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { authApi } from '@/lib/api/auth';
+import { DesktopLiveSearch, MobileLiveSearchOverlay } from './LiveSearch';
 
 const PROMOTIONAL_ANNOUNCEMENTS = [
   'Complimentary Express Delivery & Personalised In-Boutique Fitting Service',
-  'Maison Shoozy • Handcrafted Luxury Footwear & Artisanal Shoemaking',
+  'Maison Shoezy • Handcrafted Luxury Footwear & Artisanal Shoemaking',
   'Private Appointments & Made-To-Measure Services Available Upon Request',
 ];
 
-const CATEGORY_NAV_ITEMS = [
+type NavItem = {
+  label: string;
+  href?: string;
+  key: string;
+  isModal?: boolean;
+};
+
+const CATEGORY_NAV_ITEMS: NavItem[] = [
   { label: 'MEN', href: '/products?gender=MALE', key: 'men' },
   { label: 'WOMEN', href: '/products?gender=FEMALE', key: 'women' },
   { label: 'COLLECTIONS', href: '/collections', key: 'collections' },
   { label: 'CATEGORIES', href: '/categories', key: 'categories' },
-  { label: 'SERVICES', href: '#appointment', key: 'services', isModal: true },
-  { label: 'THE HOUSE', href: '/collections', key: 'the-house' },
 ];
 
 const CURRENCIES = [
@@ -62,9 +74,22 @@ export default function StorefrontHeader() {
   const router = useRouter();
   const { t } = useTranslations();
   const authenticated = useAuthStore(selectIsAuthenticated);
+  const user = useAuthStore(selectUser);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const cart = useCurrentCart();
   const cartCount =
     cart.data?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
+      clearAuth();
+      router.push('/');
+    }
+  };
 
   // Scroll state & direction
   const [isAtTop, setIsAtTop] = useState(true);
@@ -125,13 +150,13 @@ export default function StorefrontHeader() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 w-full z-40 flex flex-col font-sans transition-all duration-300">
+      <header className="fixed top-0 left-0 w-full z-50 flex flex-col font-sans transition-all duration-300">
         {/* ──────────────────────────────────────────────────────────
             TIER 1: TOP UTILITY BAR (Sticky / Topmost Slim Bar)
         ────────────────────────────────────────────────────────── */}
-        <div className="w-full bg-[#111111] text-neutral-300 dark:bg-black dark:text-neutral-400 border-b border-neutral-800/70 text-[11px] uppercase tracking-[0.16em] px-4 md:px-8 py-2 transition-colors">
+        <div className="w-full bg-[#111111] text-neutral-300 dark:bg-[#0c0c0d] dark:text-neutral-400 border-b border-neutral-800/70 dark:border-white/10 text-[11px] uppercase tracking-[0.16em] px-4 md:px-8 py-2 transition-colors">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            {/* Left: Concierge / Appointment */}
+            {/* Left: Concierge */}
             <div className="hidden lg:flex items-center gap-5 text-neutral-300">
               <a
                 href="tel:+21671000000"
@@ -140,15 +165,6 @@ export default function StorefrontHeader() {
                 <Phone className="size-3 text-[#FF8C00]" />
                 <span>Concierge: +216 71 890 120</span>
               </a>
-              <span className="text-neutral-700">|</span>
-              <button
-                type="button"
-                onClick={() => setAppointmentModalOpen(true)}
-                className="inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
-              >
-                <Calendar className="size-3 text-[#FF8C00]" />
-                <span>Book an Appointment</span>
-              </button>
             </div>
 
             {/* Center: Dynamic Announcement Ticker */}
@@ -170,37 +186,8 @@ export default function StorefrontHeader() {
               </AnimatePresence>
             </div>
 
-            {/* Right: Currency & Language Switcher */}
+            {/* Right: Language & Theme */}
             <div className="flex items-center gap-3 md:gap-4 shrink-0">
-              {/* Currency Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-neutral-300 hover:text-white transition-colors focus:outline-none"
-                  >
-                    <span className="text-xs">{selectedCurrency.flag}</span>
-                    <span className="hidden sm:inline">{selectedCurrency.code}</span>
-                    <ChevronDown className="size-3 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-neutral-900 border-neutral-800 text-white text-xs">
-                  {CURRENCIES.map((curr) => (
-                    <DropdownMenuItem
-                      key={curr.code}
-                      onClick={() => setSelectedCurrency(curr)}
-                      className="flex items-center justify-between cursor-pointer hover:bg-neutral-800 px-3 py-2"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>{curr.flag}</span>
-                        <span>{curr.label}</span>
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <span className="text-neutral-700">|</span>
 
               {/* Language Switcher */}
               <LanguageSwitcher tone="inverse" className="text-xs" />
@@ -215,12 +202,12 @@ export default function StorefrontHeader() {
             TIER 2: MAIN BRAND & ACTION BAR (Luxury Glassmorphism)
         ────────────────────────────────────────────────────────── */}
         <div
-          className={`w-full bg-white/95 dark:bg-neutral-950/95 backdrop-blur-md border-b border-neutral-200/60 dark:border-neutral-850/60 transition-all duration-300 px-4 sm:px-6 md:px-10 py-3.5 ${
+          className={`relative z-50 w-full bg-white/95 dark:bg-[#0c0c0d]/80 backdrop-blur-md border-b border-neutral-200/60 dark:border-white/10 transition-all duration-300 px-3 sm:px-6 lg:px-8 py-3.5 ${
             !isAtTop ? 'shadow-sm' : ''
           }`}
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            {/* Left: Boutiques & Minimalist Search Pill */}
+            {/* Left: Minimalist Search Pill */}
             <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-start">
               {/* Mobile Hamburger Button */}
               <button
@@ -232,53 +219,32 @@ export default function StorefrontHeader() {
                 <Menu className="size-6 stroke-[1.5]" />
               </button>
 
-              <Link
-                href="/collections"
-                className="hidden lg:inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.25em] text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white transition-colors"
-              >
-                <MapPin className="size-3.5 text-neutral-400" />
-                <span>Boutiques</span>
-              </Link>
-
-              {/* Minimalist Search Pill (Desktop) */}
-              <form
-                onSubmit={handleSearchSubmit}
-                className="hidden md:flex items-center relative rounded-full bg-neutral-100/90 dark:bg-neutral-900/90 border border-neutral-200/80 dark:border-neutral-800 px-3.5 py-1.5 transition-all duration-300 w-48 lg:w-60 focus-within:w-72 focus-within:border-black dark:focus-within:border-white focus-within:bg-white dark:focus-within:bg-black shadow-none"
-              >
-                <Search className="size-3.5 text-neutral-400 shrink-0 me-2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search Maison Shoozy…"
-                  aria-label={t('header.search')}
-                  className="w-full bg-transparent text-xs text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none"
-                />
-              </form>
+              {/* Live Search Component (Desktop) */}
+              <DesktopLiveSearch />
             </div>
 
             {/* Center: Editorial Brand Typography */}
             <div className="flex flex-col items-center justify-center shrink-0">
               <Link href="/" className="flex flex-col items-center group text-center py-1">
                 <span className="font-serif text-2xl sm:text-3xl md:text-4xl tracking-[0.32em] font-light text-neutral-950 dark:text-neutral-50 group-hover:tracking-[0.35em] transition-all duration-300 uppercase pl-[0.32em]">
-                  SHOOZY
+                  SHOEZY
                 </span>
-                <span className="text-[7.5px] sm:text-[8px] uppercase tracking-[0.45em] text-neutral-400 dark:text-neutral-500 pl-[0.45em] -mt-1 font-sans">
+                <span className="text-[7.5px] sm:text-[8px] uppercase tracking-[0.45em] text-neutral-400 dark:text-neutral-400 pl-[0.45em] -mt-1 font-sans">
                   Maison Fondée en 1928
                 </span>
               </Link>
             </div>
 
             {/* Right: Actions (Wishlist, Account, Bag) */}
-            <div className="flex items-center gap-3 sm:gap-5 flex-1 justify-end text-neutral-800 dark:text-neutral-200">
+            <div className="shrink-0 flex items-center gap-1 sm:gap-3 flex-1 justify-end text-neutral-800 dark:text-neutral-200">
               {/* Mobile Search Icon */}
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={t('header.searchOpen')}
-                className="md:hidden p-1 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white"
+                className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-black dark:hover:text-white shrink-0 transition-colors"
               >
-                <Search className="size-5 stroke-[1.5]" />
+                <Search className="size-4 sm:size-5 stroke-[1.5]" />
               </button>
 
               {/* Notification Center */}
@@ -288,32 +254,75 @@ export default function StorefrontHeader() {
               <Link
                 href={authenticated ? '/wishlist' : '/login'}
                 aria-label={t('header.wishlist')}
-                className="hidden sm:inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition-colors"
+                className="hidden sm:inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors shrink-0"
               >
                 <Heart className="size-5 stroke-[1.5]" />
               </Link>
 
               {/* User Account Trigger */}
-              <Link
-                href={authenticated ? '/account' : '/login'}
-                aria-label={authenticated ? t('header.account') : t('header.signIn')}
-                className="inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition-colors"
-              >
-                <User className="size-5 stroke-[1.5]" />
-              </Link>
+              {authenticated ? (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t('header.account')}
+                      className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 hover:border-black dark:hover:border-white transition-colors focus:outline-none shrink-0"
+                    >
+                      <span className="text-xs sm:text-sm font-semibold tracking-wider">
+                        {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-neutral-950 border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-neutral-100 mt-2 z-[100] shadow-xl p-1 rounded-lg">
+                    <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-900 mb-1">
+                      <p className="text-xs font-semibold tracking-wider uppercase">{t('account.heading') || 'My Account'}</p>
+                    </div>
+                    <DropdownMenuItem asChild className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 focus:bg-neutral-100 dark:focus:bg-neutral-900 rounded-md">
+                      <Link href="/account" className="flex items-center w-full px-2 py-1.5 text-sm">
+                        <Settings className="mr-3 size-4 text-neutral-500" />
+                        {t('account.profile') || 'Profile Settings'}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 focus:bg-neutral-100 dark:focus:bg-neutral-900 rounded-md">
+                      <Link href="/account?tab=orders" className="flex items-center w-full px-2 py-1.5 text-sm">
+                        <Package className="mr-3 size-4 text-neutral-500" />
+                        {t('account.orders') || 'Orders & Returns'}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 bg-neutral-200 dark:bg-neutral-800" />
+                    <DropdownMenuItem 
+                      className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 focus:bg-neutral-100 dark:focus:bg-neutral-900 text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 rounded-md px-2 py-1.5 text-sm"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-3 size-4" />
+                      {t('account.logout') || 'Sign Out'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href="/login"
+                  aria-label={t('header.signIn')}
+                  className="inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors shrink-0"
+                >
+                  <User className="size-5 stroke-[1.5]" />
+                </Link>
+              )}
 
               {/* Shopping Bag Luxury Pill Trigger */}
               <Link
                 href="/cart"
                 aria-label={t('header.cart', { count: cartCount })}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-300 dark:border-neutral-700 hover:border-black dark:hover:border-white bg-neutral-50/60 dark:bg-neutral-900/60 transition-all duration-200 group"
+                className="shrink-0 inline-flex items-center justify-center sm:gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full sm:border border-transparent sm:border-neutral-300 dark:sm:border-neutral-800 hover:border-black dark:hover:border-white sm:bg-neutral-50/60 dark:sm:bg-neutral-900/60 transition-all duration-200 group relative text-neutral-800 dark:text-neutral-200"
               >
-                <ShoppingBag className="size-4 text-neutral-800 dark:text-neutral-200 group-hover:text-black dark:group-hover:text-white stroke-[1.5]" />
-                <span className="text-xs font-medium tracking-wider uppercase text-neutral-900 dark:text-neutral-100">
-                  Bag{' '}
-                  <span className="text-[#FF8C00] font-semibold">
-                    ({cartCount})
-                  </span>
+                <ShoppingBag className="size-5 sm:size-4 text-neutral-800 dark:text-neutral-200 group-hover:text-black dark:group-hover:text-white stroke-[1.5]" />
+                {/* Mobile Badge */}
+                <span className="sm:hidden absolute top-0 right-0 inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] font-bold text-white bg-[#FF8C00] rounded-full translate-x-1/4 -translate-y-1/4">
+                  {cartCount}
+                </span>
+                {/* Desktop Text */}
+                <span className="hidden sm:inline-flex text-xs font-medium tracking-wider uppercase text-neutral-900 dark:text-neutral-100 items-center">
+                  Bag <span className="text-[#FF8C00] font-semibold ml-1">({cartCount})</span>
                 </span>
               </Link>
             </div>
@@ -330,7 +339,7 @@ export default function StorefrontHeader() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="hidden lg:block w-full bg-white/90 dark:bg-neutral-950/90 backdrop-blur-md border-b border-neutral-200/50 dark:border-neutral-850/50 overflow-hidden"
+              className="hidden lg:block relative z-40 w-full bg-white/90 dark:bg-[#0c0c0d]/80 backdrop-blur-md border-b border-neutral-200/50 dark:border-white/10 overflow-hidden"
               aria-label="Secondary Storefront Navigation"
             >
               <div className="max-w-7xl mx-auto flex items-center justify-center gap-8 md:gap-12 py-2.5 px-4">
@@ -351,7 +360,7 @@ export default function StorefrontHeader() {
                   return (
                     <Link
                       key={item.key}
-                      href={item.href}
+                      href={item.href || '#'}
                       className="text-[12px] font-medium tracking-[0.22em] text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition-colors duration-200 relative group py-1"
                     >
                       <span>{item.label}</span>
@@ -393,7 +402,7 @@ export default function StorefrontHeader() {
                 <div className="flex items-center justify-between pb-6 border-b border-neutral-100 dark:border-neutral-900">
                   <div className="flex flex-col">
                     <span className="font-serif text-2xl tracking-[0.25em] font-light uppercase">
-                      SHOOZY
+                      SHOEZY
                     </span>
                     <span className="text-[8px] tracking-[0.3em] text-neutral-400 uppercase">
                       Maison de Chaussures
@@ -484,43 +493,12 @@ export default function StorefrontHeader() {
       </AnimatePresence>
 
       {/* ──────────────────────────────────────────────────────────
-          MOBILE SEARCH OVERLAY
+          MOBILE LIVE SEARCH OVERLAY
       ────────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-0 z-50 bg-white dark:bg-black border-b border-neutral-200 dark:border-neutral-800 p-4 shadow-xl"
-          >
-            <form onSubmit={handleSearchSubmit} className="max-w-2xl mx-auto flex items-center gap-3">
-              <Search className="size-5 text-neutral-400 shrink-0" />
-              <input
-                type="text"
-                autoFocus
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products, boots, loafers, sneakers…"
-                className="w-full bg-transparent text-sm md:text-base text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none py-2"
-              />
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-black text-white dark:bg-white dark:text-black text-xs uppercase tracking-wider font-semibold"
-              >
-                {t('common.search')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSearchOpen(false)}
-                className="p-2 text-neutral-500 hover:text-black dark:hover:text-white"
-              >
-                <X className="size-5" />
-              </button>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MobileLiveSearchOverlay 
+        isOpen={searchOpen} 
+        onClose={() => setSearchOpen(false)} 
+      />
 
       {/* ──────────────────────────────────────────────────────────
           APPOINTMENT & CONCIERGE MODAL
@@ -544,7 +522,7 @@ export default function StorefrontHeader() {
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] uppercase tracking-[0.3em] text-[#FF8C00] font-semibold">
-                    Maison Shoozy Concierge
+                    Maison Shoezy Concierge
                   </span>
                   <h3 className="font-serif text-2xl md:text-3xl mt-1">
                     Book a Private Fitting

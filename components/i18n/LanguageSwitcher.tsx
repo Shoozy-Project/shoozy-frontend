@@ -30,7 +30,7 @@ export function LanguageSwitcher({
   const setLocale = useLocaleStore((state) => state.setLocale);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
