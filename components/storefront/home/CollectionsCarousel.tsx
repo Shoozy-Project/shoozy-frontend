@@ -80,7 +80,12 @@ export default function CollectionsCarousel() {
           <Swiper
             ref={swiperRef}
             modules={[Autoplay]}
-            spaceBetween={24}
+            spaceBetween={12}
+            breakpoints={{
+              768: {
+                spaceBetween: 24
+              }
+            }}
             slidesPerView="auto"
             loop={true}
             speed={8000}
@@ -94,13 +99,13 @@ export default function CollectionsCarousel() {
             {isLoading ? (
               /* Skeletons */
               Array.from({ length: 4 }).map((_, i) => (
-                <SwiperSlide key={i} className="!w-[85vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto">
+                <SwiperSlide key={i} className="!w-[45vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto">
                   <div className="aspect-[3/4] bg-neutral-100 dark:bg-neutral-900 animate-pulse" />
                 </SwiperSlide>
               ))
             ) : activeCollections.length > 0 ? (
               activeCollections.map((collection) => (
-                <SwiperSlide key={collection.id} className="!w-[85vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto group cursor-pointer relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
+                <SwiperSlide key={collection.id} className="!w-[45vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto group cursor-pointer relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
                   <Link href={`/collections/${collection.slug}`} className="block absolute inset-0 w-full h-full">
                     {/* Collection Image */}
                     {collection.imageUrl ? (

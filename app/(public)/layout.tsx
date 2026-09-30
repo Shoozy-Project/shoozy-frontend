@@ -14,7 +14,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="flex flex-col min-h-screen w-full">
       <StorefrontHeader />
-      <main className="flex-1 w-full pt-[130px] md:pt-[150px]">
+      <main className="flex-1 w-full pt-[88px] md:pt-[96px]">
         {children}
       </main>
       <Footer />

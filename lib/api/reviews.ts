@@ -18,7 +18,7 @@ export interface PublicReviewDto {
 }
 
 export const reviewsApi = {
-  create: (productId: string, payload: { orderItemId: string; rating: number; title?: string | null; body?: string | null }) =>
+  create: (productId: string, payload: { orderItemId?: string; rating: number; title?: string | null; body?: string | null }) =>
     apiClient.post<ApiSuccess<Omit<ReviewDto, 'reviewer' | 'product' | 'userId'>>>(`/products/${productId}/reviews`, payload),
   update: (productId: string, reviewId: string, payload: { rating?: number; title?: string | null; body?: string | null }) =>
     apiClient.patch<ApiSuccess<Omit<ReviewDto, 'reviewer' | 'product' | 'userId'>>>(`/products/${productId}/reviews/${reviewId}`, payload),

@@ -11,6 +11,7 @@ export function createBrandSchema(locale: Locale = 'en') {
     description: z.string().max(2000, m('validation.descriptionLong')).nullable().optional(),
     descriptionAr: z.string().max(2000, m('validation.arabicDescriptionLong')).nullable().optional(),
     logoUrl: z.string().url(m('validation.imageUrlInvalid')).max(500).nullable().optional().or(z.literal('')),
+    images: z.array(z.string().url()).optional(),
     isActive: z.boolean(),
   });
 }

@@ -10,22 +10,17 @@ import {
   useMotionValueEvent,
 } from 'framer-motion';
 import {
-  Calendar,
-  ChevronDown,
-  Globe,
   Heart,
-  MapPin,
   Menu,
-  Phone,
   Search,
   ShoppingBag,
-  Sparkles,
   User,
   X,
   LogOut,
   Settings,
   Package,
-  UserCheck,
+  Sparkles,
+  Phone,
 } from 'lucide-react';
 import { useCurrentCart } from '@/lib/hooks/use-commerce';
 import { selectIsAuthenticated, selectUser, useAuthStore } from '@/stores/auth-store';
@@ -63,12 +58,6 @@ const CATEGORY_NAV_ITEMS: NavItem[] = [
   { label: 'CATEGORIES', href: '/categories', key: 'categories' },
 ];
 
-const CURRENCIES = [
-  { code: 'TND', label: 'Tunisia (TND)', flag: '🇹🇳' },
-  { code: 'EUR', label: 'France / EU (€)', flag: '🇫🇷' },
-  { code: 'USD', label: 'International ($)', flag: '🌐' },
-];
-
 export default function StorefrontHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -91,40 +80,23 @@ export default function StorefrontHeader() {
     }
   };
 
-  // Scroll state & direction
-  const [isAtTop, setIsAtTop] = useState(true);
-  const [isCategoryVisible, setIsCategoryVisible] = useState(true);
+  // Is this the homepage? (transparent header overlay on hero)
+  const isHomepage = pathname === '/' || pathname === '';
+
+  // Scroll state
+  const [scrolled, setScrolled] = useState(false);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
 
   // Modals & Drawers
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const lastScrollY = useRef(0);
   const { scrollY } = useScroll();
 
-  // Dynamic Scroll Direction & Category Bar Animation
   useMotionValueEvent(scrollY, 'change', (current) => {
-    const previous = lastScrollY.current;
-    const delta = current - previous;
-
-    if (current <= 20) {
-      setIsAtTop(true);
-      setIsCategoryVisible(true);
-    } else {
-      setIsAtTop(false);
-      if (delta > 8 && current > 80) {
-        // Scrolling Down: slide category bar out of view
-        setIsCategoryVisible(false);
-      } else if (delta < -8) {
-        // Scrolling Up: slide category bar back in
-        setIsCategoryVisible(true);
-      }
-    }
-    lastScrollY.current = current;
+    setScrolled(current > 50);
   });
 
   // Rotate Promotional Ticker
@@ -148,19 +120,47 @@ export default function StorefrontHeader() {
     router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
+  // Determine visual mode: transparent (over hero) vs solid
+  const isTransparent = isHomepage && !scrolled;
+
+  // Dynamic color classes
+  const textColor = isTransparent
+    ? 'text-white'
+    : 'text-neutral-900 dark:text-neutral-100';
+  const textMuted = isTransparent
+    ? 'text-white/70'
+    : 'text-neutral-500 dark:text-neutral-400';
+  const iconColor = isTransparent
+    ? 'text-white/90 hover:text-white'
+    : 'text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white';
+
   return (
     <>
-      <header className="fixed top-0 left-0 w-full z-50 flex flex-col font-sans transition-all duration-300">
+      <header
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ease-out ${
+          isTransparent
+            ? 'bg-transparent'
+            : 'bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border-b border-neutral-200/40 dark:border-white/10 shadow-sm'
+        }`}
+      >
         {/* ──────────────────────────────────────────────────────────
-            TIER 1: TOP UTILITY BAR (Sticky / Topmost Slim Bar)
+            TIER 1: SLIM UTILITY BAR
         ────────────────────────────────────────────────────────── */}
-        <div className="w-full bg-[#111111] text-neutral-300 dark:bg-[#0c0c0d] dark:text-neutral-400 border-b border-neutral-800/70 dark:border-white/10 text-[11px] uppercase tracking-[0.16em] px-4 md:px-8 py-2 transition-colors">
+        <div
+          className={`w-full text-[10px] uppercase tracking-[0.18em] px-4 md:px-8 py-1.5 transition-colors duration-500 ${
+            isTransparent
+              ? 'bg-transparent border-b border-white/10 text-white/70'
+              : 'bg-neutral-950 dark:bg-neutral-900 border-b border-neutral-800/70 dark:border-white/10 text-neutral-400'
+          }`}
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             {/* Left: Concierge */}
-            <div className="hidden lg:flex items-center gap-5 text-neutral-300">
+            <div className="hidden lg:flex items-center gap-5">
               <a
                 href="tel:+21671000000"
-                className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+                className={`inline-flex items-center gap-1.5 transition-colors ${
+                  isTransparent ? 'hover:text-white' : 'hover:text-white'
+                }`}
               >
                 <Phone className="size-3 text-[#FF8C00]" />
                 <span>Concierge: +216 71 890 120</span>
@@ -176,7 +176,7 @@ export default function StorefrontHeader() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.4, ease: 'easeInOut' }}
-                  className="flex items-center justify-center gap-2 text-neutral-200 dark:text-neutral-300 font-medium truncate max-w-xl"
+                  className="flex items-center justify-center gap-2 font-medium truncate max-w-xl"
                 >
                   <Sparkles className="size-3 text-[#FF8C00] shrink-0" />
                   <span className="truncate">
@@ -188,85 +188,117 @@ export default function StorefrontHeader() {
 
             {/* Right: Language & Theme */}
             <div className="flex items-center gap-3 md:gap-4 shrink-0">
-
-              {/* Language Switcher */}
               <LanguageSwitcher tone="inverse" className="text-xs" />
-
-              {/* Dark / Light Theme Toggle */}
               <ThemeToggle tone="inverse" />
             </div>
           </div>
         </div>
 
         {/* ──────────────────────────────────────────────────────────
-            TIER 2: MAIN BRAND & ACTION BAR (Luxury Glassmorphism)
+            TIER 2: MAIN NAVIGATION BAR (Unified)
         ────────────────────────────────────────────────────────── */}
-        <div
-          className={`relative z-50 w-full bg-white/95 dark:bg-[#0c0c0d]/80 backdrop-blur-md border-b border-neutral-200/60 dark:border-white/10 transition-all duration-300 px-3 sm:px-6 lg:px-8 py-3.5 ${
-            !isAtTop ? 'shadow-sm' : ''
-          }`}
-        >
+        <div className="w-full px-4 sm:px-6 lg:px-10 py-3 md:py-3.5">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            {/* Left: Minimalist Search Pill */}
-            <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-start">
-              {/* Mobile Hamburger Button */}
+            {/* Left: Navigation Links (Desktop) + Hamburger (Mobile) */}
+            <div className="flex items-center gap-6 lg:gap-8 flex-1">
+              {/* Mobile Hamburger */}
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
                 aria-label={t('header.menuOpen')}
-                className="lg:hidden p-1.5 text-neutral-800 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors"
+                className={`lg:hidden p-1 transition-colors ${iconColor}`}
               >
-                <Menu className="size-6 stroke-[1.5]" />
+                <Menu className="size-5 stroke-[1.5]" />
               </button>
 
-              {/* Live Search Component (Desktop) */}
-              <DesktopLiveSearch />
+              {/* Desktop Navigation */}
+              <nav className="hidden lg:flex items-center gap-7">
+                {CATEGORY_NAV_ITEMS.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href || '#'}
+                    className={`text-xs uppercase tracking-[0.18em] font-medium transition-all duration-300 relative group py-1 ${
+                      isTransparent
+                        ? 'text-white/80 hover:text-white'
+                        : 'text-neutral-600 dark:text-neutral-300 hover:text-black dark:hover:text-white'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <span
+                      className={`absolute bottom-0 left-0 w-0 h-[1px] transition-all duration-300 group-hover:w-full ${
+                        isTransparent ? 'bg-white' : 'bg-black dark:bg-white'
+                      }`}
+                    />
+                  </Link>
+                ))}
+              </nav>
             </div>
 
-            {/* Center: Editorial Brand Typography */}
+            {/* Center: Logo */}
             <div className="flex flex-col items-center justify-center shrink-0">
-              <Link href="/" className="flex flex-col items-center group text-center py-1">
-                <span className="font-serif text-2xl sm:text-3xl md:text-4xl tracking-[0.32em] font-light text-neutral-950 dark:text-neutral-50 group-hover:tracking-[0.35em] transition-all duration-300 uppercase pl-[0.32em]">
+              <Link href="/" className="flex flex-col items-center group text-center py-0.5">
+                <span
+                  className={`font-serif text-2xl sm:text-3xl md:text-[2.2rem] tracking-[0.3em] font-light uppercase pl-[0.3em] transition-all duration-500 ${
+                    isTransparent
+                      ? 'text-white'
+                      : 'text-neutral-950 dark:text-neutral-50'
+                  } group-hover:tracking-[0.35em]`}
+                >
                   SHOEZY
                 </span>
-                <span className="text-[7.5px] sm:text-[8px] uppercase tracking-[0.45em] text-neutral-400 dark:text-neutral-400 pl-[0.45em] -mt-1 font-sans">
+                <span
+                  className={`text-[7px] sm:text-[8px] uppercase tracking-[0.4em] pl-[0.4em] -mt-0.5 font-sans transition-colors duration-500 ${
+                    isTransparent
+                      ? 'text-white/50'
+                      : 'text-neutral-400 dark:text-neutral-500'
+                  }`}
+                >
                   Maison Fondée en 1928
                 </span>
               </Link>
             </div>
 
-            {/* Right: Actions (Wishlist, Account, Bag) */}
-            <div className="shrink-0 flex items-center gap-1 sm:gap-3 flex-1 justify-end text-neutral-800 dark:text-neutral-200">
+            {/* Right: Action Icons */}
+            <div className="shrink-0 flex items-center gap-1.5 sm:gap-3 flex-1 justify-end">
+              {/* Desktop Live Search */}
+              <div className={isTransparent ? '[&_input]:text-white [&_input]:placeholder:text-white/50 [&_input]:border-white/20 [&_svg]:text-white/70' : ''}>
+                <DesktopLiveSearch />
+              </div>
+
               {/* Mobile Search Icon */}
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={t('header.searchOpen')}
-                className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-black dark:hover:text-white shrink-0 transition-colors"
+                className={`md:hidden w-8 h-8 flex items-center justify-center rounded-full shrink-0 transition-colors ${iconColor}`}
               >
-                <Search className="size-4 sm:size-5 stroke-[1.5]" />
+                <Search className="size-[18px] stroke-[1.5]" />
               </button>
 
               {/* Notification Center */}
-              {authenticated && <NotificationCenter compact tone="default" />}
+              {authenticated && <NotificationCenter compact />}
 
-              {/* Wishlist Link */}
+              {/* Wishlist */}
               <Link
                 href={authenticated ? '/wishlist' : '/login'}
                 aria-label={t('header.wishlist')}
-                className="hidden sm:inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors shrink-0"
+                className={`hidden sm:inline-flex items-center justify-center p-1 transition-colors shrink-0 ${iconColor}`}
               >
-                <Heart className="size-5 stroke-[1.5]" />
+                <Heart className="size-[18px] stroke-[1.5]" />
               </Link>
 
-              {/* User Account Trigger */}
+              {/* User Account */}
               {authenticated ? (
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       aria-label={t('header.account')}
-                      className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 hover:border-black dark:hover:border-white transition-colors focus:outline-none shrink-0"
+                      className={`inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border transition-colors focus:outline-none shrink-0 ${
+                        isTransparent
+                          ? 'border-white/40 bg-white/10 text-white hover:border-white hover:bg-white/20'
+                          : 'border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 hover:border-black dark:hover:border-white'
+                      }`}
                     >
                       <span className="text-xs sm:text-sm font-semibold tracking-wider">
                         {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
@@ -303,75 +335,37 @@ export default function StorefrontHeader() {
                 <Link
                   href="/login"
                   aria-label={t('header.signIn')}
-                  className="inline-flex items-center justify-center p-1 text-neutral-700 dark:text-neutral-200 hover:text-black dark:hover:text-white transition-colors shrink-0"
+                  className={`inline-flex items-center justify-center p-1 transition-colors shrink-0 ${iconColor}`}
                 >
-                  <User className="size-5 stroke-[1.5]" />
+                  <User className="size-[18px] stroke-[1.5]" />
                 </Link>
               )}
 
-              {/* Shopping Bag Luxury Pill Trigger */}
+              {/* Shopping Bag */}
               <Link
                 href="/cart"
                 aria-label={t('header.cart', { count: cartCount })}
-                className="shrink-0 inline-flex items-center justify-center sm:gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full sm:border border-transparent sm:border-neutral-300 dark:sm:border-neutral-800 hover:border-black dark:hover:border-white sm:bg-neutral-50/60 dark:sm:bg-neutral-900/60 transition-all duration-200 group relative text-neutral-800 dark:text-neutral-200"
+                className={`shrink-0 inline-flex items-center justify-center gap-1.5 p-1 sm:px-3 sm:py-1.5 sm:rounded-full sm:border transition-all duration-300 group relative ${
+                  isTransparent
+                    ? 'text-white/90 hover:text-white sm:border-white/25 sm:hover:border-white/50 sm:bg-white/5'
+                    : 'text-neutral-800 dark:text-neutral-200 sm:border-neutral-300 dark:sm:border-neutral-800 sm:hover:border-black dark:sm:hover:border-white sm:bg-neutral-50/60 dark:sm:bg-neutral-900/60'
+                }`}
               >
-                <ShoppingBag className="size-5 sm:size-4 text-neutral-800 dark:text-neutral-200 group-hover:text-black dark:group-hover:text-white stroke-[1.5]" />
+                <ShoppingBag className="size-[18px] sm:size-4 stroke-[1.5]" />
                 {/* Mobile Badge */}
                 <span className="sm:hidden absolute top-0 right-0 inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] font-bold text-white bg-[#FF8C00] rounded-full translate-x-1/4 -translate-y-1/4">
                   {cartCount}
                 </span>
                 {/* Desktop Text */}
-                <span className="hidden sm:inline-flex text-xs font-medium tracking-wider uppercase text-neutral-900 dark:text-neutral-100 items-center">
+                <span className={`hidden sm:inline-flex text-xs font-medium tracking-wider uppercase items-center ${
+                  isTransparent ? 'text-white/90' : 'text-neutral-900 dark:text-neutral-100'
+                }`}>
                   Bag <span className="text-[#FF8C00] font-semibold ml-1">({cartCount})</span>
                 </span>
               </Link>
             </div>
           </div>
         </div>
-
-        {/* ──────────────────────────────────────────────────────────
-            TIER 3: SECONDARY CATEGORY NAVIGATION (Animated Tier)
-        ────────────────────────────────────────────────────────── */}
-        <AnimatePresence>
-          {isCategoryVisible && (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="hidden lg:block relative z-40 w-full bg-white/90 dark:bg-[#0c0c0d]/80 backdrop-blur-md border-b border-neutral-200/50 dark:border-white/10 overflow-hidden"
-              aria-label="Secondary Storefront Navigation"
-            >
-              <div className="max-w-7xl mx-auto flex items-center justify-center gap-8 md:gap-12 py-2.5 px-4">
-                {CATEGORY_NAV_ITEMS.map((item) => {
-                  if (item.isModal) {
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => setAppointmentModalOpen(true)}
-                        className="text-[12px] font-medium tracking-[0.22em] text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition-colors duration-200 relative group py-1 cursor-pointer"
-                      >
-                        <span>{item.label}</span>
-                        <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#FF8C00] transition-all duration-300 group-hover:w-full" />
-                      </button>
-                    );
-                  }
-                  return (
-                    <Link
-                      key={item.key}
-                      href={item.href || '#'}
-                      className="text-[12px] font-medium tracking-[0.22em] text-neutral-700 dark:text-neutral-300 hover:text-black dark:hover:text-white transition-colors duration-200 relative group py-1"
-                    >
-                      <span>{item.label}</span>
-                      <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-black dark:bg-white transition-all duration-300 group-hover:w-full" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </motion.nav>
-          )}
-        </AnimatePresence>
       </header>
 
       {/* ──────────────────────────────────────────────────────────
@@ -440,7 +434,7 @@ export default function StorefrontHeader() {
                   {CATEGORY_NAV_ITEMS.map((item) => (
                     <Link
                       key={item.key}
-                      href={item.href}
+                      href={item.href || '#'}
                       onClick={() => {
                         if (item.isModal) {
                           setAppointmentModalOpen(true);
@@ -463,7 +457,7 @@ export default function StorefrontHeader() {
                 </nav>
               </div>
 
-              {/* Drawer Footer info */}
+              {/* Drawer Footer */}
               <div className="pt-6 border-t border-neutral-100 dark:border-neutral-900 text-xs text-neutral-500 space-y-3">
                 <button
                   type="button"
@@ -492,9 +486,7 @@ export default function StorefrontHeader() {
         )}
       </AnimatePresence>
 
-      {/* ──────────────────────────────────────────────────────────
-          MOBILE LIVE SEARCH OVERLAY
-      ────────────────────────────────────────────────────────── */}
+      {/* Mobile Live Search Overlay */}
       <MobileLiveSearchOverlay 
         isOpen={searchOpen} 
         onClose={() => setSearchOpen(false)} 

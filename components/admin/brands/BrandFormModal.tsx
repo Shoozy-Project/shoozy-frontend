@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import {
   Loader2,
   Award,
+  UploadCloud,
+  X
 } from 'lucide-react';
-import { ImageDropzone } from '@/components/ui/image-dropzone';
 
 import {
   Dialog,
@@ -50,10 +51,8 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
   const queryClient = useQueryClient();
   const isEdit = !!editTarget;
 
-  // ─── Logo & Product Selector State ─────────────────────────
-  const imageFileRef = useRef<File | null>(null);
-
-  // ─── Fetch Products for Multi-select Selector ──────────────
+  // ─── Logo & Multi-Image State ──────────────────────────────
+  const [images, setImages] = useState<Array<File | string>>([]);
 
   // ─── Search & Selection Memoization ─────────────────────────
 
@@ -89,7 +88,8 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         logoUrl: editTarget.logoUrl ?? '',
         isActive: editTarget.isActive,
       });
-      imageFileRef.current = null;
+      // Hydrate images array with existing string images if they existed
+      setImages(editTarget.images?.length ? editTarget.images : (editTarget.logoUrl ? [editTarget.logoUrl] : []));
     } else if (open && !editTarget) {
       reset({
         name: '',
@@ -100,7 +100,7 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
         logoUrl: '',
         isActive: true,
       });
-      imageFileRef.current = null;
+      setImages([]);
     }
   }, [open, editTarget, reset]);
 
@@ -123,23 +123,39 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
     return creating ? undefined : { en };
   };
 
-  // ─── Handle File Selection ─────────────────────────────────
-  const handleImageSelect = useCallback((file: File | null, previewUrl: string | null) => {
-    imageFileRef.current = file;
-    setValue('logoUrl', previewUrl ?? '', { shouldValidate: false, shouldDirty: true });
-  }, [setValue]);
+  // ─── Handle Multi-Image Selection ──────────────────────────
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setImages(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setImages(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+    }
+  }, []);
+
+  const removeImage = useCallback((index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   // ─── Create Mutation ────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (data: BrandFormInput) =>
-      brandsApi.create({
+    mutationFn: (data: BrandFormInput) => {
+      const existingUrls = images.filter(img => typeof img === 'string') as string[];
+      const newFiles = images.filter(img => img instanceof File) as File[];
+
+      return brandsApi.create({
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        logoUrl: imageFileRef.current ? undefined : (data.logoUrl || null),
+        images: existingUrls.length > 0 ? existingUrls : undefined,
         isActive: data.isActive,
         translations: translations(data, true),
-      }, imageFileRef.current ?? undefined),
+      }, newFiles);
+    },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success(t('admin.brandCreated', { name: res.data.data.name }));
@@ -150,15 +166,19 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
 
   // ─── Update Mutation ────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: (data: BrandFormInput) =>
-      brandsApi.update(editTarget!.id, {
+    mutationFn: (data: BrandFormInput) => {
+      const existingUrls = images.filter(img => typeof img === 'string') as string[];
+      const newFiles = images.filter(img => img instanceof File) as File[];
+
+      return brandsApi.update(editTarget!.id, {
         name: data.name,
         slug: data.slug,
         description: data.description || null,
-        logoUrl: imageFileRef.current ? undefined : (data.logoUrl || null),
+        images: existingUrls.length > 0 ? existingUrls : undefined,
         isActive: data.isActive,
         translations: translations(data, false),
-      }, imageFileRef.current ?? undefined),
+      }, newFiles);
+    },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast.success(t('admin.brandUpdated', { name: res.data.data.name }));
@@ -242,17 +262,66 @@ const BrandFormModal = ({ open, onOpenChange, editTarget }: BrandFormModalProps)
               {errors.slug && <p className="text-xs text-red-500">{errors.slug.message}</p>}
             </div>
 
-            {/* Brand Logo */}
-            <div className="space-y-2">
+            {/* Brand Images (Multiple) */}
+            <div className="space-y-3">
               <Label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                {t('admin.brandLogo')} <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
+                Brand Images <span className="text-gray-400 font-normal">{t('admin.optional')}</span>
               </Label>
-              <ImageDropzone
-                value={logoUrlValue || null}
-                onSelect={handleImageSelect}
-                disabled={isPending}
-              />
-              {errors.logoUrl && <p className="text-xs text-red-500">{errors.logoUrl.message}</p>}
+              
+              {/* Drag & Drop Zone */}
+              <div 
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('multi-image-upload')?.click()}
+                className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-200 rounded-xl transition-colors cursor-pointer ${isPending ? 'opacity-50 pointer-events-none' : 'hover:border-[#FF8C00] hover:bg-[#FFF8F0]'}`}
+              >
+                <input 
+                  id="multi-image-upload" 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileChange}
+                  disabled={isPending}
+                />
+                <div className="flex flex-col items-center gap-2 text-center pointer-events-none">
+                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-1">
+                    <UploadCloud className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-700">Drag & drop brand images here, or click to browse</p>
+                  <p className="text-xs text-gray-400">Supports JPG, PNG, WEBP (Multiple selection allowed)</p>
+                </div>
+              </div>
+
+              {/* Thumbnails Grid */}
+              {images.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4">
+                  {images.map((image, index) => {
+                    // Generate a safe preview URL for File objects, or use the string URL
+                    const src = typeof image === 'string' ? image : URL.createObjectURL(image);
+                    return (
+                      <div key={index} className="relative aspect-square rounded-lg border border-gray-200 overflow-hidden group bg-gray-50">
+                        <img 
+                          src={src} 
+                          alt={`Brand upload ${index + 1}`} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                        />
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage(index);
+                          }}
+                          className="absolute top-1.5 right-1.5 bg-black/50 hover:bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-sm backdrop-blur-sm"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Active Status */}

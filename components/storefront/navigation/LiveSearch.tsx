@@ -21,6 +21,53 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+const SEARCH_PHRASES = [
+  'search by product...',
+  'search by collection...',
+  'search by brand...',
+  'search by category...'
+];
+
+function useTypingPlaceholder(phrases: string[], typingSpeed: number = 70, pauseDelay: number = 2500) {
+  const [text, setText] = useState('');
+  const [phase, setPhase] = useState<'typing' | 'pausing' | 'deleting'>('typing');
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+
+    if (phase === 'typing') {
+      const currentPhrase = phrases[phraseIndex];
+      if (text.length < currentPhrase.length) {
+        timeout = setTimeout(() => {
+          setText(currentPhrase.slice(0, text.length + 1));
+        }, typingSpeed);
+      } else {
+        timeout = setTimeout(() => {
+          setPhase('pausing');
+        }, pauseDelay);
+      }
+    } else if (phase === 'pausing') {
+      timeout = setTimeout(() => {
+        setPhase('deleting');
+      }, pauseDelay / 4);
+    } else if (phase === 'deleting') {
+      if (text.length > 0) {
+        timeout = setTimeout(() => {
+          setText(text.slice(0, -1));
+        }, typingSpeed / 2);
+      } else {
+        setPhraseIndex((prev) => (prev + 1) % phrases.length);
+        setPhase('typing');
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [text, phase, phraseIndex, phrases, typingSpeed, pauseDelay]);
+
+  return text;
+}
+
 export function DesktopLiveSearch() {
   const { t } = useTranslations();
   const router = useRouter();
@@ -31,6 +78,7 @@ export function DesktopLiveSearch() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   
   const debouncedQuery = useDebounce(query, 300);
+  const placeholderText = useTypingPlaceholder(SEARCH_PHRASES);
 
   useEffect(() => {
     async function fetchResults() {
@@ -103,9 +151,9 @@ export function DesktopLiveSearch() {
           onFocus={() => {
             if (query.trim().length >= 2) setIsOpen(true);
           }}
-          placeholder="Search Maison Shoezy…"
+          placeholder={placeholderText}
           aria-label={t('header.search')}
-          className="w-full h-10 pl-10 pr-12 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 bg-neutral-100/80 border border-neutral-200/80 rounded-full focus:outline-none focus:border-neutral-400 focus:bg-white dark:bg-neutral-900/60 dark:border-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600 dark:focus:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all duration-300"
+          className="w-full h-10 pl-10 pr-12 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 bg-black/5 dark:bg-white/5 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-full focus:outline-none focus:border-black/30 dark:focus:border-white/30 focus:bg-black/10 dark:focus:bg-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.02)]"
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           <kbd className="hidden lg:inline-flex items-center justify-center text-[10px] text-neutral-400 border border-neutral-300 dark:border-neutral-700 px-1.5 py-0.5 rounded font-sans font-medium tracking-widest bg-transparent">
@@ -193,6 +241,7 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const debouncedQuery = useDebounce(query, 300);
+  const placeholderText = useTypingPlaceholder(SEARCH_PHRASES);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -256,8 +305,8 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search Maison Shoezy…"
-                className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-full pl-10 pr-4 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600"
+                placeholder={placeholderText}
+                className="w-full bg-black/5 dark:bg-white/5 backdrop-blur-md border border-black/10 dark:border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
               />
             </form>
             <button
