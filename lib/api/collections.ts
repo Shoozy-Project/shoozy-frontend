@@ -19,12 +19,14 @@ import type {
 function buildBody(
   data: CreateCollectionPayload | UpdateCollectionPayload,
   imageFile?: File | null,
+  videoFile?: File | null,
 ): CreateCollectionPayload | UpdateCollectionPayload | FormData {
-  if (!imageFile) return data;
+  if (!imageFile && !videoFile) return data;
 
   const formData = new FormData();
   formData.append('data', JSON.stringify(data));
-  formData.append('image', imageFile);
+  if (imageFile) formData.append('image', imageFile);
+  if (videoFile) formData.append('video', videoFile);
   return formData;
 }
 
@@ -41,15 +43,15 @@ export const collectionsApi = {
    * POST /admin/collections
    * Pass `imageFile` to send the cover image as multipart/form-data.
    */
-  create: (data: CreateCollectionPayload, imageFile?: File | null) =>
-    apiClient.post<ApiSuccess<CollectionDto>>('/admin/collections', buildBody(data, imageFile)),
+  create: (data: CreateCollectionPayload, imageFile?: File | null, videoFile?: File | null) =>
+    apiClient.post<ApiSuccess<CollectionDto>>('/admin/collections', buildBody(data, imageFile, videoFile)),
 
   /**
    * PATCH /admin/collections/:id
    * Pass `imageFile` to replace the cover image via multipart/form-data.
    */
-  update: (id: string, data: UpdateCollectionPayload, imageFile?: File | null) =>
-    apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, buildBody(data, imageFile)),
+  update: (id: string, data: UpdateCollectionPayload, imageFile?: File | null, videoFile?: File | null) =>
+    apiClient.patch<ApiSuccess<CollectionDto>>(`/admin/collections/${id}`, buildBody(data, imageFile, videoFile)),
 
   /** DELETE /admin/collections/:id → 204 No Content */
   delete: (id: string) =>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Loader2 } from 'lucide-react';
@@ -8,6 +8,8 @@ import { useTranslations } from '@/lib/hooks/use-translations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { catalogApi } from '@/lib/api/catalog';
 import type { CatalogProductDto } from '@/types/commerce';
+import { formatMinorMoney } from '@/lib/format-money';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
 
 // Hook for debouncing input
 function useDebounce<T>(value: T, delay: number): T {
@@ -20,13 +22,6 @@ function useDebounce<T>(value: T, delay: number): T {
   }, [value, delay]);
   return debouncedValue;
 }
-
-const SEARCH_PHRASES = [
-  'search by product...',
-  'search by collection...',
-  'search by brand...',
-  'search by category...'
-];
 
 function useTypingPlaceholder(phrases: string[], typingSpeed: number = 70, pauseDelay: number = 2500) {
   const [text, setText] = useState('');
@@ -57,8 +52,10 @@ function useTypingPlaceholder(phrases: string[], typingSpeed: number = 70, pause
           setText(text.slice(0, -1));
         }, typingSpeed / 2);
       } else {
-        setPhraseIndex((prev) => (prev + 1) % phrases.length);
-        setPhase('typing');
+        timeout = setTimeout(() => {
+          setPhraseIndex((prev) => (prev + 1) % phrases.length);
+          setPhase('typing');
+        }, 0);
       }
     }
 
@@ -69,16 +66,16 @@ function useTypingPlaceholder(phrases: string[], typingSpeed: number = 70, pause
 }
 
 export function DesktopLiveSearch() {
-  const { t } = useTranslations();
+  const { locale, t } = useTranslations();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogProductDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  
+  const searchPhrases = useMemo(() => [t('search.byProduct'), t('search.byCollection'), t('search.byBrand'), t('search.byCategory')], [t]);
   const debouncedQuery = useDebounce(query, 300);
-  const placeholderText = useTypingPlaceholder(SEARCH_PHRASES);
+  const placeholderText = useTypingPlaceholder(searchPhrases);
 
   useEffect(() => {
     async function fetchResults() {
@@ -134,7 +131,7 @@ export function DesktopLiveSearch() {
     e.preventDefault();
     if (query.trim()) {
       setIsOpen(false);
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      router.push(`/products?search=${encodeURIComponent(query.trim())}`);
     }
   };
 
@@ -175,12 +172,12 @@ export function DesktopLiveSearch() {
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-8 text-neutral-400 dark:text-neutral-500">
                   <Loader2 className="size-6 animate-spin mb-3" />
-                  <p className="text-xs tracking-widest uppercase">Searching catalog...</p>
+                  <p className="text-xs tracking-widest uppercase">{t('search.searchingCatalog')}</p>
                 </div>
               ) : results.length > 0 ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold px-2">
-                    Products
+                    {t('search.products')}
                   </p>
                   {results.map((product) => (
                     <Link
@@ -192,9 +189,9 @@ export function DesktopLiveSearch() {
                       {/* Product Thumbnail */}
                       <div className="w-12 h-12 bg-neutral-50 dark:bg-neutral-950 rounded border border-neutral-100 dark:border-neutral-800 overflow-hidden shrink-0">
                         {product.primaryMedia?.url ? (
-                          <img src={product.primaryMedia.url} alt={product.primaryMedia.altText || product.name} className="w-full h-full object-cover" />
+                          <div className="relative size-full"><CommerceImage src={product.primaryMedia.url} alt={product.primaryMedia.altText || product.name} sizes="48px" className="object-cover" /></div>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400">No Img</div>
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400">{t('search.noImage')}</div>
                         )}
                       </div>
                       {/* Product Info */}
@@ -204,26 +201,28 @@ export function DesktopLiveSearch() {
                       </div>
                       {/* Price */}
                       <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 shrink-0">
-                        {(parseInt(product.basePrice || '0')).toFixed(3)} TND
+                        {product.minimumEffectivePriceMinor ?? product.minimumVariantPriceMinor
+                          ? formatMinorMoney(product.minimumEffectivePriceMinor ?? product.minimumVariantPriceMinor!, 'TND', 3, locale === 'ar' ? 'ar-TN' : 'en-TN')
+                          : t('catalog.priceUnavailable')}
                       </div>
                     </Link>
                   ))}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 text-neutral-400 dark:text-neutral-500 text-center px-4">
-                  <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">No matching luxury pieces found</p>
-                  <p className="text-xs mt-1">Try checking your spelling or use more general terms.</p>
+                  <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('search.noResults')}</p>
+                  <p className="text-xs mt-1">{t('search.tryAgain')}</p>
                 </div>
               )}
             </div>
             
             {/* Footer Action */}
             <Link
-              href={`/search?q=${encodeURIComponent(query.trim())}`}
+              href={`/products?search=${encodeURIComponent(query.trim())}`}
               onClick={() => setIsOpen(false)}
               className="w-full p-3 text-center text-xs font-semibold uppercase tracking-widest text-neutral-700 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 hover:text-[#FF8C00] dark:hover:text-[#FF8C00] transition-colors"
             >
-              View all results for "{query}"
+              {t('search.viewAll', { query })}
             </Link>
           </motion.div>
         )}
@@ -233,15 +232,15 @@ export function DesktopLiveSearch() {
 }
 
 export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { t } = useTranslations();
+  const { locale, t } = useTranslations();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogProductDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
+  const searchPhrases = useMemo(() => [t('search.byProduct'), t('search.byCollection'), t('search.byBrand'), t('search.byCategory')], [t]);
   const debouncedQuery = useDebounce(query, 300);
-  const placeholderText = useTypingPlaceholder(SEARCH_PHRASES);
+  const placeholderText = useTypingPlaceholder(searchPhrases);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -283,7 +282,7 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
     e.preventDefault();
     if (query.trim()) {
       onClose();
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      router.push(`/products?search=${encodeURIComponent(query.trim())}`);
     }
   };
 
@@ -314,7 +313,7 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
               onClick={onClose}
               className="p-2 text-neutral-500 hover:text-black dark:hover:text-white font-medium text-xs uppercase tracking-wider"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
 
@@ -324,23 +323,23 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
               isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
                   <Loader2 className="size-6 animate-spin mb-3" />
-                  <p className="text-xs tracking-widest uppercase">Searching...</p>
+                  <p className="text-xs tracking-widest uppercase">{t('search.searching')}</p>
                 </div>
               ) : results.length > 0 ? (
                 <div className="flex flex-col gap-2 pb-20">
                   <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold mb-2 px-1">
-                    Products
+                    {t('search.products')}
                   </p>
                   {results.map((product) => (
                     <Link
                       key={product.id}
-                      href={`/product/${product.slug}`}
+                      href={`/products/${product.slug}`}
                       onClick={onClose}
                       className="flex items-center gap-4 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
                     >
                       <div className="w-14 h-14 bg-neutral-100 dark:bg-neutral-800 rounded-md overflow-hidden shrink-0 border border-neutral-200 dark:border-neutral-800/50">
                         {product.primaryMedia?.url ? (
-                          <img src={product.primaryMedia.url} alt={product.primaryMedia.altText || product.name} className="w-full h-full object-cover" />
+                          <div className="relative size-full"><CommerceImage src={product.primaryMedia.url} alt={product.primaryMedia.altText || product.name} sizes="56px" className="object-cover" /></div>
                         ) : null}
                       </div>
                       <div className="flex-1 flex flex-col justify-center truncate">
@@ -348,29 +347,31 @@ export function MobileLiveSearchOverlay({ isOpen, onClose }: { isOpen: boolean; 
                         <span className="text-xs text-neutral-500 truncate">{product.brand?.name}</span>
                       </div>
                       <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                        ${(parseInt(product.basePrice || '0') / 100).toFixed(2)}
+                        {product.minimumEffectivePriceMinor ?? product.minimumVariantPriceMinor
+                          ? formatMinorMoney(product.minimumEffectivePriceMinor ?? product.minimumVariantPriceMinor!, 'TND', 3, locale === 'ar' ? 'ar-TN' : 'en-TN')
+                          : t('catalog.priceUnavailable')}
                       </div>
                     </Link>
                   ))}
                   
                   <Link
-                    href={`/search?q=${encodeURIComponent(query.trim())}`}
+                    href={`/products?search=${encodeURIComponent(query.trim())}`}
                     onClick={onClose}
                     className="mt-6 w-full p-4 text-center text-xs font-bold uppercase tracking-widest text-neutral-900 dark:text-neutral-100 bg-neutral-100 dark:bg-neutral-900 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    View all results for "{query}"
+                    {t('search.viewAll', { query })}
                   </Link>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                  <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">No luxury pieces found.</p>
-                  <p className="text-xs text-neutral-500 mt-2">Try checking your spelling or use more general terms.</p>
+                  <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{t('search.noResults')}</p>
+                  <p className="text-xs text-neutral-500 mt-2">{t('search.tryAgain')}</p>
                 </div>
               )
             ) : (
               <div className="py-8 px-2 flex flex-col items-center justify-center text-center opacity-50">
                 <Search className="size-8 mb-4 text-neutral-400" />
-                <p className="text-xs uppercase tracking-widest text-neutral-500">Discover Maison Shoezy</p>
+                <p className="text-xs uppercase tracking-widest text-neutral-500">{t('search.discover')}</p>
               </div>
             )}
           </div>

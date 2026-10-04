@@ -7,11 +7,11 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Loader2,
-  Link as LinkIcon,
   Tag,
 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { ImageDropzone } from '@/components/ui/image-dropzone';
+import { EntityVideoField } from '@/components/admin/EntityVideoField';
 
 import {
   Dialog,
@@ -54,6 +54,8 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
 
   // ─── Image upload state ──────────────────────────────────────
   const imageFileRef = useRef<File | null>(null);
+  const videoFileRef = useRef<File | null>(null);
+  const removeVideoRef = useRef(false);
 
   const {
     register,
@@ -92,6 +94,8 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         parentId: editTarget.parentId ?? null,
       });
       imageFileRef.current = null;
+      videoFileRef.current = null;
+      removeVideoRef.current = false;
     } else if (open && !editTarget) {
       reset({
         name: '',
@@ -105,6 +109,8 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
         parentId: null,
       });
       imageFileRef.current = null;
+      videoFileRef.current = null;
+      removeVideoRef.current = false;
     }
   }, [open, editTarget, reset]);
 
@@ -146,7 +152,8 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
           parentId: data.parentId || null,
           translations: translations(data, true),
         },
-        imageFileRef.current ?? undefined
+        imageFileRef.current ?? undefined,
+        videoFileRef.current ?? undefined,
       ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -181,8 +188,10 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
           isActive: data.isActive,
           parentId: data.parentId || null,
           translations: translations(data, false),
+          ...(removeVideoRef.current ? { removeVideo: true } : {}),
         },
-        imageFileRef.current ?? undefined
+        imageFileRef.current ?? undefined,
+        videoFileRef.current ?? undefined,
       ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -292,6 +301,13 @@ const CategoryFormModal = ({ open, onOpenChange, editTarget }: CategoryFormModal
               />
               {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
             </div>
+
+            <EntityVideoField
+              key={`${editTarget?.id ?? 'new'}-${open ? 'open' : 'closed'}`}
+              existingVideoUrl={editTarget?.videoUrl}
+              disabled={isPending}
+              onChange={(file, removeVideo) => { videoFileRef.current = file; removeVideoRef.current = removeVideo; }}
+            />
 
             {/* Active Status */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">

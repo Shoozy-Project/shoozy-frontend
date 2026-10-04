@@ -1,11 +1,14 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '@/lib/constants';
 
+const API_REQUEST_TIMEOUT_MS = 15_000;
+const MEDIA_UPLOAD_TIMEOUT_MS = 180_000;
+
 // ─── Axios Instance ────────────────────────────────────────────
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // sends refresh cookie on every request
-  timeout: 15_000,
+  timeout: API_REQUEST_TIMEOUT_MS,
 });
 
 // ─── Token getter (avoids circular import with Zustand store) ──
@@ -33,6 +36,13 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   if (config.headers) {
     config.headers['Accept-Language'] = getLocale?.() ?? 'en';
+  }
+  if (
+    typeof FormData !== 'undefined'
+    && config.data instanceof FormData
+    && config.timeout === API_REQUEST_TIMEOUT_MS
+  ) {
+    config.timeout = MEDIA_UPLOAD_TIMEOUT_MS;
   }
   return config;
 });

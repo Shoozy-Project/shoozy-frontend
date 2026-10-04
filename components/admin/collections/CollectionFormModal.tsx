@@ -13,6 +13,7 @@ import {
   Search,
 } from 'lucide-react';
 import { ImageDropzone } from '@/components/ui/image-dropzone';
+import { EntityVideoField } from '@/components/admin/EntityVideoField';
 
 import {
   Dialog,
@@ -95,6 +96,8 @@ const CollectionFormModal = ({
   const [productSearch, setProductSearch] = useState('');
   const initialProductIdsRef = useRef<string[]>([]);
   const imageFileRef = useRef<File | null>(null);
+  const videoFileRef = useRef<File | null>(null);
+  const removeVideoRef = useRef(false);
   const {
     data: collectionDetail,
     isLoading: isCollectionDetailLoading,
@@ -180,6 +183,8 @@ const CollectionFormModal = ({
       });
       initialProductIdsRef.current = [];
       imageFileRef.current = null;
+      videoFileRef.current = null;
+      removeVideoRef.current = false;
       setSelectedProductIds([]);
       setProductSearch('');
     } else if (open && !editTarget) {
@@ -194,6 +199,8 @@ const CollectionFormModal = ({
       });
       initialProductIdsRef.current = [];
       imageFileRef.current = null;
+      videoFileRef.current = null;
+      removeVideoRef.current = false;
       setSelectedProductIds([]);
       setProductSearch('');
     }
@@ -257,6 +264,7 @@ const CollectionFormModal = ({
           translations: translations(data, true),
         },
         imageFileRef.current ?? undefined,
+        videoFileRef.current ?? undefined,
       ),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
@@ -283,9 +291,11 @@ const CollectionFormModal = ({
           imageUrl: imageFileRef.current ? undefined : (data.imageUrl || null),
           isActive: data.isActive,
           translations: translations(data, false),
+          ...(removeVideoRef.current ? { removeVideo: true } : {}),
           ...(productsChanged && { products: toCollectionProducts(selectedProductIds) }),
         },
         imageFileRef.current ?? undefined,
+        videoFileRef.current ?? undefined,
       );
     },
     onSuccess: (res) => {
@@ -386,6 +396,13 @@ const CollectionFormModal = ({
               />
               {errors.imageUrl && <p className="text-xs text-red-500">{errors.imageUrl.message}</p>}
             </div>
+
+            <EntityVideoField
+              key={`${editTarget?.id ?? 'new'}-${open ? 'open' : 'closed'}`}
+              existingVideoUrl={editTarget?.videoUrl}
+              disabled={isPending}
+              onChange={(file, removeVideo) => { videoFileRef.current = file; removeVideoRef.current = removeVideo; }}
+            />
 
             {/* Dual-Pane Searchable Product Selector */}
             <div className="space-y-3 pt-3 border-t border-gray-100">

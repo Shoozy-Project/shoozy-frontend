@@ -108,10 +108,12 @@ export default function StorefrontHeader() {
   }, []);
 
   // Close mobile drawer on route change
+  /* eslint-disable react-hooks/set-state-in-effect -- Route changes close transient navigation surfaces. */
   useEffect(() => {
     setMobileDrawerOpen(false);
     setSearchOpen(false);
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();

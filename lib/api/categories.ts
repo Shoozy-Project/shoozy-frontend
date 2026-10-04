@@ -14,12 +14,14 @@ import type {
 function buildBody(
   data: CreateCategoryPayload | UpdateCategoryPayload,
   imageFile?: File | null,
+  videoFile?: File | null,
 ): CreateCategoryPayload | UpdateCategoryPayload | FormData {
-  if (!imageFile) return data;
+  if (!imageFile && !videoFile) return data;
 
   const formData = new FormData();
   formData.append('data', JSON.stringify(data));
-  formData.append('image', imageFile);
+  if (imageFile) formData.append('image', imageFile);
+  if (videoFile) formData.append('video', videoFile);
   return formData;
 }
 
@@ -33,12 +35,12 @@ export const categoriesApi = {
     apiClient.get<ApiSuccess<CategoryDto>>(`/admin/categories/${id}`),
 
   /** POST /admin/categories */
-  create: (data: CreateCategoryPayload, imageFile?: File | null) =>
-    apiClient.post<ApiSuccess<CategoryDto>>('/admin/categories', buildBody(data, imageFile)),
+  create: (data: CreateCategoryPayload, imageFile?: File | null, videoFile?: File | null) =>
+    apiClient.post<ApiSuccess<CategoryDto>>('/admin/categories', buildBody(data, imageFile, videoFile)),
 
   /** PATCH /admin/categories/:id */
-  update: (id: string, data: UpdateCategoryPayload, imageFile?: File | null) =>
-    apiClient.patch<ApiSuccess<CategoryDto>>(`/admin/categories/${id}`, buildBody(data, imageFile)),
+  update: (id: string, data: UpdateCategoryPayload, imageFile?: File | null, videoFile?: File | null) =>
+    apiClient.patch<ApiSuccess<CategoryDto>>(`/admin/categories/${id}`, buildBody(data, imageFile, videoFile)),
 
   /** DELETE /admin/categories/:id → 204 No Content */
   delete: (id: string) =>

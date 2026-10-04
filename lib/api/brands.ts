@@ -13,15 +13,13 @@ import type {
  */
 function buildBody(
   data: CreateBrandPayload | UpdateBrandPayload,
-  imageFiles?: File[] | null,
+  imageFile?: File | null,
 ): CreateBrandPayload | UpdateBrandPayload | FormData {
-  if (!imageFiles || imageFiles.length === 0) return data;
+  if (!imageFile) return data;
 
   const formData = new FormData();
   formData.append('data', JSON.stringify(data));
-  imageFiles.forEach((file) => {
-    formData.append('images', file);
-  });
+  formData.append('image', imageFile);
   return formData;
 }
 
@@ -35,12 +33,12 @@ export const brandsApi = {
     apiClient.get<ApiSuccess<BrandDto>>(`/admin/brands/${id}`),
 
   /** POST /admin/brands */
-  create: (data: CreateBrandPayload, imageFiles?: File[] | null) =>
-    apiClient.post<ApiSuccess<BrandDto>>('/admin/brands', buildBody(data, imageFiles)),
+  create: (data: CreateBrandPayload, imageFile?: File | null) =>
+    apiClient.post<ApiSuccess<BrandDto>>('/admin/brands', buildBody(data, imageFile)),
 
   /** PATCH /admin/brands/:id */
-  update: (id: string, data: UpdateBrandPayload, imageFiles?: File[] | null) =>
-    apiClient.patch<ApiSuccess<BrandDto>>(`/admin/brands/${id}`, buildBody(data, imageFiles)),
+  update: (id: string, data: UpdateBrandPayload, imageFile?: File | null) =>
+    apiClient.patch<ApiSuccess<BrandDto>>(`/admin/brands/${id}`, buildBody(data, imageFile)),
 
   /** DELETE /admin/brands/:id → 204 No Content */
   delete: (id: string) =>

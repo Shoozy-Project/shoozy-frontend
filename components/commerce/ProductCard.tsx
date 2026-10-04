@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CommerceImage } from '@/components/commerce/CommerceImage';
+import { HoverMedia } from '@/components/commerce/HoverMedia';
 import { WishlistButton } from '@/components/commerce/WishlistButton';
 import { formatMinorMoney } from '@/lib/format-money';
 import type { CatalogProductDto } from '@/types/commerce';
@@ -16,16 +16,11 @@ export function ProductCard({ product }: { product: CatalogProductDto }) {
   const endsAt = promotion?.promotions.map((item) => item.endsAt).filter((value): value is string => Boolean(value)).sort()[0];
   return (
     <article className="group relative flex min-w-0 flex-col">
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+      <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted">
         <Link href={`/products/${product.slug}`} className="absolute inset-0" aria-label={t('product.view', { name: product.name })}>
-          <CommerceImage
-            src={product.primaryMedia?.url}
-            alt={product.primaryMedia?.altText || product.name}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-          />
+          <HoverMedia imageUrl={product.primaryMedia?.url} videoUrl={product.previewVideo?.url} videoMimeType={product.previewVideo?.mimeType} alt={product.primaryMedia?.altText || product.name} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" mediaClassName="object-cover object-center" />
         </Link>
-        <WishlistButton productId={product.id} className="absolute end-3 top-3 z-10" />
+        <WishlistButton productId={product.id} className="absolute end-3 top-3 z-20" />
         {promotion && percent > 0 && <span className="absolute start-3 top-3 rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white">−{new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 1 }).format(percent)}%</span>}
         {!product.inStock && (
           <span className="absolute bottom-3 start-3 bg-background/90 px-2 py-1 text-xs font-medium uppercase tracking-wide">{t('catalog.outOfStock')}</span>

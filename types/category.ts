@@ -9,12 +9,13 @@ export interface CategoryDto {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
+  videoMimeType: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  productsCount?: number;
-  _count?: { products?: number; productCategories?: number };
+  productCount: number;
   translations?: TranslationMap<EntityTranslation>;
 }
 
@@ -39,4 +40,4 @@ export interface CreateCategoryPayload {
   translations?: TranslationMap<EntityTranslation>;
 }
 
-export type UpdateCategoryPayload = Partial<CreateCategoryPayload>;
+export type UpdateCategoryPayload = Partial<CreateCategoryPayload> & { removeVideo?: boolean };

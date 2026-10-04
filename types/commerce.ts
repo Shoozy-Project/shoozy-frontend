@@ -2,7 +2,9 @@ import type { PaginatedData } from '@/types/api';
 
 export interface CatalogMediaDto {
   id: string;
-  type: string;
+  type: 'IMAGE' | 'VIDEO';
+  mediaType?: 'IMAGE' | 'VIDEO';
+  mimeType?: string | null;
   url: string;
   altText: string | null;
   position?: number;
@@ -20,23 +22,41 @@ export interface CatalogCategoryDto extends CatalogEntityDto {
   parentId: string | null;
   description: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
+  videoMimeType: string | null;
   sortOrder: number;
+  productCount: number;
   children?: CatalogCategoryDto[];
 }
 
 export interface CatalogBrandDto extends CatalogEntityDto {
   description: string | null;
   logoUrl: string | null;
+  productCount: number;
 }
 
 export interface CatalogCollectionDto extends CatalogEntityDto {
   description: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
+  videoMimeType: string | null;
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
   updatedAt: string;
+  productCount: number;
+}
+
+export interface RatingBucketDto {
+  count: number;
+  percentage: number;
+}
+
+export interface RatingSummaryDto {
+  average: number;
+  count: number;
+  distribution: Record<1 | 2 | 3 | 4 | 5, RatingBucketDto>;
 }
 
 export interface PromotionalPricingDto {
@@ -71,6 +91,7 @@ export interface CatalogProductDto {
   brand: CatalogEntityDto;
   categories: Array<CatalogEntityDto & { isPrimary: boolean }>;
   primaryMedia: CatalogMediaDto | null;
+  previewVideo?: CatalogMediaDto | null;
   secondaryMedia?: CatalogMediaDto | null;
 }
 
@@ -102,7 +123,7 @@ export interface CatalogVariantDto {
   optionValues: CatalogOptionValueDto[];
 }
 
-export interface CatalogProductDetailDto extends Omit<CatalogProductDto, 'minimumVariantPriceMinor' | 'inStock' | 'primaryMedia'> {
+export interface CatalogProductDetailDto extends Omit<CatalogProductDto, 'minimumVariantPriceMinor' | 'inStock' | 'primaryMedia' | 'previewVideo' | 'secondaryMedia'> {
   description: string | null;
   material: string | null;
   seoTitle: string | null;
@@ -112,6 +133,48 @@ export interface CatalogProductDetailDto extends Omit<CatalogProductDto, 'minimu
   variants: CatalogVariantDto[];
   sizeGuide: { id: string; name: string; gender: string | null } | null;
   collections: CatalogEntityDto[];
+  ratingSummary: RatingSummaryDto;
+}
+
+export interface ShippingPreviewInput {
+  countryCode: string;
+  state: string;
+  city: string;
+  area?: string | null;
+}
+
+export interface ShippingPreviewDto {
+  available: boolean;
+  methods: Array<{
+    id: string;
+    code: string;
+    name: string;
+    priceMinor: string;
+    currency: string;
+    estimatedMinDays: number | null;
+    estimatedMaxDays: number | null;
+  }>;
+}
+
+export interface CatalogPromotionDto {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  ctaUrl: string | null;
+  activationMode: 'AUTOMATIC' | 'COUPON';
+  discount: {
+    type: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING';
+    percentage: string | null;
+    amountMinor: string | null;
+    currency: string | null;
+  };
+  scope: string;
+  minimumOrderMinor: string | null;
+  maximumDiscountMinor: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  sortOrder: number;
 }
 
 export interface CatalogCollectionDetailDto extends CatalogCollectionDto {

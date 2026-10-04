@@ -10,7 +10,9 @@ import type {
   CatalogProductDto,
   CatalogQuery,
   SizeGuideDto,
+  CatalogPromotionDto,
 } from '@/types/commerce';
+import type { HomepageBannerDto } from '@/types/homepage';
 
 export class PublicApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -36,6 +38,9 @@ async function publicGet<T>(path: string, params?: Record<string, string | numbe
 export const serverCatalog = {
   products: (query: CatalogQuery) => publicGet<PaginatedData<CatalogProductDto>>('/catalog/products', query as Record<string, string | number | boolean | undefined>),
   product: (slug: string) => publicGet<CatalogProductDetailDto>(`/catalog/products/${encodeURIComponent(slug)}`),
+  relatedProducts: (slug: string, limit = 8) => publicGet<{ items: CatalogProductDto[] }>(`/catalog/products/${encodeURIComponent(slug)}/related`, { limit }),
+  promotions: () => publicGet<{ items: CatalogPromotionDto[] }>('/catalog/promotions'),
+  homepageBanners: (placement: HomepageBannerDto['placement'] = 'HERO_SLIDER') => publicGet<HomepageBannerDto[]>('/homepage/banners', { placement }),
   brands: (page = 1, limit = 50) => publicGet<PaginatedData<CatalogBrandDto>>('/catalog/brands', { page, limit }),
   categories: (page = 1, limit = 24) => publicGet<PaginatedData<CatalogCategoryDto>>('/catalog/categories', { page, limit }),
   categoryTree: (page = 1, limit = 50) => publicGet<PaginatedData<CatalogCategoryDto>>('/catalog/categories/tree', { page, limit }),

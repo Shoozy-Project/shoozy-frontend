@@ -12,6 +12,7 @@ export const NOTIFICATION_TYPES = [
   'EXCHANGE_STATUS_UPDATED',
   'REVIEW_PENDING',
   'LOW_STOCK',
+  'SUPPORT_REQUEST',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

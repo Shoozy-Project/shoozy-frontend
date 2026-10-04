@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   Sparkles,
   Bell,
+  MessageCircle,
+  PanelsTopLeft,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from '@/lib/hooks/use-translations';
@@ -52,6 +54,7 @@ export const navGroups: NavGroup[] = [
   {
     groupLabelKey: 'admin.marketing',
     items: [
+      { labelKey: 'admin.homepage', href: '/admin/homepage', icon: PanelsTopLeft },
       { labelKey: 'admin.discounts', href: '/admin/discounts', icon: Tag },
       { labelKey: 'admin.reviews', href: '/admin/reviews', icon: Star },
     ],
@@ -60,6 +63,7 @@ export const navGroups: NavGroup[] = [
     groupLabelKey: 'admin.system',
     items: [
       { labelKey: 'admin.notifications', href: '/admin/notifications', icon: Bell },
+      { labelKey: 'admin.support', href: '/admin/support', icon: MessageCircle },
       { labelKey: 'admin.customers', href: '/admin/customers', icon: Users },
       { labelKey: 'admin.settings', href: '/admin/settings', icon: Settings },
     ],

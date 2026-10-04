@@ -22,7 +22,8 @@ export interface ProductListDto {
 }
 
 export interface ProductMediaDto {
-  id: string; productId: string; variantId: string | null; type: 'IMAGE'; url: string;
+  id: string; productId: string; variantId: string | null; type: 'IMAGE' | 'VIDEO';
+  mediaType: 'IMAGE' | 'VIDEO'; mimeType: string | null; url: string;
   altText: string | null; position: number; isPrimary: boolean; createdAt: string;
 }
 
@@ -123,5 +124,13 @@ export const productsApi = {
   create: (payload: ProductEditorCreateInput, files: File[] = []) => apiClient.post<ApiSuccess<ProductDetailDto>>('/admin/products', editorBody(payload, files)),
   update: (productId: string, payload: ProductEditorUpdateInput, files: File[] = []) => apiClient.patch<ApiSuccess<ProductDetailDto>>(`/admin/products/${productId}`, editorBody(payload, files)),
   updateStatus: (productId: string, status: 'DRAFT' | 'ACTIVE') => apiClient.patch<ApiSuccess<ProductListDto>>(`/admin/products/${productId}`, { status }),
+  uploadMedia: (productId: string, file: File, mediaType: 'IMAGE' | 'VIDEO', replaceVideo = false) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('mediaType', mediaType);
+    if (mediaType === 'VIDEO') form.append('replaceVideo', String(replaceVideo));
+    return apiClient.post<ApiSuccess<ProductMediaDto>>(`/admin/products/${productId}/media/upload`, form);
+  },
+  deleteMedia: (productId: string, mediaId: string) => apiClient.delete(`/admin/products/${productId}/media/${mediaId}`),
   deleteProduct: (productId: string) => apiClient.delete(`/admin/products/${productId}`),
 };

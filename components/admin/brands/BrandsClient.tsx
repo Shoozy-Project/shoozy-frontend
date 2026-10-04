@@ -277,6 +277,7 @@ const BrandsClient = () => {
                   <TableHead className="w-[120px]">{t('admin.brandId')}</TableHead>
                   <TableHead>{t('admin.brandName')}</TableHead>
                   <TableHead className="hidden md:table-cell">{t('admin.description')}</TableHead>
+                  <TableHead className="hidden md:table-cell text-end">{t('admin.products')}</TableHead>
                   <TableHead>{t('admin.tableStatus')}</TableHead>
                   <TableHead className="text-end pe-4">{t('admin.tableActions')}</TableHead>
                 </TableRow>
@@ -290,7 +291,7 @@ const BrandsClient = () => {
                 {/* Error state */}
                 {isError && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center">
+                    <TableCell colSpan={6} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-2 text-gray-500">
                         <p className="text-sm font-medium">{t('admin.brandsLoadError')}</p>
                         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -304,7 +305,7 @@ const BrandsClient = () => {
                 {/* Empty state */}
                 {!isLoading && !isError && brands.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-16 text-center">
+                    <TableCell colSpan={6} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-gray-400">
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                           <Building2 className="w-6 h-6 text-gray-300" aria-hidden="true" />
@@ -363,6 +364,10 @@ const BrandsClient = () => {
                       {/* Description */}
                       <TableCell className="hidden md:table-cell text-gray-500 max-w-xs truncate text-xs">
                         {b.description ?? '—'}
+                      </TableCell>
+
+                      <TableCell className="hidden md:table-cell text-end text-xs font-semibold text-gray-700">
+                        {b.productCount}
                       </TableCell>
 
                       {/* Status */}

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { catalogApi, fetchCatalogProducts, fetchCatalogCollections } from '@/lib/api/catalog';
-import type { CatalogBrandDto } from '@/types/commerce';
+import type { CatalogBrandDto, CatalogQuery } from '@/types/commerce';
 
 export function usePublicProducts() {
   return useQuery({
@@ -17,7 +17,7 @@ export function useCarouselProducts(categorySlug: string | null) {
   return useQuery({
     queryKey: ['catalog', 'carousel-products', categorySlug],
     queryFn: async () => {
-      const params: any = { page: 1, limit: 8, sort: 'newest' };
+      const params: CatalogQuery = { page: 1, limit: 8, sort: 'newest' };
       if (categorySlug) params.category = categorySlug;
       const result = await fetchCatalogProducts(params);
       return result.data.items;

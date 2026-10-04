@@ -28,6 +28,7 @@ const templates: Record<Locale, Record<string, Template>> = {
     EXCHANGE_STATUS_UPDATED: (p) => ({ title: `Exchange ${p.exchangeNumber} updated`, message: `Your exchange request is now ${statusLabels.en[p.status] ?? p.status}.` }),
     REVIEW_PENDING: () => ({ title: 'Review awaiting moderation', message: 'A new product review requires moderation.' }),
     LOW_STOCK: (p) => ({ title: `Low stock: ${p.sku}`, message: `${p.sku} has ${p.stockQuantity} units remaining.` }),
+    SUPPORT_REQUEST: (p) => ({ title: `Support request ${p.reference}`, message: 'A customer sent a support message.' }),
   },
   ar: {
     ORDER_CREATED: (p) => ({ title: `طلب جديد رقم ${p.orderNumber}`, message: 'تم تقديم طلب جديد.' }),
@@ -42,6 +43,7 @@ const templates: Record<Locale, Record<string, Template>> = {
     EXCHANGE_STATUS_UPDATED: (p) => ({ title: `تحديث الاستبدال رقم ${p.exchangeNumber}`, message: `طلب الاستبدال الخاص بك ${statusLabels.ar[p.status] ?? p.status}.` }),
     REVIEW_PENDING: () => ({ title: 'تقييم بانتظار المراجعة', message: 'يوجد تقييم منتج جديد يحتاج إلى المراجعة.' }),
     LOW_STOCK: (p) => ({ title: `مخزون منخفض: ${p.sku}`, message: `تبقى من ${p.sku} عدد ${p.stockQuantity} وحدات.` }),
+    SUPPORT_REQUEST: (p) => ({ title: `طلب دعم ${p.reference}`, message: 'أرسل عميل رسالة إلى الدعم.' }),
   },
 };
 
@@ -54,6 +56,7 @@ export function notificationHref(notification: NotificationDto, admin: boolean):
   const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(notification.entityId);
   if (!validId) return null;
   if (admin) {
+    if (notification.entityType === 'SUPPORT_MESSAGE') return '/admin/support';
     if (notification.entityType === 'ORDER') {
       return `/admin/orders?notificationOrder=${encodeURIComponent(notification.entityId)}`;
     }

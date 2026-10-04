@@ -8,11 +8,14 @@ export interface CollectionDto {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
+  videoMimeType: string | null;
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
   updatedAt: string;
+  productCount: number;
   translations?: TranslationMap<EntityTranslation>;
 }
 
@@ -55,4 +58,4 @@ export interface CreateCollectionPayload {
   translations?: TranslationMap<EntityTranslation>;
 }
 
-export type UpdateCollectionPayload = Partial<CreateCollectionPayload>;
+export type UpdateCollectionPayload = Partial<CreateCollectionPayload> & { removeVideo?: boolean };

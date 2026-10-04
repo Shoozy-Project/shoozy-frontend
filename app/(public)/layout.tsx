@@ -1,5 +1,6 @@
 import StorefrontHeader from '@/components/storefront/navigation/StorefrontHeader';
 import Footer from '@/components/layout/Footer';
+import { SupportChatLauncher } from '@/components/support/SupportChatLauncher';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         {children}
       </main>
       <Footer />
+      <SupportChatLauncher />
     </div>
   );
 }

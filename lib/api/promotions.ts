@@ -41,6 +41,10 @@ export interface DiscountDto {
   endsAt: string | null;
   isActive: boolean;
   combinable: boolean;
+  imageUrl: string | null;
+  showOnStorefront: boolean;
+  sortOrder: number;
+  ctaUrl: string | null;
   archivedAt: string | null;
   targets: DiscountTargetDto[];
   redemptionCount: number;
@@ -68,7 +72,19 @@ export interface DiscountPayload {
   endsAt: string | null;
   isActive: boolean;
   combinable: boolean;
+  imageUrl?: string | null;
+  showOnStorefront: boolean;
+  sortOrder: number;
+  ctaUrl: string | null;
   targets: DiscountTargetInput[];
+}
+
+function promotionBody(payload: Partial<DiscountPayload>, image?: File | null) {
+  if (!image) return payload;
+  const form = new FormData();
+  form.append('data', JSON.stringify(payload));
+  form.append('image', image);
+  return form;
 }
 
 export interface DiscountStatistics {
@@ -82,8 +98,10 @@ export const promotionsApi = {
   listCoupons: (params: { page?: number; limit?: number; search?: string; isActive?: boolean; type?: DiscountType; scope?: DiscountScope } = {}) =>
     apiClient.get<ApiSuccess<PaginatedData<DiscountDto>>>('/admin/discounts', { params }),
   get: (id: string) => apiClient.get<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}`).then((response) => response.data.data),
-  createCoupon: (payload: DiscountPayload) => apiClient.post<ApiSuccess<DiscountDto>>('/admin/discounts', payload),
-  updateCoupon: (id: string, payload: Partial<DiscountPayload>) => apiClient.patch<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}`, payload),
+  createCoupon: (payload: DiscountPayload, image?: File | null) =>
+    apiClient.post<ApiSuccess<DiscountDto>>('/admin/discounts', promotionBody(payload, image)),
+  updateCoupon: (id: string, payload: Partial<DiscountPayload>, image?: File | null) =>
+    apiClient.patch<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}`, promotionBody(payload, image)),
   replaceTargets: (id: string, targets: DiscountTargetInput[]) => apiClient.put<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}/targets`, { targets }),
   activate: (id: string) => apiClient.post<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}/activate`),
   deactivate: (id: string) => apiClient.post<ApiSuccess<DiscountDto>>(`/admin/discounts/${id}/deactivate`),

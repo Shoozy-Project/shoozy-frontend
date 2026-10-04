@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Minus, Plus, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
 import { WishlistButton } from '@/components/commerce/WishlistButton';
@@ -14,10 +14,102 @@ import type { CatalogMediaDto, CatalogProductDetailDto, CatalogVariantDto, SizeG
 import { useTranslations } from '@/lib/hooks/use-translations';
 import { ProductReviewsSection } from './reviews/ProductReviewsSection';
 import { RelatedProductsSection } from './RelatedProductsSection';
+import { ShippingPreview } from './ShippingPreview';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function hasSelection(variant: CatalogVariantDto, optionId: string, valueId: string) {
   return variant.optionValues.some((value) => value.optionId === optionId && value.id === valueId);
+}
+
+const isVideo = (media: CatalogMediaDto) => media.type === 'VIDEO' || media.mediaType === 'VIDEO';
+
+function initialMediaIndex(media: CatalogMediaDto[]) {
+  const primaryIndex = media.findIndex((item) => item.isPrimary && item.url.trim());
+  if (primaryIndex >= 0) return primaryIndex;
+  const firstValidIndex = media.findIndex((item) => item.url.trim());
+  return firstValidIndex >= 0 ? firstValidIndex : 0;
+}
+
+function ProductMediaGallery({ media, productName }: { media: CatalogMediaDto[]; productName: string }) {
+  const [selectedIndex, setSelectedIndex] = useState(() => initialMediaIndex(media));
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const selectedMedia = media[selectedIndex];
+  const multipleMedia = media.length > 1;
+
+  const selectMedia = (nextIndex: number) => {
+    if (nextIndex === selectedIndex) return;
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      try { video.currentTime = 0; } catch { /* Metadata may not be available yet. */ }
+    }
+    setSelectedIndex(nextIndex);
+  };
+
+  const previous = () => selectMedia((selectedIndex - 1 + media.length) % media.length);
+  const next = () => selectMedia((selectedIndex + 1) % media.length);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.matches('input, textarea, select, [contenteditable="true"]') || !multipleMedia) return;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      previous();
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      next();
+    }
+  };
+
+  const thumbnail = (item: CatalogMediaDto, index: number, mobile = false) => {
+    const video = isVideo(item);
+    const selected = index === selectedIndex;
+    const mediaLabel = `${video ? 'Video' : 'Image'} ${index + 1}: ${item.altText || productName}`;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => selectMedia(index)}
+        aria-label={`Show ${mediaLabel}`}
+        aria-pressed={selected}
+        className={cn(
+          'relative shrink-0 overflow-hidden rounded-sm border bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 dark:bg-neutral-900 dark:focus-visible:ring-white dark:focus-visible:ring-offset-[#0c0c0d]',
+          mobile ? 'h-20 w-16' : 'w-full aspect-[4/5]',
+          selected ? 'border-black ring-1 ring-black dark:border-white dark:ring-white' : 'border-neutral-200 hover:border-neutral-500 dark:border-neutral-800 dark:hover:border-neutral-500',
+        )}
+      >
+        {video ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-neutral-100 text-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" aria-hidden="true"><span className="flex size-8 items-center justify-center rounded-full border border-current/30 bg-background/80"><Play className="size-4 fill-current" /></span></span>
+        ) : (
+          <CommerceImage src={item.url} alt="" sizes={mobile ? '64px' : '88px'} className="object-cover" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="relative md:pl-20 lg:pl-24" dir="ltr" role="region" aria-label={`${productName} media gallery`} tabIndex={0} onKeyDown={handleKeyDown}>
+      <div className="absolute inset-y-0 left-0 hidden w-16 flex-col gap-3 overflow-y-auto pe-1 scrollbar-hide md:flex lg:w-20">
+        {media.map((item, index) => thumbnail(item, index))}
+      </div>
+
+      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-sm border border-neutral-200 bg-neutral-50 focus-within:border-neutral-400 dark:border-neutral-800 dark:bg-[#111]">
+        {selectedMedia ? (
+          isVideo(selectedMedia) ? (
+            <video key={selectedMedia.id} ref={videoRef} controls playsInline preload="metadata" className="absolute inset-0 h-full w-full object-contain" aria-label={selectedMedia.altText || `${productName} video`}><source src={selectedMedia.url} type={selectedMedia.mimeType ?? 'video/mp4'} /></video>
+          ) : (
+            <CommerceImage key={selectedMedia.id} src={selectedMedia.url} alt={selectedMedia.altText || productName} sizes="(max-width: 768px) 100vw, 50vw" priority className="object-contain" />
+          )
+        ) : (
+          <CommerceImage src={null} alt={productName} sizes="(max-width: 768px) 100vw, 50vw" className="object-contain" />
+        )}
+
+        {multipleMedia && <><button type="button" onClick={previous} aria-label="Previous media" className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-neutral-800 transition-colors hover:border-neutral-500 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:border-neutral-700 dark:bg-black/80 dark:text-white dark:hover:border-neutral-400 dark:focus-visible:ring-white"><ChevronLeft className="size-5" aria-hidden="true" /></button><button type="button" onClick={next} aria-label="Next media" className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-neutral-800 transition-colors hover:border-neutral-500 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:border-neutral-700 dark:bg-black/80 dark:text-white dark:hover:border-neutral-400 dark:focus-visible:ring-white"><ChevronRight className="size-5" aria-hidden="true" /></button></>}
+      </div>
+
+      {media.length > 0 && <div className="mt-3 flex max-w-full gap-3 overflow-x-auto pb-2 scrollbar-hide md:hidden">{media.map((item, index) => thumbnail(item, index, true))}</div>}
+    </div>
+  );
 }
 
 // ─── Animated Accordion ──────────────────────────────────────────────────────
@@ -56,9 +148,8 @@ function Accordion({ title, children, defaultOpen = false }: { title: string, ch
 // ─── Main PDP Component ───────────────────────────────────────────────────────
 export function ProductDetailClient({ product, sizeGuide }: { product: CatalogProductDetailDto; sizeGuide: SizeGuideDto | null }) {
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const [directVariantId, setDirectVariantId] = useState(product.options.length === 0 && product.variants.length === 1 ? product.variants[0]!.id : '');
-  const [quantity, setQuantity] = useState(1);
-  const [activeMobileIndex, setActiveMobileIndex] = useState(0);
+  const directVariantId = product.options.length === 0 && product.variants.length === 1 ? product.variants[0]!.id : '';
+  const quantity = 1;
   const addToCart = useAddToCart();
   const { locale, t } = useTranslations();
   const intlLocale = locale === 'ar' ? 'ar-TN' : 'en-TN';
@@ -80,31 +171,12 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
   const lowestVariant = useMemo(() => product.variants.reduce<CatalogVariantDto | undefined>((lowest, variant) => !lowest || BigInt(variant.priceMinor) < BigInt(lowest.priceMinor) ? variant : lowest, undefined), [product.variants]);
   const priceVariant = selectedVariant ?? lowestVariant;
   const promotionalPricing = priceVariant?.promotionalPricing;
-  const selectionComplete = Boolean(selectedVariant);
   const canAdd = Boolean(selectedVariant && selectedVariant.stockQuantity >= quantity && quantity > 0);
 
   const valuePossible = (optionId: string, valueId: string) => product.variants.some((variant) => {
     if (!hasSelection(variant, optionId, valueId)) return false;
     return Object.entries(selected).every(([selectedOptionId, selectedValueId]) => selectedOptionId === optionId || hasSelection(variant, selectedOptionId, selectedValueId));
   });
-
-  const scrollToImage = (id: string) => {
-    const el = document.getElementById(`media-${id}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  // Mobile scroll tracking for dots
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const scrollPosition = target.scrollLeft;
-    const itemWidth = target.clientWidth;
-    const newIndex = Math.round(scrollPosition / itemWidth);
-    if (newIndex !== activeMobileIndex) {
-      setActiveMobileIndex(newIndex);
-    }
-  };
 
   // Find active color name
   const colorOption = product.options.find(o => o.name.toLowerCase() === 'color' || o.name.toLowerCase() === 'couleur');
@@ -115,70 +187,15 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
       <div className="mx-auto max-w-screen-2xl">
         <div className="grid grid-cols-1 md:grid-cols-12 md:gap-8 lg:gap-12 relative items-start">
           
-          {/* ── COL 1: THUMBNAILS (Desktop Only) ── */}
-          <div className="hidden md:flex flex-col gap-3 md:col-span-1 lg:col-span-1 sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-hide pt-6 pl-4 lg:pl-8">
-            <AnimatePresence mode="popLayout">
-              {media.map((item, index) => (
-                <motion.button
-                  layout
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  key={item.id}
-                  onClick={() => scrollToImage(item.id)}
-                  className="w-full aspect-[4/5] bg-neutral-100 dark:bg-neutral-900 border border-transparent hover:border-neutral-300 dark:hover:border-neutral-600 transition-colors rounded-sm overflow-hidden shrink-0"
-                >
-                  {item.type === 'VIDEO' ? (
-                    <video src={item.url} muted className="h-full w-full object-cover" />
-                  ) : (
-                    <CommerceImage src={item.url} alt="" sizes="100px" className="object-cover w-full h-full" />
-                  )}
-                </motion.button>
-              ))}
-            </AnimatePresence>
-          </div>
-
-          {/* ── COL 2: MAIN IMAGES (Desktop Stack / Mobile Carousel) ── */}
-          <div className="md:col-span-6 lg:col-span-6 flex flex-col pt-0 md:pt-6 relative">
+          {/* ── PRODUCT MEDIA GALLERY ── */}
+          <div className="md:col-span-7 lg:col-span-7 pt-0 md:pt-6 relative">
             
             {/* Mobile Wishlist Button */}
             <div className="absolute top-4 right-4 z-10 md:hidden">
               <WishlistButton productId={product.id} variantId={selectedVariant?.id} className="h-10 w-10 bg-white/70 backdrop-blur-md rounded-full shadow-sm" />
             </div>
 
-            <div 
-              onScroll={handleScroll}
-              className="flex md:flex-col overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none scrollbar-hide md:gap-4 lg:gap-6 w-full aspect-[4/5] md:aspect-auto"
-            >
-              <AnimatePresence mode="popLayout">
-                {media.map((item, index) => (
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5 }}
-                    id={`media-${item.id}`} 
-                    key={item.id} 
-                    className="w-full shrink-0 snap-center md:snap-align-none md:aspect-[4/5] bg-neutral-50 dark:bg-[#111] flex items-center justify-center relative"
-                  >
-                    {item.type === 'VIDEO' ? (
-                      <video src={item.url} controls autoPlay loop muted playsInline className="h-full w-full object-cover" />
-                    ) : (
-                      <CommerceImage src={item.url} alt={item.altText || product.name} sizes="(max-width: 768px) 100vw, 50vw" priority={index === 0} className="object-cover w-full h-full" />
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {/* Mobile Carousel Dots */}
-            <div className="md:hidden flex justify-center gap-2 mt-4">
-              {media.map((_, i) => (
-                <div key={i} className={cn("h-1 rounded-full transition-all duration-300", activeMobileIndex === i ? "w-4 bg-black dark:bg-white" : "w-1 bg-neutral-300 dark:bg-neutral-700")} />
-              ))}
-            </div>
+            <ProductMediaGallery key={media.map((item) => item.id).join(':')} media={media} productName={product.name} />
           </div>
 
           {/* ── COL 3: PRODUCT INFO (Right Panel) ── */}
@@ -201,10 +218,10 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                     }}
                     className="mt-3 flex items-center gap-2 text-xs text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
                   >
-                    <span className="flex items-center text-amber-500">
-                      {'★'.repeat(5)}
+                    <span className="font-semibold text-amber-600 dark:text-amber-400" dir="ltr">
+                      {new Intl.NumberFormat(intlLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(product.ratingSummary.average)} ★
                     </span>
-                    <span className="underline underline-offset-2">Read Reviews</span>
+                    <span className="underline underline-offset-2">{t('reviews.count', { count: product.ratingSummary.count })}</span>
                   </button>
                 </div>
                 <div className="hidden md:block shrink-0 ml-4">
@@ -251,8 +268,8 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                       {isColor ? (
                         <>
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="text-[10px] uppercase tracking-widest font-semibold text-neutral-900 dark:text-white">Color:</span>
-                            <span className="text-[10px] uppercase tracking-widest text-neutral-500">{activeColorValue?.displayValue || activeColorValue?.value || 'Select a color'}</span>
+                            <span className="text-[10px] uppercase tracking-widest font-semibold text-neutral-900 dark:text-white">{t('product.color')}:</span>
+                            <span className="text-[10px] uppercase tracking-widest text-neutral-500">{activeColorValue?.displayValue || activeColorValue?.value || t('product.selectColor')}</span>
                           </div>
                           <div className="flex flex-wrap gap-3">
                             {option.values.map((value) => {
@@ -265,6 +282,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                                   disabled={!possible}
                                   onClick={() => setSelected((current) => ({ ...current, [option.id]: value.id }))}
                                   title={value.displayValue || value.value}
+                                  aria-label={value.displayValue || value.value}
                                   className={cn(
                                     'w-8 h-8 rounded-full border border-neutral-200 dark:border-neutral-700 transition-all duration-300',
                                     chosen ? 'ring-1 ring-offset-2 ring-black dark:ring-white dark:ring-offset-[#0c0c0d]' : 'hover:border-neutral-400 dark:hover:border-neutral-500 hover:scale-110',
@@ -282,7 +300,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                             <span className="text-[10px] uppercase tracking-widest font-semibold text-neutral-900 dark:text-white">{option.name}</span>
                             {sizeGuide && (
                               <button className="text-[9px] uppercase tracking-widest text-neutral-400 underline hover:text-black dark:hover:text-white transition-colors">
-                                Size Guide
+                                {t('product.sizeGuide')}
                               </button>
                             )}
                           </div>
@@ -314,6 +332,8 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                 })}
               </div>
 
+              <ShippingPreview slug={product.slug} />
+
               {/* Desktop Add to Bag */}
               <div className="hidden md:block mt-10">
                 <motion.button
@@ -326,11 +346,11 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                   className="w-full py-4 bg-black dark:bg-white text-white dark:text-black uppercase tracking-widest text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                   <ShoppingBag className="size-4" />
-                  {addToCart.isPending ? 'Adding...' : 'Add To Bag'}
+                  {addToCart.isPending ? t('product.adding') : t('product.addToBag')}
                 </motion.button>
                 {selectedVariant && selectedVariant.stockQuantity > 0 && selectedVariant.stockQuantity <= 5 && (
                   <p className="text-center mt-3 text-[10px] uppercase tracking-widest text-red-500 font-semibold">
-                    Only {selectedVariant.stockQuantity} remaining
+                    {t('product.remaining', { count: selectedVariant.stockQuantity })}
                   </p>
                 )}
               </div>
@@ -338,20 +358,15 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
               {/* ── ACCORDIONS ── */}
               <div className="mt-12 border-t border-neutral-200 dark:border-neutral-800">
                 {product.description && (
-                  <Accordion title="Description" defaultOpen>
+                  <Accordion title={t('product.description')} defaultOpen>
                     {product.description}
                   </Accordion>
                 )}
                 {product.material && (
-                  <Accordion title="Material & Care">
+                  <Accordion title={t('product.materialCare')}>
                     {product.material}
                   </Accordion>
                 )}
-                <Accordion title="Shipping & Returns">
-                  Enjoy complimentary express shipping on all orders.
-                  Returns are accepted within 30 days of delivery for a full refund.
-                  Bespoke and customized items are final sale.
-                </Accordion>
               </div>
 
             </div>
@@ -370,7 +385,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
             className="w-full py-4 bg-black dark:bg-white text-white dark:text-black uppercase tracking-widest text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
           >
             <ShoppingBag className="size-4" />
-            {addToCart.isPending ? 'Adding...' : 'Add To Bag'}
+            {addToCart.isPending ? t('product.adding') : t('product.addToBag')}
           </motion.button>
         </div>
 
@@ -379,7 +394,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
       <div id="customer-reviews">
         <ProductReviewsSection productId={product.id} />
       </div>
-      <RelatedProductsSection currentProductId={product.id} categorySlug={product.categories[0]?.slug} />
+      <RelatedProductsSection slug={product.slug} />
     </div>
   );
 }

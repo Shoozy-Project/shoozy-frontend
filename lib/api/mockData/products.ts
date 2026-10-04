@@ -183,6 +183,7 @@ export const mockProducts: CatalogProductDto[] = [
     brand: BRANDS.atelier,
     categories: [CATEGORIES.loafers],
     primaryMedia: { id: 'media-007', type: 'IMAGE', altText: 'Horsebit Loafer', url: IMAGES.loafer3 },
+    previewVideo: null,
     secondaryMedia: { id: 'media-007b', type: 'IMAGE', altText: 'Horsebit Loafer angled', url: IMAGES.loafer1 },
   },
   {

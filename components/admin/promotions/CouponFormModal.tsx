@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Sparkles, Tag } from 'lucide-react';
+import { ImagePlus, Loader2, Sparkles, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -69,6 +70,13 @@ export default function CouponFormModal({ isOpen, onClose, couponToEdit }: Coupo
   const [endsAt, setEndsAt] = useState(localDateTime(couponToEdit?.endsAt));
   const [isActive, setIsActive] = useState(couponToEdit?.isActive ?? true);
   const [combinable, setCombinable] = useState(couponToEdit?.combinable ?? false);
+  const [showOnStorefront, setShowOnStorefront] = useState(couponToEdit?.showOnStorefront ?? false);
+  const [sortOrder, setSortOrder] = useState(String(couponToEdit?.sortOrder ?? 0));
+  const [ctaUrl, setCtaUrl] = useState(couponToEdit?.ctaUrl ?? '');
+  const [image, setImage] = useState<File | null>(null);
+  const imagePreview = useMemo(() => image ? URL.createObjectURL(image) : couponToEdit?.imageUrl ?? '', [couponToEdit?.imageUrl, image]);
+
+  useEffect(() => () => { if (image && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview); }, [image, imagePreview]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -98,11 +106,15 @@ export default function CouponFormModal({ isOpen, onClose, couponToEdit }: Coupo
         endsAt: endsAt ? new Date(endsAt).toISOString() : null,
         isActive,
         combinable,
+        imageUrl: couponToEdit?.imageUrl ?? null,
+        showOnStorefront,
+        sortOrder: Number.parseInt(sortOrder, 10) || 0,
+        ctaUrl: ctaUrl.trim() || null,
         targets: type === 'FREE_SHIPPING' || scope === 'ORDER' || scope === 'CATALOG' ? [] : targets,
       };
       return isEditing && couponToEdit
-        ? promotionsApi.updateCoupon(couponToEdit.id, payload)
-        : promotionsApi.createCoupon(payload);
+        ? promotionsApi.updateCoupon(couponToEdit.id, payload, image)
+        : promotionsApi.createCoupon(payload, image);
     },
     onSuccess: () => {
       toast.success(isEditing ? t('promotion.updated') : t('promotion.created'));
@@ -119,6 +131,13 @@ export default function CouponFormModal({ isOpen, onClose, couponToEdit }: Coupo
     if (type !== 'FREE_SHIPPING' && !['ORDER', 'CATALOG'].includes(scope) && targets.length === 0) return toast.error(t('promotion.targetRequired'));
     if (endsAt && new Date(endsAt) <= new Date(startsAt)) return toast.error(t('promotion.dateError'));
     mutation.mutate();
+  };
+
+  const handleImage = (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return toast.error(t('promotion.imageTypeError'));
+    if (file.size > 8 * 1024 * 1024) return toast.error(t('promotion.imageSizeError'));
+    setImage(file);
   };
 
   return (
@@ -160,6 +179,29 @@ export default function CouponFormModal({ isOpen, onClose, couponToEdit }: Coupo
           <section className="grid gap-3 sm:grid-cols-2">
             <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3"><div><Label>{t('promotion.combinable')}</Label><p className="text-xs text-muted-foreground">{t('promotion.combinableHelp')}</p></div><Switch checked={combinable} onCheckedChange={setCombinable} /></div>
             <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3"><div><Label>{t('promotion.active')}</Label><p className="text-xs text-muted-foreground">{t('promotion.activeHelp')}</p></div><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
+          </section>
+
+          <section className="space-y-4 border-t pt-5">
+            <div>
+              <h3 className="text-sm font-semibold">{t('promotion.storefront')}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t('promotion.storefrontHelp')}</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+              <label className="group relative flex aspect-[4/3] cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed bg-muted/30">
+                {imagePreview ? (
+                  <Image src={imagePreview} alt="" fill unoptimized className="object-cover" />
+                ) : (
+                  <span className="flex flex-col items-center gap-2 text-xs text-muted-foreground"><ImagePlus className="size-6" />{t('promotion.chooseImage')}</span>
+                )}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => handleImage(event.target.files?.[0])} />
+              </label>
+              <div className="grid content-start gap-4 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3 sm:col-span-2"><div><Label>{t('promotion.showOnStorefront')}</Label><p className="text-xs text-muted-foreground">{t('promotion.showOnStorefrontHelp')}</p></div><Switch checked={showOnStorefront} onCheckedChange={setShowOnStorefront} /></div>
+                <div className="space-y-2"><Label>{t('promotion.sortOrder')}</Label><Input type="number" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} /></div>
+                <div className="space-y-2"><Label>{t('promotion.ctaUrl')}</Label><Input value={ctaUrl} onChange={(event) => setCtaUrl(event.target.value)} placeholder="/products" dir="ltr" /></div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">{t('promotion.imageHelp')}</p>
+              </div>
+            </div>
           </section>
 
           <DialogFooter className="sticky bottom-0 -mx-6 border-t bg-card px-6 py-4"><Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" disabled={mutation.isPending} className="bg-[#FF8C00] text-white hover:bg-[#e67e00]">{mutation.isPending && <Loader2 className="size-4 animate-spin" />}{isEditing ? t('promotion.update') : t('promotion.create')}</Button></DialogFooter>

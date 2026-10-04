@@ -3,8 +3,9 @@
 import { io, type Socket } from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/constants';
 import type { NotificationServerEvents } from '@/types/notifications';
+import type { SupportClientEvents, SupportServerEvents } from '@/types/support';
 
-type NotificationSocket = Socket<NotificationServerEvents>;
+type NotificationSocket = Socket<NotificationServerEvents & SupportServerEvents, SupportClientEvents>;
 
 let socket: NotificationSocket | null = null;
 

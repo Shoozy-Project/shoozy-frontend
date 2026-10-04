@@ -117,7 +117,7 @@ export default function CouponsTab() {
       </div>
 
       {/* Modals */}
-      <CouponFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} couponToEdit={promotionToEdit} />
+      {modalOpen && <CouponFormModal key={promotionToEdit?.id ?? 'new'} isOpen onClose={() => setModalOpen(false)} couponToEdit={promotionToEdit} />}
       {deleteTarget && <DeleteCouponDialog isOpen={true} onClose={() => setDeleteTarget(null)} coupon={deleteTarget} />}
     </div>
   );

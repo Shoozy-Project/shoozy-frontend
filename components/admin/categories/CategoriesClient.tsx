@@ -399,7 +399,7 @@ const CategoriesClient = () => {
                       {/* Product count */}
                       <TableCell className="hidden md:table-cell py-3 text-end pe-6">
                         <span className="text-sm font-semibold text-black">
-                          {cat._count?.products ?? 0}
+                          {cat.productCount}
                         </span>
                         <span className="text-xs text-gray-400 ms-1">{t('admin.items')}</span>
                       </TableCell>

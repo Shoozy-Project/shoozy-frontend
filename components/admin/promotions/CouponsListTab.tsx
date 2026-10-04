@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import type { AxiosResponse } from 'axios';
+import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { Archive, BarChart3, Check, Copy, Edit, Loader2, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMinorMoney } from '@/lib/format-money';
 import type { CouponDto, DiscountStatus } from '@/lib/api/promotions';
+import type { ApiSuccess, PaginatedData } from '@/types/api';
 
 const statusStyle: Record<DiscountStatus, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
@@ -27,18 +30,18 @@ function promotionValue(promotion: CouponDto, freeShipping: string, locale: stri
 
 interface CouponsListTabProps {
   items: CouponDto[];
-  listData: any;
+  listData: UseQueryResult<PaginatedData<CouponDto>, Error>;
   search: string;
   setSearch: (val: string) => void;
   setPage: (val: number) => void;
-  toggle: any;
-  archive: any;
+  toggle: UseMutationResult<AxiosResponse<ApiSuccess<CouponDto>>, Error, { id: string; active: boolean }>;
+  archive: UseMutationResult<AxiosResponse<ApiSuccess<CouponDto>>, Error, string>;
   setPromotionToEdit: (val: CouponDto | null) => void;
   setModalOpen: (val: boolean) => void;
   setDetailTarget: (val: CouponDto | null) => void;
   setDeleteTarget: (val: CouponDto | null) => void;
   locale: string;
-  t: (key: string, args?: any) => string;
+  t: (key: string, args?: Record<string, string | number>) => string;
 }
 
 export default function CouponsListTab({

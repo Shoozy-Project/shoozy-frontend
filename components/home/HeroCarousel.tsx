@@ -1,225 +1,259 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import { useTranslations } from '@/lib/hooks/use-translations';
-import { useCollections } from '@/lib/hooks/use-promotions';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination } from 'swiper/modules';
-
+import { Pagination } from 'swiper/modules';
+import type { Swiper as SwiperInstance } from 'swiper';
+import { homepageApi } from '@/lib/api/homepage';
+import { CommerceImage } from '@/components/commerce/CommerceImage';
+import { useTranslations } from '@/lib/hooks/use-translations';
+import type { HomepageBannerDto } from '@/types/homepage';
+import { storefrontHref } from '@/lib/storefront-href';
 import 'swiper/css';
 import 'swiper/css/pagination';
-import 'swiper/css/navigation';
 
-/* ─── Stagger Animation Variants ─── */
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.18,
-      delayChildren: 0.6,
-    },
-  },
-};
+const HERO_IMAGE_DURATION_MS = 5000;
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] as const },
-  },
-};
+type HeroMedia =
+  | { kind: 'video'; src: string; mimeType: string; fallbackImage: string | null }
+  | { kind: 'image'; src: string }
+  | { kind: 'none' };
 
-/* ─── Hero Slide Content ─── */
-function SlideContent({
-  kicker,
-  headline,
-  description,
-  ctaHref,
-  ctaLabel,
-}: {
-  kicker: string;
-  headline: string;
-  description?: string | null;
-  ctaHref: string;
-  ctaLabel: string;
-}) {
+function useMediaPreference(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(query);
+    const update = () => setMatches(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener('change', update);
+    return () => mediaQuery.removeEventListener('change', update);
+  }, [query]);
+
+  return matches;
+}
+
+function fallbackImage(banner: HomepageBannerDto, isMobile: boolean) {
+  return isMobile
+    ? banner.mobileImageUrl ?? banner.desktopImageUrl
+    : banner.desktopImageUrl ?? banner.mobileImageUrl;
+}
+
+function supportedVideo(src: string | null, mimeType: string | null) {
+  return Boolean(src) && (!mimeType || mimeType.toLowerCase() === 'video/mp4');
+}
+
+function videoMedia(src: string | null, mimeType: string | null, imageFallback: string | null): HeroMedia {
+  return supportedVideo(src, mimeType) && src
+    ? { kind: 'video', src, mimeType: mimeType ?? 'video/mp4', fallbackImage: imageFallback }
+    : { kind: 'none' };
+}
+
+function selectMedia(banner: HomepageBannerDto, isMobile: boolean, reducedMotion: boolean, videoFailed: boolean): HeroMedia {
+  const imageFallback = fallbackImage(banner, isMobile);
+  if (reducedMotion || videoFailed) return imageFallback ? { kind: 'image', src: imageFallback } : { kind: 'none' };
+
+  const candidates: HeroMedia[] = isMobile
+    ? [
+        videoMedia(banner.mobileVideoUrl, banner.mobileVideoMimeType, imageFallback),
+        banner.mobileImageUrl ? { kind: 'image', src: banner.mobileImageUrl } : { kind: 'none' },
+        videoMedia(banner.desktopVideoUrl, banner.desktopVideoMimeType, imageFallback),
+        banner.desktopImageUrl ? { kind: 'image', src: banner.desktopImageUrl } : { kind: 'none' },
+      ]
+    : [
+        videoMedia(banner.desktopVideoUrl, banner.desktopVideoMimeType, imageFallback),
+        banner.desktopImageUrl ? { kind: 'image', src: banner.desktopImageUrl } : { kind: 'none' },
+        videoMedia(banner.mobileVideoUrl, banner.mobileVideoMimeType, imageFallback),
+        banner.mobileImageUrl ? { kind: 'image', src: banner.mobileImageUrl } : { kind: 'none' },
+      ];
+
+  return candidates.find((candidate) => candidate.kind !== 'none') ?? { kind: 'none' };
+}
+
+function HeroSlide({ banner, media, active, priority, onVideoRef, onVideoEnded, onVideoError }: { banner: HomepageBannerDto; media: HeroMedia; active: boolean; priority: boolean; onVideoRef: (id: string, video: HTMLVideoElement | null) => void; onVideoEnded: (id: string) => void; onVideoError: (id: string) => void }) {
+  const { t } = useTranslations();
+  const hasMedia = media.kind !== 'none';
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10"
-    >
-      {/* Kicker */}
-      <motion.span
-        variants={itemVariants}
-        className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white/80 mb-4 font-sans"
-      >
-        {kicker}
-      </motion.span>
-
-      {/* Headline */}
-      <motion.h1
-        variants={itemVariants}
-        className="font-serif text-5xl md:text-7xl lg:text-8xl text-white leading-[1.05] font-light tracking-wide max-w-5xl drop-shadow-sm"
-      >
-        {headline}
-      </motion.h1>
-
-      {/* Description */}
-      {description && (
-        <motion.p
-          variants={itemVariants}
-          className="text-sm md:text-base text-white/70 font-medium tracking-wide max-w-2xl mx-auto mt-5 mb-2 leading-relaxed"
-        >
-          {description}
-        </motion.p>
-      )}
-
-      {/* CTA Button — Ghost Luxury */}
-      <motion.div variants={itemVariants} className="mt-8">
-        <Link
-          href={ctaHref}
-          className="inline-block bg-transparent border border-white/80 text-white px-10 py-3.5 text-xs uppercase tracking-[0.25em] font-semibold transition-all duration-500 hover:bg-white hover:text-black hover:border-white"
-        >
-          {ctaLabel}
-        </Link>
-      </motion.div>
-    </motion.div>
+    <article className="relative h-[78vh] min-h-[560px] w-full overflow-hidden bg-neutral-900 md:min-h-[680px]">
+      {media.kind === 'image' && <div className="absolute inset-0 transition-opacity duration-300"><CommerceImage src={media.src} alt="" sizes="100vw" priority={priority} className="object-cover" /></div>}
+      {media.kind === 'video' && <div className="absolute inset-0 transition-opacity duration-300">{media.fallbackImage && <CommerceImage src={media.fallbackImage} alt="" sizes="100vw" priority={priority} className="object-cover" />}<video key={media.src} ref={(video) => onVideoRef(banner.id, video)} className="pointer-events-none absolute inset-0 size-full object-cover [transform:none]" autoPlay={active} muted playsInline loop={false} preload={active ? 'metadata' : 'none'} aria-hidden="true" tabIndex={-1} disablePictureInPicture onEnded={() => onVideoEnded(banner.id)} onError={() => onVideoError(banner.id)}><source src={media.src} type={media.mimeType} /></video></div>}
+      <div className={`absolute inset-0 ${hasMedia ? 'bg-gradient-to-b from-black/45 via-black/20 to-black/65' : 'bg-[radial-gradient(circle_at_top,#3b332b,#111_70%)]'}`} />
+      <div className="relative z-10 flex h-full items-center justify-center px-6 text-center text-white">
+        <div className="max-w-4xl">
+          {banner.subtitle && <p className="mb-4 text-xs uppercase tracking-[0.28em] text-white/75 md:text-sm">{banner.subtitle}</p>}
+          <h1 className="font-serif text-4xl font-light leading-tight sm:text-6xl lg:text-7xl">{banner.title}</h1>
+          {banner.description && <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-white/80 md:text-base">{banner.description}</p>}
+          <Link href={storefrontHref(banner.ctaUrl)} className="mt-8 inline-flex border border-white/80 px-8 py-3 text-xs font-semibold uppercase tracking-[0.22em] transition-colors hover:bg-white hover:text-black">
+            {banner.ctaLabel || t('home.discover')}
+          </Link>
+        </div>
+      </div>
+    </article>
   );
 }
 
-/* ─── Main Hero Carousel ─── */
 export default function HeroCarousel() {
   const { t } = useTranslations();
-  const { data: collections, isLoading } = useCollections();
-  const heroRef = useRef<HTMLDivElement>(null);
+  const banners = useQuery({
+    queryKey: ['homepage', 'banners', 'HERO_SLIDER'],
+    queryFn: () => homepageApi.banners('HERO_SLIDER').then((response) => response.data.data),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const items = useMemo(() => [...(banners.data ?? [])].sort((left, right) => left.sortOrder - right.sortOrder), [banners.data]);
+  const isMobile = useMediaPreference('(max-width: 767px)');
+  const reducedMotion = useMediaPreference('(prefers-reduced-motion: reduce)');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [failedVideos, setFailedVideos] = useState<Set<string>>(() => new Set());
+  const swiperRef = useRef<SwiperInstance | null>(null);
+  const videoRefs = useRef(new Map<string, HTMLVideoElement>());
+  const timerRef = useRef<number | null>(null);
+  const activeIdRef = useRef<string | null>(null);
+  const playAttemptRef = useRef(0);
+  const endedVideosRef = useRef(new Set<string>());
+  const currentIndex = activeIndex < items.length ? activeIndex : 0;
+  const activeBanner = items[currentIndex];
+  const activeBannerId = activeBanner?.id ?? null;
+  const activeMedia = useMemo(() => activeBanner ? selectMedia(activeBanner, isMobile, reducedMotion, failedVideos.has(activeBanner.id)) : { kind: 'none' } satisfies HeroMedia, [activeBanner, failedVideos, isMobile, reducedMotion]);
+  const hasAnotherMedia = useMemo(() => items.some((banner) => banner.id !== activeBanner?.id && selectMedia(banner, isMobile, reducedMotion, failedVideos.has(banner.id)).kind !== 'none'), [activeBanner?.id, failedVideos, isMobile, items, reducedMotion]);
 
-  // Parallax: image moves slower than scroll
-  const { scrollY } = useScroll();
-  const parallaxY = useTransform(scrollY, [0, 800], [0, 200]);
-  const imageScale = useTransform(scrollY, [0, 600], [1.08, 1]);
+  const clearSlideTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
-  if (isLoading) {
+  const pauseAndResetVideos = useCallback(() => {
+    for (const video of videoRefs.current.values()) {
+      video.pause();
+      try { video.currentTime = 0; } catch { /* The media may not have metadata yet. */ }
+    }
+  }, []);
+
+  const scheduleAdvance = useCallback((bannerId: string, delay: number) => {
+    clearSlideTimer();
+    if (items.length <= 1) return;
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      if (activeIdRef.current === bannerId && document.visibilityState === 'visible') swiperRef.current?.slideNext();
+    }, delay);
+  }, [clearSlideTimer, items.length]);
+
+  const markVideoFailed = useCallback((bannerId: string) => {
+    if (activeIdRef.current !== bannerId) return;
+    setFailedVideos((current) => {
+      if (current.has(bannerId)) return current;
+      const next = new Set(current);
+      next.add(bannerId);
+      return next;
+    });
+  }, []);
+
+  const safelyPlay = useCallback((bannerId: string, restart: boolean) => {
+    const video = videoRefs.current.get(bannerId);
+    if (!video || endedVideosRef.current.has(bannerId)) return;
+    const attempt = ++playAttemptRef.current;
+    if (restart) {
+      try { video.currentTime = 0; } catch { /* The media may not have metadata yet. */ }
+    }
+    try {
+      void video.play().catch((error: unknown) => {
+        if (attempt !== playAttemptRef.current) return;
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        markVideoFailed(bannerId);
+      });
+    } catch {
+      if (attempt === playAttemptRef.current) markVideoFailed(bannerId);
+    }
+  }, [markVideoFailed]);
+
+  const registerVideo = useCallback((bannerId: string, video: HTMLVideoElement | null) => {
+    if (video) videoRefs.current.set(bannerId, video);
+    else videoRefs.current.delete(bannerId);
+  }, []);
+
+  const handleVideoEnded = useCallback((bannerId: string) => {
+    if (activeIdRef.current !== bannerId) return;
+    endedVideosRef.current.add(bannerId);
+    if (items.length > 1) swiperRef.current?.slideNext();
+  }, [items.length]);
+
+  const handleSlideChange = useCallback((swiper: SwiperInstance) => {
+    playAttemptRef.current += 1;
+    clearSlideTimer();
+    pauseAndResetVideos();
+    const nextIndex = swiper.realIndex;
+    const nextBanner = items[nextIndex];
+    activeIdRef.current = nextBanner?.id ?? null;
+    if (nextBanner) endedVideosRef.current.delete(nextBanner.id);
+    setActiveIndex(nextIndex);
+  }, [clearSlideTimer, items, pauseAndResetVideos]);
+
+  useEffect(() => {
+    activeIdRef.current = activeBannerId;
+  }, [activeBannerId]);
+
+  useEffect(() => {
+    clearSlideTimer();
+    playAttemptRef.current += 1;
+    pauseAndResetVideos();
+    if (!activeBanner || document.visibilityState !== 'visible') return;
+    if (activeMedia.kind === 'video') safelyPlay(activeBanner.id, true);
+    else if (activeMedia.kind === 'image') scheduleAdvance(activeBanner.id, HERO_IMAGE_DURATION_MS);
+    else if (hasAnotherMedia) scheduleAdvance(activeBanner.id, 0);
+    return () => {
+      playAttemptRef.current += 1;
+      clearSlideTimer();
+    };
+  }, [activeBanner, activeMedia, clearSlideTimer, hasAnotherMedia, pauseAndResetVideos, safelyPlay, scheduleAdvance]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      playAttemptRef.current += 1;
+      clearSlideTimer();
+      const bannerId = activeIdRef.current;
+      if (!bannerId) return;
+      const video = videoRefs.current.get(bannerId);
+      if (document.visibilityState === 'hidden') {
+        video?.pause();
+        return;
+      }
+      if (activeMedia.kind === 'video') safelyPlay(bannerId, false);
+      else if (activeMedia.kind === 'image') scheduleAdvance(bannerId, HERO_IMAGE_DURATION_MS);
+      else if (hasAnotherMedia) scheduleAdvance(bannerId, 0);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [activeMedia, clearSlideTimer, hasAnotherMedia, safelyPlay, scheduleAdvance]);
+
+  useEffect(() => () => {
+    playAttemptRef.current += 1;
+    clearSlideTimer();
+    pauseAndResetVideos();
+  }, [clearSlideTimer, pauseAndResetVideos]);
+
+  if (banners.isLoading) return <div className="-mt-[88px] h-[78vh] min-h-[560px] animate-pulse bg-neutral-900 md:-mt-[96px] md:min-h-[680px]" />;
+
+  if (!items.length) {
     return (
-      <div className="w-full bg-background -mt-[88px] md:-mt-[96px]">
-        <div className="relative w-full h-screen min-h-[700px] bg-neutral-900 animate-pulse" />
-      </div>
-    );
-  }
-
-  // Filter active collections
-  const activeCollections = collections?.filter(c => c.isActive && c.imageUrl) || [];
-
-  if (activeCollections.length === 0) {
-    // Static Fallback — Single Hero
-    return (
-      <div className="w-full bg-background -mt-[88px] md:-mt-[96px]">
-        <section ref={heroRef} className="relative w-full h-screen min-h-[700px] overflow-hidden">
-          {/* Parallax Image */}
-          <motion.div
-            style={{ y: parallaxY, scale: imageScale }}
-            className="absolute inset-0 w-full h-[120%] -top-[10%]"
-          >
-            <Image
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA48StYLsUc7nxVJ3xg8gOGChnT_WEZZxpsLiaScpXHruo53dksZYnoxSqGeBRIZcEIIr5M_iqcaFEQR5-rVqUewhLEoq1zUvy-0Lwlifs7A_jTe4TDdvexLzhn73O9HlktR78lFUS9xEGHBjDZZBHsVUIrNyl8fB0GYt0GWMe7Drb025kHh32kawKLHf7XGpiZzLXWxYlIQ6OyomXEirnrrA4PTqcLQ8avAujYm4IKFSp6-fl96TSHSw"
-              alt={t('home.heroAlt')}
-              fill
-              priority
-              className="object-cover object-center"
-            />
-          </motion.div>
-
-          {/* Gradient Overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 z-[1]" />
-
-          {/* Content */}
-          <SlideContent
-            kicker="Haute Chaussure • Maison Shoezy"
-            headline={t('home.heroTitle')}
-            ctaHref="/collections"
-            ctaLabel={t('home.discover')}
-          />
-
-          {/* Bottom Scroll Indicator */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2, duration: 1 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
-          >
-            <span className="text-[9px] uppercase tracking-[0.3em] text-white/50 font-medium">
-              Scroll
-            </span>
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-              className="w-[1px] h-6 bg-white/30"
-            />
-          </motion.div>
-        </section>
-      </div>
+      <section className="-mt-[88px] flex h-[70vh] min-h-[520px] items-center justify-center bg-[radial-gradient(circle_at_top,#3b332b,#111_70%)] px-6 text-center text-white md:-mt-[96px]">
+        <div><p className="text-xs uppercase tracking-[0.3em] text-white/60">Shoozy</p><h1 className="mt-4 font-serif text-5xl font-light md:text-7xl">{t('home.heroFallbackTitle')}</h1><Link href="/products" className="mt-8 inline-flex border border-white/80 px-8 py-3 text-xs uppercase tracking-[0.22em] hover:bg-white hover:text-black">{t('home.shopAll')}</Link></div>
+      </section>
     );
   }
 
   return (
-    <div className="w-full bg-background -mt-[88px] md:-mt-[96px]">
-      <section ref={heroRef} className="relative w-full h-screen min-h-[700px] overflow-hidden group">
-        <Swiper
-          modules={[Autoplay, Pagination]}
-          autoplay={{ delay: 6000, disableOnInteraction: false }}
-          pagination={{
-            clickable: true,
-            el: '.swiper-custom-pagination',
-            renderBullet: (index, className) => {
-              return `<span class="${className} transition-all duration-500 rounded-full cursor-pointer"></span>`;
-            },
-            bulletClass: 'w-8 h-[2px] bg-white/30 block',
-            bulletActiveClass: '!w-14 !bg-white'
-          }}
-          loop
-          className="w-full h-full"
-        >
-          {activeCollections.map((collection, index) => (
-            <SwiperSlide key={collection.id} className="relative w-full h-full">
-              {/* Image with subtle initial zoom animation */}
-              <motion.div
-                initial={{ scale: 1.1 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="absolute inset-0"
-              >
-                <Image
-                  src={collection.imageUrl!}
-                  alt={collection.name}
-                  fill
-                  priority={index === 0}
-                  className="object-cover object-center"
-                />
-              </motion.div>
-
-              {/* Gradient Overlays */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 z-[1]" />
-
-              {/* Content */}
-              <SlideContent
-                kicker={collection.endsAt ? 'Limited Time Collection' : 'The Fall/Winter Edit'}
-                headline={collection.name}
-                description={collection.description}
-                ctaHref={`/collections/${collection.slug}`}
-                ctaLabel={t('home.discover')}
-              />
-            </SwiperSlide>
-          ))}
-        </Swiper>
-
-        {/* Custom Pagination */}
-        <div className="swiper-custom-pagination absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20" />
-      </section>
-    </div>
+    <section className="-mt-[88px] md:-mt-[96px]">
+      <Swiper modules={[Pagination]} pagination={items.length > 1 ? { clickable: true } : false} rewind={items.length > 1} speed={reducedMotion ? 0 : 300} onSwiper={(swiper) => { swiperRef.current = swiper; activeIdRef.current = items[swiper.realIndex]?.id ?? null; setActiveIndex(swiper.realIndex); }} onSlideChange={handleSlideChange} className="hero-cms-swiper">
+        {items.map((banner, index) => {
+          const media = selectMedia(banner, isMobile, reducedMotion, failedVideos.has(banner.id));
+          return <SwiperSlide key={banner.id}><HeroSlide banner={banner} media={media} active={index === currentIndex} priority={index === 0} onVideoRef={registerVideo} onVideoEnded={handleVideoEnded} onVideoError={markVideoFailed} /></SwiperSlide>;
+        })}
+      </Swiper>
+    </section>
   );
 }

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { 
   Save, ArrowLeft, AlertCircle, Info, Image as ImageIcon,
   Loader2, PlusCircle, Trash2, Bold, Italic, List as ListIcon, Code, Eye,
-  Star, Upload, Link as LinkIcon, MoveUp, MoveDown, Palette
+  Star, Upload, Link as LinkIcon, MoveUp, MoveDown, Palette, Film
 } from 'lucide-react';
 import Link from 'next/link';
 import { CommerceImage } from '@/components/commerce/CommerceImage';
@@ -73,6 +73,31 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     enabled: !!productId,
   });
   const productDetail = productDetailQuery.data;
+  const productVideo = productDetail?.media.find((media) => media.type === 'VIDEO' || media.mediaType === 'VIDEO');
+
+  const videoUploadMutation = useMutation({
+    mutationFn: (file: File) => productsApi.uploadMedia(productId!, file, 'VIDEO', !!productVideo),
+    onSuccess: () => {
+      toast.success(t(productVideo ? 'admin.videoReplaced' : 'admin.videoUploaded'));
+      void queryClient.invalidateQueries({ queryKey: ['product-detail', productId] });
+    },
+    onError: () => toast.error(t('admin.videoUploadError')),
+  });
+  const videoDeleteMutation = useMutation({
+    mutationFn: () => productsApi.deleteMedia(productId!, productVideo!.id),
+    onSuccess: () => {
+      toast.success(t('admin.videoRemoved'));
+      void queryClient.invalidateQueries({ queryKey: ['product-detail', productId] });
+    },
+    onError: () => toast.error(t('admin.videoRemoveError')),
+  });
+
+  const handleVideoUpload = (file?: File) => {
+    if (!file) return;
+    if (file.type !== 'video/mp4') return toast.error(t('admin.videoTypeError'));
+    if (file.size > 50 * 1024 * 1024) return toast.error(t('admin.videoSizeError'));
+    videoUploadMutation.mutate(file);
+  };
 
   // Form initialization
   const {
@@ -246,7 +271,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       })),
       images: [],
     });
-    setGallery(productDetail.media.map((media) => ({
+    setGallery(productDetail.media.filter((media) => media.type === 'IMAGE' && media.mediaType !== 'VIDEO').map((media) => ({
       id: media.id,
       existingId: media.id,
       variantId: media.variantId,
@@ -325,8 +350,9 @@ export default function AddProductForm({ productId }: { productId?: string }) {
     if (parsedOptions.length === 0) {
       const currentDefault = variants.find((variant) => Object.keys(variant.selectedOptionValueKeys).length === 0);
       setValue('variants', [{
-        sku: `${effectivePrefix}-DEFAULT`,
-        title: `${productName || 'Product'} - Default`,
+        ...(currentDefault?.id ? { id: currentDefault.id } : {}),
+        sku: currentDefault?.sku || `${effectivePrefix}-DEFAULT`,
+        title: currentDefault?.title || `${productName || 'Product'} - Default`,
         stockQuantity: currentDefault ? currentDefault.stockQuantity : 0,
         price: currentDefault && currentDefault.price !== prevBasePriceRef.current ? currentDefault.price : basePrice,
         barcode: currentDefault ? currentDefault.barcode : '',
@@ -658,7 +684,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
         };
       });
       const optionDeleteIds = existingOptions.filter((option) => !retainedOptionIds.has(option.id)).map((option) => option.id);
-      const deleteMediaIds = (productDetail?.media ?? []).filter((media) => !gallery.some((image) => image.existingId === media.id)).map((media) => media.id);
+      const deleteMediaIds = (productDetail?.media ?? []).filter((media) => media.type === 'IMAGE' && media.mediaType !== 'VIDEO' && !gallery.some((image) => image.existingId === media.id)).map((media) => media.id);
       const response = await productsApi.update(productId, {
         product,
         categories,
@@ -1039,6 +1065,38 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                 <div className="text-center py-4 text-gray-400 text-xs italic">
                   {t('admin.noImages')}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Film className="size-5 text-[#FF8C00]" />{t('admin.productVideo')}</CardTitle>
+              <CardDescription>{t('admin.productVideoCopy')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!productId ? (
+                <div className="rounded-lg border border-dashed bg-gray-50 p-5 text-center text-sm text-gray-500 dark:bg-neutral-900 dark:text-neutral-400">{t('admin.saveBeforeVideo')}</div>
+              ) : productVideo ? (
+                <div className="space-y-3">
+                  <video src={productVideo.url} controls playsInline preload="metadata" className="aspect-video w-full max-w-xl rounded-xl bg-black object-contain" />
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-neutral-900">
+                      {videoUploadMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}{t('admin.replaceVideo')}
+                      <input type="file" accept="video/mp4" className="sr-only" disabled={videoUploadMutation.isPending || videoDeleteMutation.isPending} onChange={(event) => { handleVideoUpload(event.target.files?.[0]); event.currentTarget.value = ''; }} />
+                    </label>
+                    <Button type="button" variant="outline" className="text-red-600 hover:text-red-700" disabled={videoDeleteMutation.isPending || videoUploadMutation.isPending} onClick={() => videoDeleteMutation.mutate()}>
+                      {videoDeleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}{t('admin.removeVideo')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <label className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 hover:border-[#FF8C00]/50 dark:border-neutral-800 dark:bg-neutral-900/50">
+                  {videoUploadMutation.isPending ? <Loader2 className="size-7 animate-spin text-[#FF8C00]" /> : <Upload className="size-7 text-[#FF8C00]" />}
+                  <span className="text-sm font-semibold">{t('admin.uploadVideo')}</span>
+                  <span className="text-xs text-gray-400 dark:text-neutral-500">{t('admin.videoSupport')}</span>
+                  <input type="file" accept="video/mp4" className="sr-only" disabled={videoUploadMutation.isPending} onChange={(event) => { handleVideoUpload(event.target.files?.[0]); event.currentTarget.value = ''; }} />
+                </label>
               )}
             </CardContent>
           </Card>
