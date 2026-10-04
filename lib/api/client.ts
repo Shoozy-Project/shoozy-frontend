@@ -1,0 +1,131 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { API_BASE_URL } from '@/lib/constants';
+
+const API_REQUEST_TIMEOUT_MS = 15_000;
+const MEDIA_UPLOAD_TIMEOUT_MS = 180_000;
+
+// ─── Axios Instance ────────────────────────────────────────────
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // sends refresh cookie on every request
+  timeout: API_REQUEST_TIMEOUT_MS,
+});
+
+// ─── Token getter (avoids circular import with Zustand store) ──
+let getToken: (() => string | null) | null = null;
+let clearAuth: (() => void) | null = null;
+let getLocale: (() => 'ar' | 'en') | null = null;
+
+export function registerAuthHandlers(
+  tokenGetter: () => string | null,
+  authClearer: () => void,
+) {
+  getToken = tokenGetter;
+  clearAuth = authClearer;
+}
+
+export function registerLocaleHandler(localeGetter: () => 'ar' | 'en') {
+  getLocale = localeGetter;
+}
+
+// ─── Request Interceptor: attach Bearer token ──────────────────
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getToken?.();
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.headers) {
+    config.headers['Accept-Language'] = getLocale?.() ?? 'en';
+  }
+  if (
+    typeof FormData !== 'undefined'
+    && config.data instanceof FormData
+    && config.timeout === API_REQUEST_TIMEOUT_MS
+  ) {
+    config.timeout = MEDIA_UPLOAD_TIMEOUT_MS;
+  }
+  return config;
+});
+
+// ─── Refresh state management ──────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
+
+function processQueue(error: AxiosError | null, token: string | null = null) {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
+  });
+  failedQueue = [];
+}
+
+// ─── Response Interceptor: silent refresh on 401 ──────────────
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
+
+    // Never intercept 401s from the refresh endpoint itself — those are
+    // expected when there is no valid session (incognito, expired cookie).
+    // Let them bubble up so QueryProvider's .catch() handles them cleanly.
+    const url = originalRequest?.url ?? '';
+    if (url.includes('/auth/refresh') || url.startsWith('/guest/')) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers)
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
+        const newToken: string = data?.data?.accessToken;
+
+        // Update Zustand store via dynamic import to avoid circular dep
+        const { useAuthStore } = await import('@/stores/auth-store');
+        if (newToken && data?.data?.user) {
+          useAuthStore.getState().setAuth(newToken, data.data.user);
+        }
+
+        processQueue(null, newToken);
+        if (originalRequest.headers)
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError as AxiosError, null);
+        clearAuth?.();
+        // Do NOT use window.location.href here — it causes a full-page
+        // reload which restarts the auth cycle and creates an infinite loop.
+        // The route guards (admin layout, etc.) will handle the redirect.
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+export default apiClient;
