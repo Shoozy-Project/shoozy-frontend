@@ -6,6 +6,7 @@ import type {
   CatalogCategoryDto,
   CatalogCollectionDetailDto,
   CatalogCollectionDto,
+  CatalogFiltersDto,
   CatalogProductDetailDto,
   CatalogProductDto,
   CatalogQuery,
@@ -37,6 +38,7 @@ async function publicGet<T>(path: string, params?: Record<string, string | numbe
 
 export const serverCatalog = {
   products: (query: CatalogQuery) => publicGet<PaginatedData<CatalogProductDto>>('/catalog/products', query as Record<string, string | number | boolean | undefined>),
+  filters: () => publicGet<CatalogFiltersDto>('/catalog/filters'),
   product: (slug: string) => publicGet<CatalogProductDetailDto>(`/catalog/products/${encodeURIComponent(slug)}`),
   relatedProducts: (slug: string, limit = 8) => publicGet<{ items: CatalogProductDto[] }>(`/catalog/products/${encodeURIComponent(slug)}/related`, { limit }),
   promotions: () => publicGet<{ items: CatalogPromotionDto[] }>('/catalog/promotions'),

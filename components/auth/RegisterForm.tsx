@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,8 @@ import PasswordStrengthBar from './PasswordStrengthBar';
 import SocialAuthButtons from './SocialAuthButtons';
 import { isAxiosError } from 'axios';
 import { useTranslations } from '@/lib/hooks/use-translations';
+import { TunisianPhoneInput } from '@/components/forms/TunisianPhoneInput';
+import { toTunisianCanonicalPhone } from '@/lib/tunisian-phone';
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function RegisterForm() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    defaultValues: { phone: '' },
   });
 
   const passwordValue = useWatch({ control, name: 'password' }) ?? '';
@@ -41,7 +44,7 @@ export default function RegisterForm() {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone || undefined,
+        phone: data.phone ? toTunisianCanonicalPhone(data.phone) ?? undefined : undefined,
       });
 
       if (response.data.data.verificationRequired) {
@@ -51,6 +54,10 @@ export default function RegisterForm() {
       }
     } catch (err) {
       if (isAxiosError(err)) {
+        if (!err.response) {
+          setServerError(t('auth.networkError'));
+          return;
+        }
         const code = err.response?.data?.error?.code;
         const details = err.response?.data?.error?.details ?? [];
 
@@ -221,37 +228,23 @@ export default function RegisterForm() {
         </div>
 
         {/* Phone (Optional) */}
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="register-phone"
-            className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]"
-          >
-            {t('auth.phone')}{' '}
-            <span className="text-[var(--text-faint)] normal-case font-normal">({t('auth.optional')})</span>
-          </label>
-          <input
-            id="register-phone"
-            type="tel"
-            placeholder="+216 12 345 678"
-            autoComplete="tel"
-            aria-describedby={errors.phone ? 'register-phone-error' : undefined}
-            aria-invalid={!!errors.phone}
-            className={`
-              w-full px-0 py-3 text-sm bg-transparent border-b-2 text-[var(--text-primary)] placeholder-[var(--text-faint)]
-              focus:outline-none transition-colors duration-200
-              ${errors.phone
-                ? 'border-[#dc2626] focus:border-[#dc2626]'
-                : 'border-[var(--border-primary)] focus:border-[var(--text-primary)]'
-              }
-            `}
-            {...register('phone')}
-          />
-          {errors.phone && (
-            <p id="register-phone-error" role="alert" className="text-xs text-[#dc2626]">
-              {errors.phone.message}
-            </p>
+        <Controller
+          name="phone"
+          control={control}
+          render={({ field }) => (
+            <TunisianPhoneInput
+              id="register-phone"
+              label={t('auth.phone')}
+              optionalLabel={t('auth.optional')}
+              helperText={t('phone.helper')}
+              error={errors.phone?.message}
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              variant="auth"
+            />
           )}
-        </div>
+        />
 
         {/* Password */}
         <div>

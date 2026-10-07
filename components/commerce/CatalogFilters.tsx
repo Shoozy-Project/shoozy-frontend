@@ -8,13 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatMinorAmount, majorToMinorString } from '@/lib/format-money';
-import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogSort } from '@/types/commerce';
+import { resolveProductColor } from '@/lib/product-colors';
+import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogColorFilterOptionDto, CatalogSort } from '@/types/commerce';
 import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CatalogFiltersProps {
   brands: CatalogBrandDto[];
   categories: CatalogCategoryDto[];
   collections: CatalogCollectionDto[];
+  colors: CatalogColorFilterOptionDto[];
 }
 
 const SORTS: Array<{ value: CatalogSort; labelKey: string }> = [
@@ -29,7 +31,7 @@ function displayMinor(value: string | null) {
   return value && /^(?:0|[1-9]\d*)$/.test(value) ? formatMinorAmount(value, 3) : '';
 }
 
-function FilterFields({ brands, categories, collections, idPrefix }: CatalogFiltersProps & { idPrefix: string }) {
+function FilterFields({ brands, categories, collections, colors, idPrefix }: CatalogFiltersProps & { idPrefix: string }) {
   const searchParams = useSearchParams();
   const { t } = useTranslations();
   const min = searchParams.get('minPriceMinor');
@@ -53,6 +55,24 @@ function FilterFields({ brands, categories, collections, idPrefix }: CatalogFilt
           </select>
         </div>
       ))}
+      {colors.length > 0 && (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">{t('catalog.color')}</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+              <input type="radio" name="color" value="" defaultChecked={!searchParams.get('color')} className="size-4" />
+              {t('catalog.all')}
+            </label>
+            {colors.map((color, index) => (
+              <label key={color.value.toLocaleLowerCase('en-US')} htmlFor={`${idPrefix}-filter-color-${index}`} className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                <input id={`${idPrefix}-filter-color-${index}`} type="radio" name="color" value={color.value} defaultChecked={searchParams.get('color')?.toLocaleLowerCase('en-US') === color.value.toLocaleLowerCase('en-US')} className="size-4" />
+                <span aria-hidden="true" className="size-4 shrink-0 rounded-full border border-neutral-400 dark:border-neutral-600" style={{ backgroundColor: resolveProductColor(color.colorHex, color.displayValue || color.value) }} />
+                <span className="truncate">{color.displayValue}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor={`${idPrefix}-min-price`}>{t('catalog.minPrice')}</Label>
@@ -84,8 +104,8 @@ export function CatalogFilters(props: CatalogFiltersProps) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const next = new URLSearchParams(searchParams);
-    ['search', 'category', 'brand', 'collection', 'inStock', 'minPriceMinor', 'maxPriceMinor', 'page'].forEach((key) => next.delete(key));
-    ['search', 'category', 'brand', 'collection', 'inStock'].forEach((key) => {
+    ['search', 'category', 'brand', 'collection', 'color', 'inStock', 'minPriceMinor', 'maxPriceMinor', 'page'].forEach((key) => next.delete(key));
+    ['search', 'category', 'brand', 'collection', 'color', 'inStock'].forEach((key) => {
       const value = String(form.get(key) ?? '').trim();
       if (value) next.set(key, value);
     });
@@ -122,7 +142,8 @@ export function CatalogFilters(props: CatalogFiltersProps) {
   const form = (idPrefix: string) => <form key={`${idPrefix}-${searchParams}`} onSubmit={submit}><FilterFields {...props} idPrefix={idPrefix} /></form>;
   const pills = active.length > 0 && <div className="mb-5 flex flex-wrap gap-2">{active.map((key) => {
     const raw = searchParams.get(key) ?? '';
-    const value = key === 'minPriceMinor' || key === 'maxPriceMinor' ? `${displayMinor(raw) || raw} TND` : key === 'inStock' ? t('catalog.inStock') : raw;
+    const selectedColor = key === 'color' ? props.colors.find((color) => color.value.toLocaleLowerCase('en-US') === raw.toLocaleLowerCase('en-US')) : undefined;
+    const value = key === 'minPriceMinor' || key === 'maxPriceMinor' ? `${displayMinor(raw) || raw} TND` : key === 'inStock' ? t('catalog.inStock') : selectedColor?.displayValue ?? raw;
     const label = key === 'minPriceMinor' ? t('catalog.min') : key === 'maxPriceMinor' ? t('catalog.max') : t(`catalog.${key}`);
     return <button type="button" key={key} onClick={() => remove(key)} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs capitalize" aria-label={t('catalog.removeFilter', { name: label })}><span>{label}: {value}</span><X className="size-3" /></button>;
   })}</div>;

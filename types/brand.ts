@@ -8,6 +8,7 @@ export interface BrandDto {
   slug: string;
   description: string | null;
   logoUrl: string | null;
+  showcaseImageUrl: string | null;
   productCount: number;
   isActive: boolean;
   createdAt: string;
@@ -29,6 +30,7 @@ export interface CreateBrandPayload {
   slug?: string;
   description?: string | null;
   logoUrl?: string | null;
+  showcaseImageUrl?: string | null;
   isActive?: boolean;
   translations?: TranslationMap<EntityTranslation>;
 }

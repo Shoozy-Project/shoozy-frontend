@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Play, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,12 +9,12 @@ import { WishlistButton } from '@/components/commerce/WishlistButton';
 import { commerceErrorMessage } from '@/lib/api/errors';
 import { formatMinorMoney } from '@/lib/format-money';
 import { useAddToCart } from '@/lib/hooks/use-commerce';
+import { isColorOptionName, resolveProductColor } from '@/lib/product-colors';
 import { cn } from '@/lib/utils';
 import type { CatalogMediaDto, CatalogProductDetailDto, CatalogVariantDto, SizeGuideDto } from '@/types/commerce';
 import { useTranslations } from '@/lib/hooks/use-translations';
 import { ProductReviewsSection } from './reviews/ProductReviewsSection';
 import { RelatedProductsSection } from './RelatedProductsSection';
-import { ShippingPreview } from './ShippingPreview';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function hasSelection(variant: CatalogVariantDto, optionId: string, valueId: string) {
@@ -33,8 +33,21 @@ function initialMediaIndex(media: CatalogMediaDto[]) {
 function ProductMediaGallery({ media, productName }: { media: CatalogMediaDto[]; productName: string }) {
   const [selectedIndex, setSelectedIndex] = useState(() => initialMediaIndex(media));
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const pointerRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const selectedMedia = media[selectedIndex];
   const multipleMedia = media.length > 1;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !selectedMedia || !isVideo(selectedMedia)) return;
+    video.muted = true;
+    try { video.currentTime = 0; } catch { /* Metadata may not be available yet. */ }
+    void video.play().catch(() => { /* Native controls remain available when autoplay is blocked. */ });
+    return () => {
+      video.pause();
+      try { video.currentTime = 0; } catch { /* Metadata may not be available yet. */ }
+    };
+  }, [selectedMedia]);
 
   const selectMedia = (nextIndex: number) => {
     if (nextIndex === selectedIndex) return;
@@ -59,6 +72,29 @@ function ProductMediaGallery({ media, productName }: { media: CatalogMediaDto[];
       event.preventDefault();
       next();
     }
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!multipleMedia || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button, video, input, textarea, select, a, [contenteditable="true"]')) return;
+    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const clearPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current?.id === event.pointerId) pointerRef.current = null;
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = pointerRef.current;
+    if (!start || start.id !== event.pointerId) return;
+    pointerRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const horizontal = event.clientX - start.x;
+    const vertical = event.clientY - start.y;
+    if (Math.abs(horizontal) < 48 || Math.abs(horizontal) <= Math.abs(vertical) * 1.25) return;
+    if (horizontal < 0) next(); else previous();
   };
 
   const thumbnail = (item: CatalogMediaDto, index: number, mobile = false) => {
@@ -93,10 +129,17 @@ function ProductMediaGallery({ media, productName }: { media: CatalogMediaDto[];
         {media.map((item, index) => thumbnail(item, index))}
       </div>
 
-      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-sm border border-neutral-200 bg-neutral-50 focus-within:border-neutral-400 dark:border-neutral-800 dark:bg-[#111]">
+      <div
+        className={cn('relative aspect-[4/5] w-full touch-pan-y select-none overflow-hidden rounded-sm border border-neutral-200 bg-neutral-50 focus-within:border-neutral-400 dark:border-neutral-800 dark:bg-[#111]', multipleMedia && !(selectedMedia && isVideo(selectedMedia)) && 'cursor-grab active:cursor-grabbing')}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={clearPointer}
+        onLostPointerCapture={clearPointer}
+        onDragStart={(event) => event.preventDefault()}
+      >
         {selectedMedia ? (
           isVideo(selectedMedia) ? (
-            <video key={selectedMedia.id} ref={videoRef} controls playsInline preload="metadata" className="absolute inset-0 h-full w-full object-contain" aria-label={selectedMedia.altText || `${productName} video`}><source src={selectedMedia.url} type={selectedMedia.mimeType ?? 'video/mp4'} /></video>
+            <video key={selectedMedia.id} ref={videoRef} autoPlay muted controls playsInline preload="metadata" className="absolute inset-0 h-full w-full object-contain" aria-label={selectedMedia.altText || `${productName} video`}><source src={selectedMedia.url} type={selectedMedia.mimeType ?? 'video/mp4'} /></video>
           ) : (
             <CommerceImage key={selectedMedia.id} src={selectedMedia.url} alt={selectedMedia.altText || productName} sizes="(max-width: 768px) 100vw, 50vw" priority className="object-contain" />
           )
@@ -179,7 +222,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
   });
 
   // Find active color name
-  const colorOption = product.options.find(o => o.name.toLowerCase() === 'color' || o.name.toLowerCase() === 'couleur');
+  const colorOption = product.options.find((option) => isColorOptionName(option.name));
   const activeColorValue = colorOption?.values.find(v => selected[colorOption.id] === v.id);
 
   return (
@@ -262,7 +305,7 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
               {/* ── SELECTORS ── */}
               <div className="space-y-8">
                 {product.options.map((option) => {
-                  const isColor = option.name.toLowerCase() === 'color' || option.name.toLowerCase() === 'couleur';
+                  const isColor = isColorOptionName(option.name);
                   return (
                     <div key={option.id}>
                       {isColor ? (
@@ -275,21 +318,24 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                             {option.values.map((value) => {
                               const possible = valuePossible(option.id, value.id);
                               const chosen = selected[option.id] === value.id;
+                              const label = value.displayValue || value.value;
                               return (
                                 <button
                                   key={value.id}
                                   type="button"
                                   disabled={!possible}
                                   onClick={() => setSelected((current) => ({ ...current, [option.id]: value.id }))}
-                                  title={value.displayValue || value.value}
-                                  aria-label={value.displayValue || value.value}
+                                  title={label}
+                                  aria-label={label}
                                   className={cn(
-                                    'w-8 h-8 rounded-full border border-neutral-200 dark:border-neutral-700 transition-all duration-300',
+                                    'group relative size-8 rounded-full border border-neutral-400 transition-all duration-300 dark:border-neutral-600',
                                     chosen ? 'ring-1 ring-offset-2 ring-black dark:ring-white dark:ring-offset-[#0c0c0d]' : 'hover:border-neutral-400 dark:hover:border-neutral-500 hover:scale-110',
                                     !possible && 'opacity-30 cursor-not-allowed relative after:absolute after:inset-0 after:w-full after:h-[1px] after:bg-red-500 after:-rotate-45 after:top-1/2 after:-translate-y-1/2'
                                   )}
-                                  style={{ backgroundColor: value.colorHex || '#ccc' }}
-                                />
+                                  style={{ backgroundColor: resolveProductColor(value.colorHex, label) }}
+                                >
+                                  <span className="pointer-events-none absolute bottom-full start-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900 px-2 py-1 text-[10px] normal-case tracking-normal text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-white dark:text-black">{label}</span>
+                                </button>
                               );
                             })}
                           </div>
@@ -331,8 +377,6 @@ export function ProductDetailClient({ product, sizeGuide }: { product: CatalogPr
                   );
                 })}
               </div>
-
-              <ShippingPreview slug={product.slug} />
 
               {/* Desktop Add to Bag */}
               <div className="hidden md:block mt-10">

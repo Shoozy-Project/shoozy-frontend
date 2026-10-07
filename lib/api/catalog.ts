@@ -5,6 +5,7 @@ import type {
   CatalogCategoryDto,
   CatalogCollectionDetailDto,
   CatalogCollectionDto,
+  CatalogFiltersDto,
   CatalogProductDetailDto,
   CatalogProductDto,
   CatalogPromotionDto,
@@ -47,6 +48,7 @@ export async function fetchCatalogCollections(params: { page?: number; limit?: n
 export const catalogApi = {
   products: (params: CatalogQuery = {}) =>
     apiClient.get<ApiSuccess<PaginatedData<CatalogProductDto>>>('/catalog/products', { params }),
+  filters: () => apiClient.get<ApiSuccess<CatalogFiltersDto>>('/catalog/filters'),
   product: (slug: string) =>
     apiClient.get<ApiSuccess<CatalogProductDetailDto>>(`/catalog/products/${encodeURIComponent(slug)}`),
   relatedProducts: (slug: string, limit = 8) =>

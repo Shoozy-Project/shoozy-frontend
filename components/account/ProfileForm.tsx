@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,29 +11,55 @@ import { accountApi } from '@/lib/api/account';
 import { commerceErrorMessage } from '@/lib/api/errors';
 import { commerceKeys } from '@/lib/hooks/use-commerce';
 import { useTranslations } from '@/lib/hooks/use-translations';
+import { TunisianPhoneInput } from '@/components/forms/TunisianPhoneInput';
+import { extractTunisianLocalPhone, isValidTunisianLocalPhone, toTunisianCanonicalPhone } from '@/lib/tunisian-phone';
+import type { ProfileDto } from '@/types/commerce';
 
 export function ProfileForm() {
-  const client = useQueryClient();
   const profile = useQuery({ queryKey: commerceKeys.profile, queryFn: accountApi.profile });
   const { t } = useTranslations();
+  if (profile.isLoading) return <p className="py-16 text-center text-muted-foreground">{t('account.loadingProfile')}</p>;
+  if (profile.isError || !profile.data) return <p className="rounded-xl border p-8 text-center">{t('account.profileLoadError')}</p>;
+  return <ProfileEditor key={profile.data.updatedAt} profile={profile.data} />;
+}
+
+function ProfileEditor({ profile }: { profile: ProfileDto }) {
+  const client = useQueryClient();
+  const { t } = useTranslations();
+  const [phone, setPhone] = useState(() => extractTunisianLocalPhone(profile.phone));
+  const [phoneError, setPhoneError] = useState('');
   const save = useMutation({
     mutationFn: (value: { firstName: string; lastName: string; phone: string | null }) => accountApi.updateProfile(value),
     onSuccess: (value) => { client.setQueryData(commerceKeys.profile, value); toast.success(t('account.profileUpdated')); },
-    onError: (error) => toast.error(commerceErrorMessage(error, t('account.profileUpdateError'))),
+    onError: (error) => {
+      const code = isAxiosError(error) ? error.response?.data?.error?.code : undefined;
+      if (code === 'PROFILE_PHONE_ALREADY_EXISTS') {
+        setPhoneError(t('auth.phoneExists'));
+        return;
+      }
+      toast.error(commerceErrorMessage(error, t('account.profileUpdateError')));
+    },
   });
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    save.mutate({ firstName: String(data.get('firstName') ?? '').trim(), lastName: String(data.get('lastName') ?? '').trim(), phone: String(data.get('phone') ?? '').trim() || null });
+    if (phone && !isValidTunisianLocalPhone(phone)) {
+      setPhoneError(t('validation.tunisianPhone'));
+      return;
+    }
+    setPhoneError('');
+    save.mutate({
+      firstName: String(data.get('firstName') ?? '').trim(),
+      lastName: String(data.get('lastName') ?? '').trim(),
+      phone: phone ? toTunisianCanonicalPhone(phone) : null,
+    });
   };
-  if (profile.isLoading) return <p className="py-16 text-center text-muted-foreground">{t('account.loadingProfile')}</p>;
-  if (profile.isError || !profile.data) return <p className="rounded-xl border p-8 text-center">{t('account.profileLoadError')}</p>;
   return (
     <div className="max-w-2xl"><h2 className="font-serif text-3xl">{t('account.profile')}</h2><p className="mt-2 text-sm text-muted-foreground">{t('account.profileCopy')}</p>
-      <form key={profile.data.updatedAt} onSubmit={submit} className="mt-8 space-y-5 rounded-xl border p-5 sm:p-6">
-        <div className="space-y-2"><Label>{t('auth.email')}</Label><Input value={profile.data.email} disabled className="h-10" /><p className="text-xs text-muted-foreground">{t('account.emailChangeUnsupported')}</p></div>
-        <div className="grid gap-4 sm:grid-cols-2"><Field id="profile-first" name="firstName" label={t('auth.firstName')} defaultValue={profile.data.firstName} max={100} /><Field id="profile-last" name="lastName" label={t('auth.lastName')} defaultValue={profile.data.lastName} max={100} /></div>
-        <Field id="profile-phone" name="phone" label={t('auth.phone')} defaultValue={profile.data.phone ?? ''} max={32} required={false} />
+      <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border p-5 sm:p-6">
+        <div className="space-y-2"><Label>{t('auth.email')}</Label><Input value={profile.email} disabled className="h-10" /><p className="text-xs text-muted-foreground">{t('account.emailChangeUnsupported')}</p></div>
+        <div className="grid gap-4 sm:grid-cols-2"><Field id="profile-first" name="firstName" label={t('auth.firstName')} defaultValue={profile.firstName} max={100} /><Field id="profile-last" name="lastName" label={t('auth.lastName')} defaultValue={profile.lastName} max={100} /></div>
+        <TunisianPhoneInput id="profile-phone" label={t('auth.phone')} optionalLabel={t('auth.optional')} helperText={t('phone.helper')} error={phoneError} value={phone} onChange={(value) => { setPhone(value); setPhoneError(''); }} />
         <Button type="submit" className="h-10" disabled={save.isPending}>{save.isPending ? t('account.saving') : t('account.saveProfile')}</Button>
       </form>
     </div>

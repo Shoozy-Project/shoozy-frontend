@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Locale } from '@/lib/i18n';
 import { translate } from '@/lib/messages';
+import { isValidTunisianLocalPhone } from '@/lib/tunisian-phone';
 
 const m = (locale: Locale, key: string) => translate(locale, key);
 
@@ -31,11 +32,8 @@ export const createRegisterSchema = (locale: Locale = 'en') => z
       .email(m(locale, 'validation.emailInvalid')),
     phone: z
       .string()
-      .min(7, m(locale, 'validation.phoneShort'))
-      .max(32, m(locale, 'validation.phoneLong'))
       .optional()
-      .or(z.literal(''))
-      .transform((v) => (v === '' ? undefined : v)),
+      .refine((value) => !value || isValidTunisianLocalPhone(value), m(locale, 'validation.tunisianPhone')),
     password: z
       .string()
       .min(12, m(locale, 'validation.passwordMin'))

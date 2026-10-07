@@ -4,7 +4,7 @@ import { CatalogFilters, CatalogSortControl } from '@/components/commerce/Catalo
 import { Pagination } from '@/components/commerce/Pagination';
 import { ProductCard } from '@/components/commerce/ProductCard';
 import type { PaginatedData } from '@/types/api';
-import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogProductDto } from '@/types/commerce';
+import type { CatalogBrandDto, CatalogCategoryDto, CatalogCollectionDto, CatalogColorFilterOptionDto, CatalogProductDto } from '@/types/commerce';
 import { useTranslations } from '@/lib/hooks/use-translations';
 
 interface CatalogResultsProps {
@@ -12,12 +12,13 @@ interface CatalogResultsProps {
   brands: CatalogBrandDto[];
   categories: CatalogCategoryDto[];
   collections: CatalogCollectionDto[];
+  colors?: CatalogColorFilterOptionDto[];
   searchParams: Record<string, string | string[] | undefined>;
   pathname?: string;
   showFilters?: boolean;
 }
 
-export function CatalogResults({ result, brands, categories, collections, searchParams, pathname = '/products', showFilters = true }: CatalogResultsProps) {
+export function CatalogResults({ result, brands, categories, collections, colors = [], searchParams, pathname = '/products', showFilters = true }: CatalogResultsProps) {
   const { t } = useTranslations();
   return (
     <>
@@ -26,7 +27,7 @@ export function CatalogResults({ result, brands, categories, collections, search
         {pathname === '/products' && <CatalogSortControl />}
       </div>
       <div className={showFilters ? 'grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)]' : ''}>
-        {showFilters && <CatalogFilters brands={brands} categories={categories} collections={collections} />}
+        {showFilters && <CatalogFilters brands={brands} categories={categories} collections={collections} colors={colors} />}
         <div className="min-w-0">
           {result.items.length ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 xl:grid-cols-4">

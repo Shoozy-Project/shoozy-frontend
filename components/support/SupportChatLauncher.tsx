@@ -146,11 +146,11 @@ export function SupportChatLauncher() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-label={t('support.open')} className="fixed bottom-24 end-5 z-40 flex size-14 items-center justify-center rounded-full bg-[#FF8C00] text-white shadow-xl transition hover:scale-105 hover:bg-[#e67e00] md:bottom-5">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-label={t('support.open')} className="fixed bottom-24 end-5 z-[70] flex size-14 items-center justify-center rounded-full bg-[#FF8C00] text-white shadow-xl transition hover:scale-105 hover:bg-[#e67e00] md:bottom-5">
         {open ? <X className="size-6" /> : <MessageCircle className="size-6" />}
       </button>
       {open && (
-        <section dir={locale === 'ar' ? 'rtl' : 'ltr'} className="fixed bottom-40 end-4 z-40 flex h-[min(650px,calc(100vh-12rem))] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl md:bottom-22 md:h-[min(650px,calc(100vh-7rem))]">
+        <section dir={locale === 'ar' ? 'rtl' : 'ltr'} className="fixed bottom-40 end-4 z-[70] flex h-[min(650px,calc(100vh-12rem))] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl md:bottom-22 md:h-[min(650px,calc(100vh-7rem))]">
           <header className="flex items-center justify-between bg-neutral-950 px-4 py-3 text-white">
             <div className="flex items-center gap-2"><Headphones className="size-5 text-[#FF8C00]" /><div><h2 className="text-sm font-semibold">{t('support.title')}</h2><p className="text-[11px] text-neutral-400">{t('support.subtitle')}</p></div></div>
             {activeId && <button type="button" onClick={() => setShowNew(true)} className="rounded-full p-2 hover:bg-white/10" aria-label={t('support.newConversation')}><Plus className="size-4" /></button>}
