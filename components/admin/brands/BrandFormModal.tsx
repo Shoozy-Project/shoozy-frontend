@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Award, Loader2, UploadCloud } from 'lucide-react';
+import { Award, Loader2, Trash2, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -32,22 +32,31 @@ export default function BrandFormModal({ open, onOpenChange, editTarget }: Brand
   const queryClient = useQueryClient();
   const isEdit = Boolean(editTarget);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [showcaseImageFile, setShowcaseImageFile] = useState<File | null>(null);
+  const [showcaseRemoved, setShowcaseRemoved] = useState(false);
 
   const { register, handleSubmit, control, setValue, reset, formState: { errors } } = useForm<BrandFormInput>({
     resolver: zodResolver(schema) as import('react-hook-form').Resolver<BrandFormInput>,
-    defaultValues: { name: '', nameAr: '', slug: '', description: '', descriptionAr: '', logoUrl: '', isActive: true },
+    defaultValues: { name: '', nameAr: '', slug: '', description: '', descriptionAr: '', logoUrl: '', showcaseImageUrl: '', isActive: true },
   });
   const name = useWatch({ control, name: 'name' });
   const isActive = useWatch({ control, name: 'isActive' });
   const nameAr = useWatch({ control, name: 'nameAr' });
-  const previewUrl = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : editTarget?.logoUrl ?? null, [editTarget?.logoUrl, imageFile]);
+  const logoPreviewUrl = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : editTarget?.logoUrl ?? null, [editTarget?.logoUrl, imageFile]);
+  const showcasePreviewUrl = useMemo(
+    () => showcaseImageFile ? URL.createObjectURL(showcaseImageFile) : showcaseRemoved ? null : editTarget?.showcaseImageUrl ?? null,
+    [editTarget?.showcaseImageUrl, showcaseImageFile, showcaseRemoved],
+  );
 
-  useEffect(() => () => { if (imageFile && previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl); }, [imageFile, previewUrl]);
+  useEffect(() => () => { if (imageFile && logoPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(logoPreviewUrl); }, [imageFile, logoPreviewUrl]);
+  useEffect(() => () => { if (showcaseImageFile && showcasePreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(showcasePreviewUrl); }, [showcaseImageFile, showcasePreviewUrl]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- Opening the modal hydrates its local file state from the selected record. */
   useEffect(() => {
     if (!open) return;
     setImageFile(null);
+    setShowcaseImageFile(null);
+    setShowcaseRemoved(false);
     reset(editTarget ? {
       name: editTarget.translations?.en?.name ?? editTarget.name,
       nameAr: editTarget.translations?.ar?.name ?? '',
@@ -55,8 +64,9 @@ export default function BrandFormModal({ open, onOpenChange, editTarget }: Brand
       description: editTarget.translations?.en?.description ?? editTarget.description ?? '',
       descriptionAr: editTarget.translations?.ar?.description ?? '',
       logoUrl: editTarget.logoUrl ?? '',
+      showcaseImageUrl: editTarget.showcaseImageUrl ?? '',
       isActive: editTarget.isActive,
-    } : { name: '', nameAr: '', slug: '', description: '', descriptionAr: '', logoUrl: '', isActive: true });
+    } : { name: '', nameAr: '', slug: '', description: '', descriptionAr: '', logoUrl: '', showcaseImageUrl: '', isActive: true });
   }, [editTarget, open, reset]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -79,8 +89,11 @@ export default function BrandFormModal({ open, onOpenChange, editTarget }: Brand
         description: data.description?.trim() || null,
         isActive: data.isActive,
         translations: translations(data, !isEdit),
+        ...(showcaseRemoved ? { showcaseImageUrl: null } : {}),
       };
-      return editTarget ? brandsApi.update(editTarget.id, payload, imageFile) : brandsApi.create(payload, imageFile);
+      return editTarget
+        ? brandsApi.update(editTarget.id, payload, imageFile, showcaseImageFile)
+        : brandsApi.create(payload, imageFile, showcaseImageFile);
     },
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: ['brands'] });
@@ -90,11 +103,15 @@ export default function BrandFormModal({ open, onOpenChange, editTarget }: Brand
     onError: () => toast.error(t(editTarget ? 'admin.brandUpdateError' : 'admin.brandCreateError')),
   });
 
-  const chooseImage = (file?: File) => {
+  const chooseImage = (file: File | undefined, target: 'logo' | 'showcase') => {
     if (!file) return;
     if (!ACCEPTED_IMAGES.has(file.type)) return toast.error(t('admin.brandImageType'));
     if (file.size > 8 * 1024 * 1024) return toast.error(t('admin.brandImageSize'));
-    setImageFile(file);
+    if (target === 'logo') setImageFile(file);
+    else {
+      setShowcaseImageFile(file);
+      setShowcaseRemoved(false);
+    }
   };
 
   return (
@@ -120,10 +137,30 @@ export default function BrandFormModal({ open, onOpenChange, editTarget }: Brand
             <section className="space-y-3">
               <Label htmlFor="brand-image">{t('admin.brandLogo')} <span className="font-normal text-muted-foreground">{t('admin.optional')}</span></Label>
               <label htmlFor="brand-image" className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center hover:border-[#FF8C00]">
-                <input id="brand-image" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={save.isPending} onChange={(event) => chooseImage(event.target.files?.[0])} />
-                <UploadCloud className="mb-2 size-6 text-muted-foreground" /><span className="text-sm font-medium">{t(imageFile || previewUrl ? 'admin.replaceBrandLogo' : 'admin.uploadBrandLogo')}</span><span className="mt-1 text-xs text-muted-foreground">{t('admin.brandImageHelp')}</span>
+                <input id="brand-image" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={save.isPending} onChange={(event) => chooseImage(event.target.files?.[0], 'logo')} />
+                <UploadCloud className="mb-2 size-6 text-muted-foreground" /><span className="text-sm font-medium">{t(imageFile || logoPreviewUrl ? 'admin.replaceBrandLogo' : 'admin.uploadBrandLogo')}</span><span className="mt-1 text-xs text-muted-foreground">{t('admin.brandImageHelp')}</span>
               </label>
-              {previewUrl && <div className="relative mx-auto aspect-[2/1] w-full max-w-xs overflow-hidden rounded-lg border bg-white p-4 dark:bg-neutral-950"><Image src={previewUrl} alt={t('admin.logoPreview')} fill unoptimized className="object-contain p-4" /></div>}
+              {logoPreviewUrl && <div className="relative mx-auto aspect-[2/1] w-full max-w-xs overflow-hidden rounded-lg border bg-white p-4 dark:bg-neutral-950"><Image src={logoPreviewUrl} alt={t('admin.logoPreview')} fill unoptimized className="object-contain p-4" /></div>}
+            </section>
+
+            <section className="space-y-3">
+              <Label htmlFor="brand-showcase-image">{t('admin.brandShowcaseImage')} <span className="font-normal text-muted-foreground">{t('admin.optional')}</span></Label>
+              <label htmlFor="brand-showcase-image" className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center hover:border-[#FF8C00]">
+                <input id="brand-showcase-image" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={save.isPending} onChange={(event) => chooseImage(event.target.files?.[0], 'showcase')} />
+                <UploadCloud className="mb-2 size-6 text-muted-foreground" />
+                <span className="text-sm font-medium">{t(showcasePreviewUrl ? 'admin.replaceBrandShowcase' : 'admin.uploadBrandShowcase')}</span>
+                <span className="mt-1 text-xs text-muted-foreground">{t('admin.brandShowcaseHelp')}</span>
+              </label>
+              {showcasePreviewUrl && (
+                <div className="mx-auto w-full max-w-[220px] space-y-2">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted">
+                    <Image src={showcasePreviewUrl} alt={t('admin.showcasePreview')} fill unoptimized className="object-cover" />
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="w-full" disabled={save.isPending} onClick={() => { setShowcaseImageFile(null); setShowcaseRemoved(true); }}>
+                    <Trash2 className="size-4" aria-hidden="true" />{t('admin.removeBrandShowcase')}
+                  </Button>
+                </div>
+              )}
             </section>
 
             <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"><div><p className="text-sm font-medium">{t('admin.activeStatus')}</p><p className="text-xs text-muted-foreground">{t(isActive ? 'admin.brandActiveCopy' : 'admin.brandInactiveCopy')}</p></div><Switch checked={isActive} onCheckedChange={(value) => setValue('isActive', value)} aria-label={t('admin.toggleActiveStatus')} /></div>

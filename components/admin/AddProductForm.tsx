@@ -21,6 +21,7 @@ import { createAddProductSchema, type AddProductInput } from '@/validations/prod
 import { productsApi } from '@/lib/api/products';
 import { majorToMinorString } from '@/lib/format-money';
 import { useTranslations } from '@/lib/hooks/use-translations';
+import { commonColorHex, isColorOptionName, resolveProductColor } from '@/lib/product-colors';
 
 type ProductFormVariant = AddProductInput['variants'][number];
 
@@ -42,6 +43,14 @@ interface GalleryItem {
   isPrimary: boolean;
   colorName?: string | null;
   position: number;
+}
+
+interface ProductOptionInputState {
+  name: string;
+  nameAr: string;
+  rawValues: string;
+  rawValuesAr: string;
+  colorHexes: Array<string | null | undefined>;
 }
 
 export default function AddProductForm({ productId }: { productId?: string }) {
@@ -214,7 +223,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   }, [productId, productName, isSkuPrefixTouched, setValue]);
 
   // Manage option inputs (e.g. Size, Color)
-  const [optionInputs, setOptionInputs] = useState<{ name: string; nameAr: string; rawValues: string; rawValuesAr: string }[]>([]);
+  const [optionInputs, setOptionInputs] = useState<ProductOptionInputState[]>([]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- The remote product payload hydrates editor-only state after the query resolves. */
   useEffect(() => {
@@ -224,6 +233,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
       nameAr: option.translations?.ar?.name ?? '',
       rawValues: option.values.map((value) => value.value).join(', '),
       rawValuesAr: option.values.map((value) => value.translations?.ar?.displayValue ?? '').join('، '),
+      colorHexes: option.values.map((value) => value.colorHex),
     })));
     reset({
       name: productDetail.translations?.en?.name ?? productDetail.name,
@@ -284,7 +294,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const addOptionField = () => {
-    setOptionInputs([...optionInputs, { name: '', nameAr: '', rawValues: '', rawValuesAr: '' }]);
+    setOptionInputs([...optionInputs, { name: '', nameAr: '', rawValues: '', rawValuesAr: '', colorHexes: [] }]);
   };
 
   const removeOptionField = (index: number) => {
@@ -295,8 +305,27 @@ export default function AddProductForm({ productId }: { productId?: string }) {
 
   const handleOptionChange = (index: number, field: 'name' | 'nameAr' | 'rawValues' | 'rawValuesAr', value: string) => {
     const updated = [...optionInputs];
-    updated[index][field] = value;
+    const current = updated[index];
+    if (!current) return;
+    if (field === 'rawValues') {
+      const previousValues = current.rawValues.split(',').map((entry) => entry.trim().toLocaleLowerCase('en-US'));
+      const nextValues = value.split(',').map((entry) => entry.trim()).filter(Boolean);
+      current.colorHexes = nextValues.map((entry) => {
+        const previousIndex = previousValues.indexOf(entry.toLocaleLowerCase('en-US'));
+        return previousIndex >= 0 ? current.colorHexes[previousIndex] : undefined;
+      });
+    }
+    current[field] = value;
     setOptionInputs(updated);
+  };
+
+  const handleColorHexChange = (optionIndex: number, valueIndex: number, colorHex: string) => {
+    setOptionInputs((current) => current.map((option, index) => {
+      if (index !== optionIndex) return option;
+      const colorHexes = [...option.colorHexes];
+      colorHexes[valueIndex] = colorHex;
+      return { ...option, colorHexes };
+    }));
   };
 
   // Cartesian product helper for variants matrix
@@ -309,8 +338,7 @@ export default function AddProductForm({ productId }: { productId?: string }) {
   // Extract color values list for variant-image mapping
   const validOptionInputs = optionInputs.filter((option) => option.name.trim() !== '' && option.rawValues.trim() !== '');
   const colorOptionIndex = validOptionInputs.findIndex((option) => {
-    const name = option.name.trim().toLowerCase();
-    return name === 'color' || name === 'couleur';
+    return isColorOptionName(option.name);
   });
   const colorValues = colorOptionIndex >= 0
     ? validOptionInputs[colorOptionIndex].rawValues
@@ -598,10 +626,12 @@ export default function AddProductForm({ productId }: { productId?: string }) {
         categoryIds: data.categories,
         primaryCategoryId: data.categories[0] ?? null,
       };
+      const submittedOptionInputs = optionInputs.filter((option) => option.name.trim() !== '' && option.rawValues.trim() !== '');
       const options = data.options.map((opt, optionIndex) => {
-        const optionInput = optionInputs[optionIndex];
+        const optionInput = submittedOptionInputs[optionIndex];
         const arabicValues = (optionInput?.rawValuesAr ?? '').split(/[,،]/).map((value) => value.trim());
         const optionNameAr = optionInput?.nameAr.trim();
+        const isColorOption = isColorOptionName(opt.name);
         return {
           clientKey: optionKey(optionIndex),
           name: opt.name,
@@ -610,16 +640,21 @@ export default function AddProductForm({ productId }: { productId?: string }) {
             en: { name: opt.name },
             ...(optionNameAr ? { ar: { name: optionNameAr } } : {}),
           },
-          values: opt.values.map((value, valueIndex) => ({
-            clientKey: valueKey(optionIndex, valueIndex),
-            value,
-            displayValue: value,
-            position: valueIndex,
-            translations: {
-              en: { displayValue: value },
-              ...(arabicValues[valueIndex] ? { ar: { displayValue: arabicValues[valueIndex] } } : {}),
-            },
-          })),
+          values: opt.values.map((value, valueIndex) => {
+            const configuredColorHex = optionInput?.colorHexes[valueIndex];
+            const colorHex = isColorOption && configuredColorHex === undefined && !productId ? commonColorHex(value) : configuredColorHex;
+            return {
+              clientKey: valueKey(optionIndex, valueIndex),
+              value,
+              displayValue: value,
+              ...(isColorOption ? { colorHex } : {}),
+              position: valueIndex,
+              translations: {
+                en: { displayValue: value },
+                ...(arabicValues[valueIndex] ? { ar: { displayValue: arabicValues[valueIndex] } } : {}),
+              },
+            };
+          }),
         };
       });
       const variantsPayload = data.variants.map((variant, variantIndex) => ({
@@ -670,7 +705,8 @@ export default function AddProductForm({ productId }: { productId?: string }) {
             ?? (indexedValue && !retainedValueIds.has(indexedValue.id) ? indexedValue : undefined)
             ?? existing?.values.find((candidate) => !retainedValueIds.has(candidate.id));
           if (existingValue) retainedValueIds.add(existingValue.id);
-          return { ...(existingValue ? { id: existingValue.id } : {}), clientKey: value.clientKey, value: value.value, displayValue: value.displayValue, position: value.position, translations: value.translations };
+          const colorHex = isColorOptionName(option.name) && value.colorHex === undefined ? commonColorHex(value.value) : value.colorHex;
+          return { ...(existingValue ? { id: existingValue.id } : {}), clientKey: value.clientKey, value: value.value, displayValue: value.displayValue, ...(colorHex !== undefined ? { colorHex } : {}), position: value.position, translations: value.translations };
         });
         return {
           ...(existing ? { id: existing.id } : { clientKey: option.clientKey }),
@@ -1144,6 +1180,26 @@ export default function AddProductForm({ productId }: { productId?: string }) {
                       <label className="text-[10px] font-bold text-gray-400">{t('admin.arabicValues')}</label>
                       <input type="text" lang="ar" placeholder="مثال: أسود، أبيض — اترك المقاسات الرقمية فارغة" value={opt.rawValuesAr} onChange={(e) => handleOptionChange(index, 'rawValuesAr', e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#FF8C00] focus:outline-none" />
                     </div>
+                    {isColorOptionName(opt.name) && opt.rawValues.split(',').map((value) => value.trim()).filter(Boolean).length > 0 && (
+                      <div className="space-y-2 md:col-span-2" dir="ltr">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('admin.colorValues')}</p>
+                          <p className="text-xs text-gray-500">{t('admin.colorValuesHelp')}</p>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {opt.rawValues.split(',').map((value) => value.trim()).filter(Boolean).map((value, valueIndex) => {
+                            const colorHex = resolveProductColor(opt.colorHexes[valueIndex], value);
+                            return (
+                              <label key={`${value}-${valueIndex}`} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                                <input type="color" value={colorHex} onChange={(event) => handleColorHexChange(index, valueIndex, event.target.value)} className="size-8 cursor-pointer rounded border-0 bg-transparent p-0" aria-label={t('admin.colorValueFor', { name: value })} />
+                                <span className="min-w-0 flex-1 truncate font-medium">{value}</span>
+                                <code className="text-xs text-gray-500">{colorHex.toUpperCase()}</code>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Button 
                     type="button" 

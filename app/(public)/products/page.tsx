@@ -43,10 +43,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     loaded = null;
   }
   if (!loaded) return <div className="mx-auto max-w-3xl px-4 pb-24 pt-40 text-center"><h1 className="font-serif text-4xl">{t('catalog.unavailable')}</h1><p className="mt-3 text-muted-foreground">{t('catalog.unavailableCopy')}</p></div>;
-  return <div className="mx-auto max-w-7xl px-4 pb-20 pt-40 sm:px-6 lg:px-8"><div className="mb-10 max-w-2xl"><p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{t('catalog.kicker')}</p><h1 className="mt-3 font-serif text-4xl md:text-5xl">{t('catalog.title')}</h1>{typeof params.search === 'string' && <p className="mt-3 text-muted-foreground">{t('catalog.resultsFor', { search: params.search })}</p>}</div><CatalogResults result={loaded.result} brands={loaded.brands} categories={loaded.categories} collections={loaded.collections} searchParams={params} /></div>;
+  return <div className="mx-auto max-w-7xl px-4 pb-20 pt-40 sm:px-6 lg:px-8"><div className="mb-10 max-w-2xl"><p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{t('catalog.kicker')}</p><h1 className="mt-3 font-serif text-4xl md:text-5xl">{t('catalog.title')}</h1>{typeof params.search === 'string' && <p className="mt-3 text-muted-foreground">{t('catalog.resultsFor', { search: params.search })}</p>}</div><CatalogResults result={loaded.result} brands={loaded.brands} categories={loaded.categories} collections={loaded.collections} colors={loaded.filters.colors} searchParams={params} /></div>;
 }
 
 async function loadProductsPage(params: Record<string, string | string[] | undefined>) {
-  const [result, brands, categories, collections] = await Promise.all([serverCatalog.products(catalogQuery(params)), serverCatalogEntities.brands(), serverCatalogEntities.categories(), serverCatalogEntities.collections()]);
-  return { result, brands, categories, collections };
+  const [result, filters, brands, categories, collections] = await Promise.all([serverCatalog.products(catalogQuery(params)), serverCatalog.filters(), serverCatalogEntities.brands(), serverCatalogEntities.categories(), serverCatalogEntities.collections()]);
+  return { result, filters, brands, categories, collections };
 }

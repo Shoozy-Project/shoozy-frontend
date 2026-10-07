@@ -32,6 +32,7 @@ export interface CatalogCategoryDto extends CatalogEntityDto {
 export interface CatalogBrandDto extends CatalogEntityDto {
   description: string | null;
   logoUrl: string | null;
+  showcaseImageUrl: string | null;
   productCount: number;
 }
 
@@ -91,8 +92,21 @@ export interface CatalogProductDto {
   brand: CatalogEntityDto;
   categories: Array<CatalogEntityDto & { isPrimary: boolean }>;
   primaryMedia: CatalogMediaDto | null;
+  previewImages?: CatalogMediaDto[];
   previewVideo?: CatalogMediaDto | null;
   secondaryMedia?: CatalogMediaDto | null;
+  previewColors?: CatalogColorFilterOptionDto[];
+  colorCount?: number;
+}
+
+export interface CatalogColorFilterOptionDto {
+  value: string;
+  displayValue: string;
+  colorHex: string | null;
+}
+
+export interface CatalogFiltersDto {
+  colors: CatalogColorFilterOptionDto[];
 }
 
 export interface CatalogOptionValueDto {
@@ -123,7 +137,7 @@ export interface CatalogVariantDto {
   optionValues: CatalogOptionValueDto[];
 }
 
-export interface CatalogProductDetailDto extends Omit<CatalogProductDto, 'minimumVariantPriceMinor' | 'inStock' | 'primaryMedia' | 'previewVideo' | 'secondaryMedia'> {
+export interface CatalogProductDetailDto extends Omit<CatalogProductDto, 'minimumVariantPriceMinor' | 'inStock' | 'primaryMedia' | 'previewImages' | 'previewVideo' | 'secondaryMedia' | 'previewColors' | 'colorCount'> {
   description: string | null;
   material: string | null;
   seoTitle: string | null;
@@ -324,6 +338,8 @@ export interface GuestCheckoutInput {
   area?: string | null;
   postalCode?: string | null;
   countryCode: 'TN';
+  latitude?: string | null;
+  longitude?: string | null;
   shippingMethodId: string;
 }
 

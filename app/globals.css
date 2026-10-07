@@ -80,6 +80,29 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.leaflet-container {
+  background: var(--muted);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  z-index: 0;
+}
+
+.shoozy-location-marker {
+  background: transparent;
+  border: 0;
+}
+
+.shoozy-location-marker span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 4px solid white;
+  border-radius: 50% 50% 50% 0;
+  background: #ff8c00;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+  transform: rotate(-45deg);
+}
+
 /* ─── Dark Theme ────────────────────────────────────────────── */
 html.dark {
   color-scheme: dark;

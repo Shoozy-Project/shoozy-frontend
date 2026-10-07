@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { Playfair_Display, Geist } from 'next/font/google';
 import Script from 'next/script';
+import 'leaflet/dist/leaflet.css';
 import './globals.css';
 import SplashScreenWrapper from '@/components/SplashScreenWrapper';
 import { QueryProvider } from '@/providers/query-provider';

@@ -4,7 +4,7 @@ import { useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { SwiperRef } from 'swiper/react';
-import { Autoplay } from 'swiper/modules';
+import { Autoplay, FreeMode, Mousewheel } from 'swiper/modules';
 import 'swiper/css';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { HoverMedia } from '@/components/commerce/HoverMedia';
@@ -26,6 +26,12 @@ export default function CollectionsCarousel() {
 
   // Filter only active collections
   const activeCollections = collections?.filter((c) => c.isActive) || [];
+  const carouselCollections = activeCollections.length > 1 && activeCollections.length < 16
+    ? Array.from({ length: 16 }, (_, index) => activeCollections[index % activeCollections.length])
+    : activeCollections;
+  const collectionInitialSlide = activeCollections.length > 0 && carouselCollections.length > activeCollections.length
+    ? Math.floor(carouselCollections.length / (activeCollections.length * 2)) * activeCollections.length
+    : 0;
 
   return (
     <section className="bg-background py-16 md:py-24 overflow-hidden">
@@ -81,8 +87,9 @@ export default function CollectionsCarousel() {
           `}</style>
           
           <Swiper
+            key={isLoading ? 'collections-loading' : `${activeCollections.map((collection) => collection.id).join(':')}:${carouselCollections.length}`}
             ref={swiperRef}
-            modules={[Autoplay]}
+            modules={[Autoplay, FreeMode, Mousewheel]}
             spaceBetween={12}
             breakpoints={{
               768: {
@@ -90,25 +97,45 @@ export default function CollectionsCarousel() {
               }
             }}
             slidesPerView="auto"
-            loop={true}
-            speed={8000}
+            initialSlide={isLoading ? 8 : collectionInitialSlide}
+            loop={isLoading || carouselCollections.length > 1}
+            loopAdditionalSlides={4}
+            loopPreventsSliding={false}
+            speed={4500}
             autoplay={{
               delay: 0,
               disableOnInteraction: false,
-              pauseOnMouseEnter: true,
+              pauseOnMouseEnter: false,
+              stopOnLastSlide: false,
             }}
+            freeMode={{
+              enabled: true,
+              momentum: true,
+              momentumRatio: 0.65,
+              momentumBounce: false,
+            }}
+            mousewheel={{
+              forceToAxis: true,
+              releaseOnEdges: false,
+              sensitivity: 0.75,
+            }}
+            grabCursor
+            simulateTouch
+            allowTouchMove
+            preventClicks
+            preventClicksPropagation
             className="collections-swiper overflow-visible"
           >
             {isLoading ? (
               /* Skeletons */
-              Array.from({ length: 4 }).map((_, i) => (
+              Array.from({ length: 16 }).map((_, i) => (
                 <SwiperSlide key={i} className="!w-[45vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto">
                   <div className="aspect-[3/4] bg-neutral-100 dark:bg-neutral-900 animate-pulse" />
                 </SwiperSlide>
               ))
             ) : activeCollections.length > 0 ? (
-              activeCollections.map((collection) => (
-                <SwiperSlide key={collection.id} className="!w-[45vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto group cursor-pointer relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
+              carouselCollections.map((collection, index) => (
+                <SwiperSlide key={`${collection.id}-${index}`} className="!w-[45vw] sm:!w-[42vw] lg:!w-[28vw] xl:!w-[24vw] !h-auto group relative overflow-hidden aspect-[3/4] bg-neutral-100 dark:bg-neutral-900">
                   <Link href={`/collections/${collection.slug}`} className="block absolute inset-0 w-full h-full">
                     <HoverMedia imageUrl={collection.imageUrl} videoUrl={collection.videoUrl} videoMimeType={collection.videoMimeType} alt={collection.name} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" mediaClassName="object-cover object-center" />
                     
