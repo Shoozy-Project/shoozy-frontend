@@ -10,6 +10,7 @@ import { formatMinorMoney } from '@/lib/format-money';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth-store';
 import type { OrderDetailDto } from '@/types/commerce';
 import { useTranslations } from '@/lib/hooks/use-translations';
+import { OrderItemThumbnail } from '@/components/commerce/OrderItemThumbnail';
 
 interface StoredSuccess { order: OrderDetailDto; whatsappConfirmation: { enabled: boolean; url: string | null } }
 
@@ -48,7 +49,7 @@ export function OrderSuccessClient({ orderNumber }: { orderNumber: string }) {
       <div className="mt-10 rounded-xl border p-5 sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-sm text-muted-foreground">{t('order.status')}</p><p className="mt-1 font-medium">{t(`status.${value.status}`)}</p></div><div className="text-end"><p className="text-sm text-muted-foreground">{t('checkout.totalDelivery')}</p><p className="mt-1 text-xl font-semibold">{formatMinorMoney(value.totals.totalMinor, value.totals.currency, 3, intlLocale)}</p></div></div>
         <div className="mt-6 rounded-lg bg-muted p-4"><p className="font-medium">{t('checkout.cod')}</p><p className="mt-1 text-sm text-muted-foreground">{t('order.codCopy')}</p></div>
-        <div className="mt-6 space-y-3 border-t pt-5">{value.items.map((item) => <div key={item.id} className="flex justify-between gap-4 text-sm"><span>{item.productName} · {item.variantName} × {item.quantity}</span><span>{formatMinorMoney(item.lineTotalMinor, value.totals.currency, 3, intlLocale)}</span></div>)}</div>
+        <div className="mt-6 space-y-3 border-t pt-5">{value.items.map((item) => <div key={item.id} className="flex items-center justify-between gap-4 text-sm"><div className="flex min-w-0 items-center gap-3"><OrderItemThumbnail imageUrl={item.imageUrl} productName={item.productName} /><span>{item.productName} · {item.variantName} × {item.quantity}</span></div><span className="shrink-0">{formatMinorMoney(item.lineTotalMinor, value.totals.currency, 3, intlLocale)}</span></div>)}</div>
         {value.address && <div className="mt-6 border-t pt-5 text-sm"><p className="font-medium">{t('order.deliveryAddress')}</p><p className="mt-1 text-muted-foreground">{value.address.recipientName}<br />{value.address.line1}{value.address.line2 ? `, ${value.address.line2}` : ''}<br />{[value.address.area, value.address.city, value.address.state].filter(Boolean).join(', ')}</p></div>}
       </div>
       <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">

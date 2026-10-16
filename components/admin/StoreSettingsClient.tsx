@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { isAxiosError } from 'axios';
 import { storeSettingsApi } from '@/lib/api/store-settings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,29 +24,31 @@ const createSettingsSchema = (t: (key: string) => string) => z.object({
   whatsappConfirmationEnabled: z.boolean(),
 });
 type SettingsForm = z.infer<ReturnType<typeof createSettingsSchema>>;
-const inputClassName = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-gray-900 outline-none transition focus:border-[#FF8C00] focus:ring-2 focus:ring-[#FF8C00]/10 disabled:bg-gray-50 disabled:text-gray-500';
+const defaultValues: SettingsForm = { storeName: '', whatsappNumber: '', supportPhone: '', supportEmail: '', shippingPolicy: '', returnWindowDays: '14', exchangeWindowDays: '14', whatsappConfirmationEnabled: false };
+const inputClassName = 'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal normal-case tracking-normal text-foreground outline-none transition focus:border-[#FF8C00] focus:ring-2 focus:ring-[#FF8C00]/10 disabled:bg-muted disabled:text-muted-foreground';
+const toFormValues = (value: Awaited<ReturnType<typeof storeSettingsApi.get>>['data']['data']): SettingsForm => ({
+  storeName: value.storeName,
+  whatsappNumber: value.whatsappNumber ?? '',
+  supportPhone: value.supportPhone ?? '',
+  supportEmail: value.supportEmail ?? '',
+  shippingPolicy: value.shippingPolicy ?? '',
+  returnWindowDays: String(value.returnWindowDays),
+  exchangeWindowDays: String(value.exchangeWindowDays),
+  whatsappConfirmationEnabled: value.whatsappConfirmationEnabled,
+});
 
 export default function StoreSettingsClient() {
   const { t } = useTranslations();
   const settingsSchema = useMemo(() => createSettingsSchema(t), [t]);
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ['store-settings'], queryFn: () => storeSettingsApi.get().then((response) => response.data.data) });
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<SettingsForm>({
+  const { register, handleSubmit, reset, setError, formState: { errors, isDirty } } = useForm<SettingsForm>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { storeName: '', whatsappNumber: '', supportPhone: '', supportEmail: '', shippingPolicy: '', returnWindowDays: '14', exchangeWindowDays: '14', whatsappConfirmationEnabled: false },
+    defaultValues,
   });
   useEffect(() => {
     if (!query.data) return;
-    reset({
-      storeName: query.data.storeName,
-      whatsappNumber: query.data.whatsappNumber ?? '',
-      supportPhone: query.data.supportPhone ?? '',
-      supportEmail: query.data.supportEmail ?? '',
-      shippingPolicy: query.data.shippingPolicy ?? '',
-      returnWindowDays: String(query.data.returnWindowDays),
-      exchangeWindowDays: String(query.data.exchangeWindowDays),
-      whatsappConfirmationEnabled: query.data.whatsappConfirmationEnabled,
-    });
+    reset(toFormValues(query.data));
   }, [query.data, reset]);
   const mutation = useMutation({
     mutationFn: (values: SettingsForm) => storeSettingsApi.update({
@@ -60,15 +63,36 @@ export default function StoreSettingsClient() {
     }),
     onSuccess: (response) => {
       queryClient.setQueryData(['store-settings'], response.data.data);
+      reset(toFormValues(response.data.data));
       toast.success(t('admin.settingsSaved'));
     },
-    onError: () => toast.error(t('admin.settingsSaveError')),
+    onError: (error) => {
+      const details = isAxiosError(error)
+        ? (error.response?.data as { error?: { details?: { issues?: Array<{ path?: unknown[]; message?: string }> } } } | undefined)?.error?.details
+        : undefined;
+      for (const issue of details?.issues ?? []) {
+        const field = issue.path?.at(-1);
+        if (typeof field === 'string' && field in defaultValues && issue.message) {
+          setError(field as keyof SettingsForm, { type: 'server', message: issue.message });
+        }
+      }
+      toast.error(t('admin.settingsSaveError'));
+    },
   });
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!isDirty || mutation.isPending) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty, mutation.isPending]);
   if (query.isPending) return <div className="py-24 flex justify-center"><Loader2 className="w-7 h-7 animate-spin text-[#FF8C00]" /></div>;
-  if (query.isError) return <div className="p-8 border rounded-lg bg-white text-sm text-red-600">{t('admin.settingsLoadError')} <Button variant="outline" size="sm" className="ms-3" onClick={() => query.refetch()}>{t('common.retry')}</Button></div>;
+  if (query.isError) return <div className="p-8 border rounded-lg bg-background text-sm text-red-600 dark:text-red-400">{t('admin.settingsLoadError')} <Button variant="outline" size="sm" className="ms-3" onClick={() => query.refetch()}>{t('common.retry')}</Button></div>;
 
   return <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="space-y-6 max-w-4xl">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><h1 className="text-2xl font-bold flex items-center gap-2"><Settings className="w-6 h-6 text-[#FF8C00]" />{t('admin.storeSettings')}</h1><p className="text-sm text-gray-500 mt-1">{t('admin.storeSettingsCopy')}</p></div><Button type="submit" disabled={mutation.isPending} className="bg-[#FF8C00] hover:bg-[#e67e00] text-white">{mutation.isPending ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Save className="w-4 h-4 me-2" />}{t('admin.saveChanges')}</Button></div>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><h1 className="text-2xl font-bold flex items-center gap-2"><Settings className="w-6 h-6 text-[#FF8C00]" />{t('admin.storeSettings')}</h1><p className="text-sm text-muted-foreground mt-1">{t('admin.storeSettingsCopy')}</p></div><Button type="submit" disabled={mutation.isPending || !isDirty} className="bg-[#FF8C00] hover:bg-[#e67e00] text-white">{mutation.isPending ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Save className="w-4 h-4 me-2" />}{t('admin.saveChanges')}</Button></div>
     <Card><CardHeader><CardTitle>{t('admin.generalStoreDetails')}</CardTitle><CardDescription>{t('admin.generalStoreDetailsCopy')}</CardDescription></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field label={t('admin.storeName')} error={errors.storeName?.message}><input {...register('storeName')} className={inputClassName} /></Field>
       <Field label={t('admin.supportEmail')} error={errors.supportEmail?.message}><input type="email" {...register('supportEmail')} className={inputClassName} /></Field>
@@ -82,5 +106,5 @@ export default function StoreSettingsClient() {
 }
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return <label className="space-y-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500">{label}{children}{error && <span className="block normal-case tracking-normal text-red-500">{error}</span>}</label>;
+  return <label className="space-y-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}{children}{error && <span className="block normal-case tracking-normal text-red-500 dark:text-red-400">{error}</span>}</label>;
 }
