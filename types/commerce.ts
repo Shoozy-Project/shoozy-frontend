@@ -426,6 +426,7 @@ export interface OrderDetailDto extends Omit<OrderListDto, 'itemCount'> {
     discountMinor: string;
     lineTotalMinor: string;
     snapshotJson: unknown;
+    imageUrl: string | null;
   }>;
   discounts: Array<{ discountId: string; name: string; code: string | null; amountMinor: string; redeemedAt: string }>;
   statusHistory: Array<{ id: string; fromStatus: OrderStatus | null; toStatus: OrderStatus; createdAt: string }>;

@@ -8,10 +8,11 @@ import { Mail } from 'lucide-react';
 import { createForgotPasswordSchema, type ForgotPasswordInput } from '@/validations/auth';
 import { authApi } from '@/lib/api/auth';
 import { useTranslations } from '@/lib/hooks/use-translations';
+import { isAxiosError } from 'axios';
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState('');
+  const [serverError, setServerError] = useState<string | null>(null);
   const { locale, t } = useTranslations();
   const forgotPasswordSchema = useMemo(() => createForgotPasswordSchema(locale), [locale]);
 
@@ -24,12 +25,15 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (data: ForgotPasswordInput) => {
+    setServerError(null);
     try {
       await authApi.forgotPassword(data.email);
-    } finally {
-      // Always show success (enumeration-safe — backend returns 202 regardless)
-      setSubmittedEmail(data.email);
       setSubmitted(true);
+    } catch (error) {
+      const code = isAxiosError(error) ? error.response?.data?.error?.code : undefined;
+      setServerError(code === 'AUTH_RATE_LIMITED'
+        ? t('auth.rateLimited')
+        : isAxiosError(error) && !error.response ? t('auth.networkError') : t('auth.genericError'));
     }
   };
 
@@ -43,7 +47,7 @@ export default function ForgotPasswordPage() {
           {t('auth.checkEmail')}
         </h1>
         <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-sm mb-6">
-          {t('auth.forgotSent', { email: submittedEmail })}
+          {t('auth.forgotSent')}
         </p>
         <p className="text-xs text-[var(--text-faint)] mb-8">
           {t('auth.checkSpam')}
@@ -75,6 +79,7 @@ export default function ForgotPasswordPage() {
         noValidate
         className="flex flex-col gap-6"
       >
+        {serverError && <p role="alert" className="text-sm text-[#dc2626]">{serverError}</p>}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="forgot-email" className="text-xs font-semibold tracking-widest uppercase text-[var(--text-secondary)]">
             {t('auth.email')}

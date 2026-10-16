@@ -30,7 +30,7 @@ export interface OrderListDto {
 }
 
 export interface OrderDetailDto extends Omit<OrderListDto, 'itemCount'> {
-  customerEmail: string;
+  customerEmail: string | null;
   customerPhone: string;
   customerFirstName: string;
   customerLastName: string;
@@ -48,7 +48,7 @@ export interface OrderDetailDto extends Omit<OrderListDto, 'itemCount'> {
   items: Array<{
     id: string; productId: string; variantId: string; productName: string; variantName: string;
     sku: string; quantity: number; unitPriceMinor: string; discountMinor: string;
-    lineTotalMinor: string; snapshotJson: unknown;
+    lineTotalMinor: string; snapshotJson: unknown; imageUrl: string | null;
   }>;
   discounts: Array<{ discountId: string; name: string; code: string | null; amountMinor: string; redeemedAt: string }>;
   statusHistory: Array<{ id: string; fromStatus: OrderStatus | null; toStatus: OrderStatus; createdAt: string }>;

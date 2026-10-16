@@ -22,6 +22,13 @@ export function AdminSupportInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reply, setReply] = useState('');
 
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('conversation');
+    if (!requested || !/^[0-9a-f-]{36}$/i.test(requested)) return;
+    const timer = window.setTimeout(() => setSelectedId(requested), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const list = useQuery({
     queryKey: ['admin-support', 'list', page, status, unreadOnly, debouncedSearch],
     queryFn: () => adminSupportApi.list({ page, limit: 20, ...(status ? { status } : {}), ...(unreadOnly ? { unreadOnly: true } : {}), ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}) }),

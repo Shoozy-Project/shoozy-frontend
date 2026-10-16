@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Locale } from '@/lib/i18n';
 import { translate } from '@/lib/messages';
 import { isValidTunisianLocalPhone } from '@/lib/tunisian-phone';
+import { withinBcryptByteLimit } from '@/lib/password-length';
 
 const m = (locale: Locale, key: string) => translate(locale, key);
 
@@ -37,7 +38,8 @@ export const createRegisterSchema = (locale: Locale = 'en') => z
     password: z
       .string()
       .min(12, m(locale, 'validation.passwordMin'))
-      .max(72, m(locale, 'validation.passwordMax')),
+      .max(72, m(locale, 'validation.passwordMax'))
+      .refine(withinBcryptByteLimit, m(locale, 'validation.passwordBytes')),
     confirmPassword: z.string().min(1, m(locale, 'validation.passwordConfirm')),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -59,7 +61,8 @@ export const createResetPasswordSchema = (locale: Locale = 'en') => z
     newPassword: z
       .string()
       .min(12, m(locale, 'validation.passwordMin'))
-      .max(72, m(locale, 'validation.passwordMax')),
+      .max(72, m(locale, 'validation.passwordMax'))
+      .refine(withinBcryptByteLimit, m(locale, 'validation.passwordBytes')),
     confirmPassword: z.string().min(1, m(locale, 'validation.passwordConfirm')),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

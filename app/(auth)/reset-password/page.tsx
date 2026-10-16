@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { createResetPasswordSchema, type ResetPasswordInput } from '@/validations/auth';
@@ -16,6 +16,7 @@ import { useTranslations } from '@/lib/hooks/use-translations';
 type State = 'form' | 'success' | 'invalid' | 'expired' | 'used';
 
 function ResetPasswordForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [state, setState] = useState<State>(token ? 'form' : 'invalid');
@@ -34,6 +35,12 @@ function ResetPasswordForm() {
 
   const newPasswordValue = useWatch({ control, name: 'newPassword' }) ?? '';
 
+  useEffect(() => {
+    if (state !== 'success') return;
+    const timer = window.setTimeout(() => router.replace('/login'), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [router, state]);
+
   const onSubmit = async (data: ResetPasswordInput) => {
     if (!token) return;
     setServerError(null);
@@ -43,10 +50,14 @@ function ResetPasswordForm() {
       setState('success');
     } catch (err) {
       if (isAxiosError(err)) {
+        if (!err.response) {
+          setServerError(t('auth.networkError'));
+          return;
+        }
         const code = err.response?.data?.error?.code;
         if (code === 'AUTH_TOKEN_EXPIRED') setState('expired');
         else if (code === 'AUTH_TOKEN_USED') setState('used');
-        else if (code === 'TOKEN_INVALID') setState('invalid');
+        else if (code === 'AUTH_RESET_TOKEN_INVALID' || code === 'TOKEN_INVALID') setState('invalid');
         else setServerError(t('auth.genericError'));
       } else {
         setServerError(t('auth.networkError'));
@@ -66,6 +77,7 @@ function ResetPasswordForm() {
         <p className="text-sm text-[var(--text-muted)] mb-8">
           {t('auth.passwordUpdatedCopy')}
         </p>
+        <p className="mb-5 text-xs text-[var(--text-faint)]">{t('auth.redirectingLogin')}</p>
         <Link
           href="/login"
           className="inline-flex items-center justify-center px-8 py-3 text-xs font-semibold tracking-widest uppercase bg-[var(--text-primary)] text-[var(--surface-primary)] hover:opacity-90 transition-opacity"
